@@ -115,11 +115,52 @@ function parseIP4Address(ip)
 end
 
 --- Parses a string to an IPv6 address
+-- Supports shortened address notation ('::')
 -- @param address in string format
 -- @return address in ipv6_address format
 function parseIP6Address(ip)
-	-- TODO: better parsing (shortened addresses)
-	local bytes = { ip:match('(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x)') }
+	local lhs, rhs, bytes
+	lhs, rhs = ip:match('(.*)::(.*)')
+	if lhs == nil then --no shortened notation
+		bytes = { ip:match('(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x):(%x%x)(%x%x)') }
+	else
+		local lhsLength, rhsLength, zerosLength
+		local i = 1
+		while true do
+			bytes[i], lhs = lhs[0]:match('(%x*):(.*)')
+			if bytes[i] == nil then
+				bytes[i] = lhs[0]:match('(%x*)')
+				break
+			end
+			i = i + 1
+		end
+		lhsLength = i
+		i = i + 1
+		
+		while true do
+			bytes[i], rhs = rhs[0]:match('(%x*):(.*)')
+			if bytes[i] == nil then
+				bytes[i] = rhs[0]:match('(%x*)')
+				break
+			end
+			i = i + 1
+		end
+		rhsLength = i - lhsLength
+		zerosLength = 16 - (lhsLength + rhsLength)
+		
+		--fill bytes
+		i = 1
+		for i = 1, i <= lhsLength do
+			bytes[i] = lhs[i]
+		end
+		for i = i, i <= zerosLength + lhsLength do
+			bytes[i] = 0
+		end
+		for i = i, i <= rhsLength + zerosLength + lhsLength do
+			bytes[i] = rhs[i - (zerosLength + lhsLength)]
+		end
+	end
+	
 	if #bytes ~= 16 then
 		error("bad IPv6 format")
 	end
