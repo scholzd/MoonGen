@@ -67,8 +67,10 @@ function loadSlave(port, queue, minA, numIPs)
 		end
 
 		pkt:fill{ ethSrc="90:e2:ba:2c:cb:02", ethDst="90:e2:ba:35:b5:81", 
-				  ipSrc="192.168.1.1", 
-				  ip6Src="fd06::1",
+--				  ipSrc="192.168.1.1", 
+--				  ip6Src="fd06:0000:0000:0001::1",
+				  ipDst="10.0.0.2",
+				  ip6Dst="fd06::2",
 				  pktLength=packetLen }
 	end)
 
@@ -93,8 +95,8 @@ function loadSlave(port, queue, minA, numIPs)
 			end
 			
 			--increment IP
-			pkt.ip.dst:set(minIP)
-			pkt.ip.dst:add(counter)
+			pkt.ip.src:set(minIP)
+			pkt.ip.src:add(counter)
 			if numIPs <= 32 then
 				counter = (counter + 1) % numIPs
 			else 
