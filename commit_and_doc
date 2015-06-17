@@ -1,0 +1,27 @@
+#!/bin/sh
+
+echo "Committing actual changes"
+git commit
+
+echo "Generating documentation"
+doxygen
+
+echo "Switching to doc branch"
+git checkout only_for_doc
+
+echo "Merge changes"
+git merge doxygen_docu
+
+echo "Adding doc/html/"
+git add doc/html/
+
+echo "Commiting doc/html/"
+git commit -m "Commiting documentation"
+
+echo "Pushing documentation"
+git subtree push --prefix doc/html/ origin gh-pages
+
+echo "Changing back to initial branch"
+git checkout "doxygen_docu"
+
+echo "All done"
