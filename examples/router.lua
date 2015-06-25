@@ -110,10 +110,10 @@ function slave(lpmTable, distributor, rxQueues, maxBurstSize)
         in_mask:clearAll()
         in_mask:setN(nrx)
 
-        bufs:checkValidIPv4(in_mask, in_mask)
+        bufs:checkValidIPv4(in_mask, out_mask)
 
         -- Decrement TTL, and detect packets with TTL <=1
-        lpm.decrementTTL(bufs, in_mask, in_mask)
+        lpm.decrementTTL(bufs, out_mask, out_mask)
         -- TODO: the right place would be in memory.lua
         --  but masks might confuse
         
@@ -122,7 +122,7 @@ function slave(lpmTable, distributor, rxQueues, maxBurstSize)
         -- ---
 
         -- Do the lookup for the whole burst:
-        lpmTable:lookupBurst(bufs, in_mask, out_mask, entries)
+        lpmTable:lookupBurst(bufs, out_mask, out_mask, entries)
 
         -- Apply the routes
         -- (write destination mac address to packets)
@@ -136,7 +136,13 @@ function slave(lpmTable, distributor, rxQueues, maxBurstSize)
         distributor:send(bufs, out_mask, entries)
 
         -- Free all packets, which we could not send
-        bufs:freeMask(bitmask.bnot(out_mask, out_mask))
+        --print("--2:")
+        --out_mask:printout()
+        bitmask.bnot(out_mask, out_mask)
+        bitmask.band(out_mask, in_mask, out_mask)
+        --print("--3:")
+        --out_mask:printout()
+        bufs:freeMask(out_mask)
 
         -- nrxmax is used to estimate the workload of this core
         if (nrx > nrxmax) then

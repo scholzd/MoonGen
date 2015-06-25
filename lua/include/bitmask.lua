@@ -113,6 +113,16 @@ do
 	end
 end
 
+function mg_bitMask:printout()
+  for i, v in ipairs(self) do
+    if(v) then
+      printf("%d->1", i)
+    else
+      printf("%d->0", i)
+    end
+  end
+end
+
 --- Bitwise and
 -- @param mask1
 -- @param mask2

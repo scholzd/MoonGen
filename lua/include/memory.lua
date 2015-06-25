@@ -296,34 +296,34 @@ end
 function bufArray:freeMask(bitmask)
 	for i = 0, self.size - 1 do
 		if bitmask[i+1] then
-			print("free buf nr " .. tostring(i+1))
+			--print("free buf nr " .. tostring(i+1))
 			dpdkc.rte_pktmbuf_free_export(self.array[i])
 			self.array[i] = nil -- TODO is this needed, or only for safety?
 		end
 	end
 end
 
-mod.PKT_RX_VLAN_PKT      0x0001 --/**< RX packet is a 802.1q VLAN packet. */
-mod.PKT_RX_RSS_HASH      0x0002 --/**< RX packet with RSS hash result. */
-mod.PKT_RX_FDIR          0x0004 --/**< RX packet with FDIR infos. */
-mod.PKT_RX_L4_CKSUM_BAD  0x0008 --/**< L4 cksum of RX pkt. is not OK. */
-mod.PKT_RX_IP_CKSUM_BAD  0x0010 --/**< IP cksum of RX pkt. is not OK. */
-mod.PKT_RX_EIP_CKSUM_BAD 0x0000 --/**< External IP header checksum error. */
-mod.PKT_RX_OVERSIZE      0x0000 --/**< Num of desc of an RX pkt oversize. */
-mod.PKT_RX_HBUF_OVERFLOW 0x0000 --/**< Header buffer overflow. */
-mod.PKT_RX_RECIP_ERR     0x0000 --/**< Hardware processing error. */
-mod.PKT_RX_MAC_ERR       0x0000 --/**< MAC error. */
-mod.PKT_RX_IPV4_HDR      0x0020 --/**< RX packet with IPv4 header. */
-mod.PKT_RX_IPV4_HDR_EXT  0x0040 --/**< RX packet with extended IPv4 header. */
-mod.PKT_RX_IPV6_HDR      0x0080 --/**< RX packet with IPv6 header. */
-mod.PKT_RX_IPV6_HDR_EXT  0x0100 --/**< RX packet with extended IPv6 header. */
-mod.PKT_RX_IEEE1588_PTP  0x0200 --/**< RX IEEE1588 L2 Ethernet PT Packet. */
-mod.PKT_RX_IEEE1588_TMST 0x0400 --/**< RX IEEE1588 L2/L4 timestamped packet.*/
+mod.PKT_RX_VLAN_PKT      = 0x0001 --/**< RX packet is a 802.1q VLAN packet. */
+mod.PKT_RX_RSS_HASH      = 0x0002 --/**< RX packet with RSS hash result. */
+mod.PKT_RX_FDIR          = 0x0004 --/**< RX packet with FDIR infos. */
+mod.PKT_RX_L4_CKSUM_BAD  = 0x0008 --/**< L4 cksum of RX pkt. is not OK. */
+mod.PKT_RX_IP_CKSUM_BAD  = 0x0010 --/**< IP cksum of RX pkt. is not OK. */
+mod.PKT_RX_EIP_CKSUM_BAD = 0x0000 --/**< External IP header checksum error. */
+mod.PKT_RX_OVERSIZE      = 0x0000 --/**< Num of desc of an RX pkt oversize. */
+mod.PKT_RX_HBUF_OVERFLOW = 0x0000 --/**< Header buffer overflow. */
+mod.PKT_RX_RECIP_ERR     = 0x0000 --/**< Hardware processing error. */
+mod.PKT_RX_MAC_ERR       = 0x0000 --/**< MAC error. */
+mod.PKT_RX_IPV4_HDR      = 0x0020 --/**< RX packet with IPv4 header. */
+mod.PKT_RX_IPV4_HDR_EXT  = 0x0040 --/**< RX packet with extended IPv4 header. */
+mod.PKT_RX_IPV6_HDR      = 0x0080 --/**< RX packet with IPv6 header. */
+mod.PKT_RX_IPV6_HDR_EXT  = 0x0100 --/**< RX packet with extended IPv6 header. */
+mod.PKT_RX_IEEE1588_PTP  = 0x0200 --/**< RX IEEE1588 L2 Ethernet PT Packet. */
+mod.PKT_RX_IEEE1588_TMST = 0x0400 --/**< RX IEEE1588 L2/L4 timestamped packet.*/
 
-mod.PKT_TX_VLAN_PKT      0x0800 --/**< TX packet is a 802.1q VLAN packet. */
-mod.PKT_TX_IP_CKSUM      0x1000 --/**< IP cksum of TX pkt. computed by NIC. */
-mod.PKT_TX_IPV4_CSUM     0x1000 --/**< Alias of PKT_TX_IP_CKSUM. */
-mod.PKT_TX_NO_CRC_CSUM   0x0001 --/**< Disable CRC calculation. Note: overlaps with RX_VLAN_PKT. */
+mod.PKT_TX_VLAN_PKT      = 0x0800 --/**< TX packet is a 802.1q VLAN packet. */
+mod.PKT_TX_IP_CKSUM      = 0x1000 --/**< IP cksum of TX pkt. computed by NIC. */
+mod.PKT_TX_IPV4_CSUM     = 0x1000 --/**< Alias of PKT_TX_IP_CKSUM. */
+mod.PKT_TX_NO_CRC_CSUM   = 0x0001 --/**< Disable CRC calculation. Note: overlaps with RX_VLAN_PKT. */
 
 
 function bOrAll(first, ...)
@@ -335,15 +335,39 @@ function bOrAll(first, ...)
 end
 
 function bufArray:checkValidIPv4(in_mask, out_mask)
+	-- Things to check here (http://www.freesoft.org/CIE/RFC/1812/94.htm):
+    --	- The packet length reported by the Link Layer must be large enough to
+	--	  hold the minimum length legal IP datagram (20 bytes).
+	--	  -> read from pkt.data_len
+    --	- The IP checksum must be correct.
+	--	  -> checked in hardware, here we just look for the result
+    --	- The IP version number must be 4. If the version number is not 4 then
+	--	  the packet may be another version of IP, such as IPng or ST-II.
+	--	  -> checked in hardware, here we just look for the result
+    --	- The IP header length field must be large enough to hold the minimum
+	--	  length legal IP datagram (20 bytes = 5 words).
+	--	  -> checked in hardware, here we just look for the result
+    --	- The IP total length field must be large enough to hold the IP
+	--	  datagram header, whose length is specified in the IP header length field.
+	--	  -> TODO: implement this
 	for i = 0, self.size - 1 do
 		if in_mask[i+1] then
-			print("free buf nr " .. tostring(i+1))
-			printf("flags: 0x%x", self.array[i].ol_flags)
-			local mask = bOrAll(mod.PKT_TX_IP_CKSUM, mod.PKT_RX_IPV4_HDR, mod.PKT_RX_IPV4_HDR_EXT, mod.PKT_RX_IP_CKSUM_BAD)
-			local check = bOrAll(mod.PKT_TX_IP_CKSUM, mod.PKT_RX_IPV4_HDR, mod.PKT_RX_IPV4_HDR_EXT)
-			if(bit.bor(self.array[i].ol_flags, mask) == check) then
+			--printf("flags: 0x%x", self.array[i].ol_flags)
+			local flags = self.array[i].ol_flags
+			-- TODO: test this with invalid IP packets...
+			if(
+				bit.band(bOrAll(mod.PKT_RX_IPV4_HDR, PKT_RX_IPV4_HDR_EXT), flags) ~= 0
+				and
+				bit.band(mod.PKT_RX_IP_CKSUM_BAD, flags) == 0
+				and
+				self.array[i].pkt.data_len >= 20
+				and
+				true -- TODO: add total length check here
+				) then
+				printf(" valid ipv4")
 				out_mask[i+1] = 1
 			else
+				printf(" invalid ipv4")
 				out_mask[i+1] = 0
 			end
 		end
