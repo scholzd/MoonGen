@@ -109,7 +109,8 @@ function slave(lpmTable, distributor, rxQueues, maxBurstSize)
         -- prepare in_mask for the received packets
         in_mask:clearAll()
         in_mask:setN(nrx)
-        -- FIXME: do we need to clear out_mask too ?
+
+        bufs:checkValidIPv4(in_mask, in_mask)
 
         -- Decrement TTL, and detect packets with TTL <=1
         lpm.decrementTTL(bufs, in_mask, in_mask)
@@ -133,6 +134,9 @@ function slave(lpmTable, distributor, rxQueues, maxBurstSize)
         -- Send packets to their designated interfaces
         -- (distributor also writes correct src mac addr to packets)
         distributor:send(bufs, out_mask, entries)
+
+        -- Free all packets, which we could not send
+        bufs:freeMask(bitmask.bnot(out_mask, out_mask))
 
         -- nrxmax is used to estimate the workload of this core
         if (nrx > nrxmax) then

@@ -120,6 +120,7 @@ end
 --  result = mask1 band mask2
 function mod.band(mask1, mask2, result)
   ffi.C.mg_bitmask_and(mask1.bitmask, mask2.bitmask, result.bitmask)
+  return result
 end
 
 --- Bitwise or
@@ -129,6 +130,7 @@ end
 --  result = mask1 bor mask2
 function mod.bor(mask1, mask2, result)
   ffi.C.mg_bitmask_or(mask1.bitmask, mask2.bitmask, result.bitmask)
+  return result
 end
 
 --- Bitwise xor
@@ -138,6 +140,7 @@ end
 --  result = bask1 bxor mask2
 function mod.bxor(mask1, mask2, result)
   ffi.C.mg_bitmask_xor(mask1.bitmask, mask2.bitmask, result.bitmask)
+  return result
 end
 
 -- Bitwise not
@@ -146,6 +149,7 @@ end
 --  result = not mask
 function mod.bnot(mask, result)
   ffi.C.mg_bitmask_not(mask.bitmask, result.bitmask)
+  return result
 end
 
 return mod
