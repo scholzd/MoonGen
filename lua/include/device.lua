@@ -102,6 +102,7 @@ local devices = {}
 function mod.config(...)
   local args = {...}
   if #args > 1 then
+    -- FIXME: this does not work when only one argument is passed :(
     -- this is for legacy compatibility when calling the function  without named arguments
     print "[WARNING] You are using a depreciated method for invoking device config. config(...) should be used with named arguments. For details review the file 'device.lua'"
     if not args[2] or type(args[2]) == "number" then

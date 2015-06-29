@@ -364,10 +364,10 @@ function bufArray:checkValidIPv4(in_mask, out_mask)
 				and
 				true -- TODO: add total length check here
 				) then
-				printf(" valid ipv4")
+				--printf(" valid ipv4")
 				out_mask[i+1] = 1
 			else
-				printf(" invalid ipv4")
+				--printf(" invalid ipv4")
 				out_mask[i+1] = 0
 			end
 		end

@@ -50,7 +50,7 @@ int mg_distribute_output_flush(
     uint16_t transmitted = rte_eth_tx_burst (cfg->outputs[number].port_id, cfg->outputs[number].queue_id, queue->pkts, queue->next_idx);
     queue->next_idx -= transmitted;
   }
-  printf(" output %d has been flushed!\n", number);
+  //printf(" output %d has been flushed!\n", number);
   return 0;
 }
 
