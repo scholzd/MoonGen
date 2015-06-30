@@ -356,7 +356,7 @@ function bufArray:checkValidIPv4(in_mask, out_mask)
 			local flags = self.array[i].ol_flags
 			-- TODO: test this with invalid IP packets...
 			if(
-				bit.band(bOrAll(mod.PKT_RX_IPV4_HDR, PKT_RX_IPV4_HDR_EXT), flags) ~= 0
+				bit.band(bit.bor(mod.PKT_RX_IPV4_HDR, mod.PKT_RX_IPV4_HDR_EXT), flags) ~= 0
 				and
 				bit.band(mod.PKT_RX_IP_CKSUM_BAD, flags) == 0
 				and
@@ -367,7 +367,7 @@ function bufArray:checkValidIPv4(in_mask, out_mask)
 				--printf(" valid ipv4")
 				out_mask[i+1] = 1
 			else
-				--printf(" invalid ipv4")
+				printf(" invalid ipv4")
 				out_mask[i+1] = 0
 			end
 		end
