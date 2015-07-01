@@ -222,6 +222,13 @@ function mod.getCycles()
 	return dpdkc.rte_rdtsc()
 end
 
+function mod.enablePowerManagement(coreID)
+  return ffi.C.rte_power_init(coreID)
+end
+function mod.setCPUFreqMin(coreID)
+  return ffi.C.rte_power_freq_min(coreID)
+end
+
 --- get the TSC frequency
 function mod.getCyclesFrequency()
 	return tonumber(dpdkc.rte_get_tsc_hz())

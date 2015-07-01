@@ -7,6 +7,7 @@
 #include <ixgbe_type.h>
 #include <rte_mbuf.h>
 #include "device.h"
+#include <rte_power.h>
 
 // default descriptors per queue
 #define DEFAULT_RX_DESCS 512
@@ -42,6 +43,8 @@ int configure_device(int port, int rx_queues, int tx_queues, int rx_descs, int t
 		printf("error: Maximum number of supported ports is %d\n   This can be changed with the DPDK compile-time configuration variable RTE_MAX_ETHPORTS\n", RTE_MAX_ETHPORTS);
 		return -1;
 	}
+  // FIXME: this is a workaround to force the linking of the power module
+  rte_power_init(3);
 
   uint64_t rss_hash_functions = 0;
   if(rss_enable && hash_functions != NULL){

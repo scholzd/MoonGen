@@ -340,8 +340,16 @@ void mg_ipv4_check_valid(
     struct mg_bitmask * in_mask,
     struct mg_bitmask * out_mask
     );
+void mg_ipv4_check_valid2(
+    struct rte_mbuf **pkts,
+    struct mg_bitmask * in_mask,
+    struct mg_bitmask * out_mask
+    );
 ]]
 
+function bufArray:checkValidIPv4C2(in_mask, out_mask)
+  ffi.C.mg_ipv4_check_valid2(self.array, in_mask.bitmask, out_mask.bitmask)
+end
 function bufArray:checkValidIPv4C(in_mask, out_mask)
   ffi.C.mg_ipv4_check_valid(self.array, in_mask.bitmask, out_mask.bitmask)
 end
