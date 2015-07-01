@@ -554,7 +554,7 @@ function rxQueue:tryRecv(bufArray, maxWait)
 		end
 		maxWait = maxWait - 1
 		-- don't sleep pointlessly
-		if maxWait < 0 then
+		if maxWait <= 0 then
 			break
 		end
 		dpdk.sleepMicros(1)

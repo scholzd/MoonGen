@@ -1,6 +1,9 @@
 #include "bitmask.h"
+#include <rte_config.h>
+#include <rte_common.h>
 #include "rte_malloc.h"
 #include "debug.h"
+#include <rte_cycles.h>
 
 struct mg_bitmask * mg_bitmask_create(uint16_t size){
   uint16_t n_blocks = (size-1)/64 + 1;
@@ -44,18 +47,26 @@ void mg_bitmask_set_all_one(struct mg_bitmask * mask){
     mask->mask[i] = 0xffffffffffffffff;
   }
   // FIXME XXX TODO why do we need this??? can't we just set all blocks to 1s?
+  // -> NO: because some algorithms rely on trailing zeroes...
   if(mask->size & 0x3f){
     mask->mask[mask->n_blocks-1] = (0xffffffffffffffff >> (64-(mask->size & 0x3f)));
   }
 }
 
 uint8_t mg_bitmask_get_bit(struct mg_bitmask * mask, uint16_t n){
+  //uint8_t i = 0;
+  //uint64_t submask;
+  //uint8_t r= iterate_get(mask, &i, &submask);
+  //printf("res %u", r);
   // printf("CCC get bit %d\n", n);
   // printhex("mask = ", mask, 30);
   // printhex("mask = ", mask->mask, 30);
   // uint64_t r1 = mask->mask[n/64] & (1ULL<< (n&0x3f));
   // printhex("r1 = ", &r1, 8);
+  //uint64_t a = rte_rdtsc();
   uint8_t result = ( (mask->mask[n/64] & (1ULL<< (n&0x3f))) != 0);
+  //uint64_t b = rte_rdtsc();
+  //printf("getbit: %lu\n", b-a);
   // printf("result = %d\n", (int)result);
   return result;
 }
@@ -92,6 +103,37 @@ void mg_bitmask_or(struct mg_bitmask * mask1, struct mg_bitmask * mask2, struct 
   }
 }
 
+// to start iterating: i initialized to 0, submask initialized (value does not matter)
+// XXX: this will go horribly wrong, if called for an i>=mask.size
+uint8_t iterate_get(struct mg_bitmask * mask, uint8_t* i, uint64_t* submask){
+  //uint64_t a = rte_rdtsc();
+  if(unlikely(*i%64 == 0)){
+    *submask = mask->mask[*i/64];
+  }
+  uint8_t result = ((*submask & 1ULL) != 0ULL);
+  *submask = *submask<<1;
+  *i++;
+  //uint64_t b = rte_rdtsc();
+  //printf("iterat: %lu\n", b-a);
+  return result;
+}
+//
+//// to start iterating: i initialized to 0, submask UNinitialized
+//// XXX: this will go horribly wrong, if called for an i>=mask.size
+//void iterate_set(struct mg_bitmask * mask, uint8_t* i, uint64_t* submask, uint8_t value){
+//  if(unlikely(i%64 == 0)){
+//    submask = &mask->mask[i/64];
+//    *submask = 0ULL;
+//  }
+//  *submask = *submask | value;
+//  *submask = *submask<<1;
+//  *i++;
+//  if(unlikely(i==mask->size)){
+//    *submask = *submask<<(i%64);
+//  }
+//}
+
+// FIXME: trailing zeroes are not handled correctly here....
 void mg_bitmask_not(struct mg_bitmask * mask1, struct mg_bitmask * result){
   uint16_t i;
   for(i=0; i< mask1->n_blocks; i++){
