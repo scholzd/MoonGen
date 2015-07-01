@@ -19,5 +19,6 @@ void mg_bitmask_and(struct mg_bitmask * mask1, struct mg_bitmask * mask2, struct
 void mg_bitmask_xor(struct mg_bitmask * mask1, struct mg_bitmask * mask2, struct mg_bitmask * result);
 void mg_bitmask_or(struct mg_bitmask * mask1, struct mg_bitmask * mask2, struct mg_bitmask * result);
 void mg_bitmask_not(struct mg_bitmask * mask1, struct mg_bitmask * result);
-uint8_t iterate_get(struct mg_bitmask * mask, uint8_t* i, uint64_t* submask);
+uint8_t mg_bitmask_iterate_get(struct mg_bitmask * mask, uint16_t* i, uint64_t* submask);
+void mg_bitmask_iterate_set(struct mg_bitmask * mask, uint16_t* i, uint64_t** submask, uint8_t value);
 #endif
