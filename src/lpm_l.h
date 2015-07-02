@@ -142,6 +142,16 @@ int mg_table_lpm_apply_route(
   uint16_t offset_entry,
   uint16_t offset_pkt,
   uint16_t size);
+int mg_table_lpm_apply_route_single(
+	struct rte_mbuf *pkt,
+	void **entry,
+  uint16_t offset_entry,
+  uint16_t offset_pkt,
+  uint16_t size);
+int mg_table_lpm_lookup_single(
+	void *table,
+	struct rte_mbuf *pkt,
+	void **entry);
 #endif
 
 #endif

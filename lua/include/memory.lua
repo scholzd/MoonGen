@@ -303,6 +303,10 @@ function bufArray:freeMask(bitmask)
 	end
 end
 
+function bufArray:freeMaskC(bitmask)
+	dpdkc.mg_memory_free_mask(self.array, bitmask.bitmask)
+end
+
 mod.PKT_RX_VLAN_PKT      = 0x0001 --/**< RX packet is a 802.1q VLAN packet. */
 mod.PKT_RX_RSS_HASH      = 0x0002 --/**< RX packet with RSS hash result. */
 mod.PKT_RX_FDIR          = 0x0004 --/**< RX packet with FDIR infos. */

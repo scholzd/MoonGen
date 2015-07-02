@@ -76,6 +76,11 @@ int mg_distribute_send(
   struct mg_bitmask* pkts_mask,
   void **entries
   );
+int mg_distribute_send_single(
+  struct mg_distribute_config *cfg,
+  struct rte_mbuf *pkt,
+  void **entry
+  );
 
 void mg_distribute_handle_timeouts(
   struct mg_distribute_config *cfg

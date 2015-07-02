@@ -70,6 +70,11 @@ int mg_distribute_send(
   struct mg_bitmask* pkts_mask,
   void **entries
   );
+int mg_distribute_send_single(
+  struct mg_distribute_config *cfg,
+  struct rte_mbuf *pkt,
+  void **entry
+  );
 
 void mg_distribute_handle_timeouts(
   struct mg_distribute_config *cfg
@@ -109,6 +114,10 @@ end
 
 function mg_distribute:send(packets, bitMask, routingEntries)
   return ffi.C.mg_distribute_send(self.cfg, packets.array, bitMask.bitmask, ffi.cast("void **", routingEntries.array))
+end
+
+function mg_distribute:send_single(packet, routingEntry)
+  return ffi.C.mg_distribute_send_single(self.cfg, packet, routingEntry)
 end
 
 function mg_distribute:registerOutput(outputNumber, txQueue, bufferSize, timeout)

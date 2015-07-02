@@ -7,4 +7,9 @@
 
 struct rte_mempool* init_mem(uint32_t nb_mbuf, int32_t socket);
 
+void mg_memory_free_mask(
+    struct rte_mbuf **pkts,
+    struct mg_bitmask * mask
+    );
+
 #endif /* MEMORY_H__ */

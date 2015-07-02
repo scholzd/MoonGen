@@ -313,6 +313,37 @@ mg_table_lpm_entry_delete(
 	return 0;
 }
 
+int mg_table_lpm_lookup_big_burst2(
+	void *table,
+	struct rte_mbuf **pkts,
+	struct mg_bitmask* in_mask,
+	struct mg_bitmask* out_mask,
+	void **entries)
+{
+	struct rte_table_lpm *lpm = (struct rte_table_lpm *) table;
+  uint16_t i;
+  for(i=0; i< in_mask->size; i++){
+    if(mg_bitmask_get_bit_inline(in_mask, i)){
+			struct rte_mbuf *pkt = pkts[i];
+			uint32_t ip = rte_bswap32( *((uint32_t*)(pkt->buf_addr + lpm->offset)) );
+			int status;
+			uint8_t nht_pos;
+			status = rte_lpm_lookup(lpm->lpm, ip, &nht_pos);
+			if (status == 0) {
+        mg_bitmask_set_bit_inline(out_mask, i);
+				entries[i] = (void *) &lpm->nht[nht_pos *
+					lpm->entry_size];
+      }else{
+        entries[i] = NULL;
+        mg_bitmask_clear_bit_inline(out_mask, i);
+      }
+    }else{
+        mg_bitmask_clear_bit_inline(out_mask, i);
+    }
+  }
+  return 0;
+}
+
 int mg_table_lpm_lookup_big_burst(
 	void *table,
 	struct rte_mbuf **pkts,
@@ -336,6 +367,28 @@ int mg_table_lpm_lookup_big_burst(
     entries += 64;
   }
   return 0;
+}
+
+int
+mg_table_lpm_lookup_single(
+	void *table,
+	struct rte_mbuf *pkt,
+	void **entry)
+{
+  //printf("ENTRIES = %p\n", entries);
+	struct rte_table_lpm *lpm = (struct rte_table_lpm *) table;
+
+  uint32_t ip = rte_bswap32( *((uint32_t*)(pkt->buf_addr + lpm->offset)) );
+  int status;
+  uint8_t nht_pos;
+  status = rte_lpm_lookup(lpm->lpm, ip, &nht_pos);
+  if (status == 0) {
+    *entry = (void *) &lpm->nht[nht_pos * lpm->entry_size];
+    return 1;
+  }else{
+    *entry = NULL;
+    return 0;
+  }
 }
 
 int
@@ -416,7 +469,7 @@ int mg_table_lpm_apply_route(
 {
   uint16_t i;
   for(i=0;i<pkts_mask->size;i++){
-    if(mg_bitmask_get_bit(pkts_mask, i)){
+    if(mg_bitmask_get_bit_inline(pkts_mask, i)){
       // TODO: check if just 6 byte direct assignment is faster here (more parallel)
       // TODO: we could also do this in LUA, check if performance is affected...
       // TODO: we could also do this already on lookup. Check if performance is affected
@@ -429,6 +482,17 @@ int mg_table_lpm_apply_route(
     pkts++;
     entries++;
   }
+  return 0;
+}
+int mg_table_lpm_apply_route_single(
+	struct rte_mbuf *pkt,
+	void **entry,
+  uint16_t offset_entry,
+  uint16_t offset_pkt,
+  uint16_t size)
+{
+  struct ether_hdr * ethhdr = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
+  ether_addr_copy((struct ether_addr*)(*entry + offset_entry), &ethhdr->d_addr);
   return 0;
 }
 

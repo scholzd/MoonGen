@@ -431,6 +431,18 @@ function packetMakeStruct(...)
 	return name, ffi.typeof(name .. "*")
 end
 
+ffi.cdef[[
+uint8_t mg_ipv4_check_valid_single(
+    struct rte_mbuf *pkt
+    );
+]]
+function pkt:checkValidIPv4C_single()
+  ffi.C.mg_ipv4_check_valid_single(self)
+end
+
+function pkt:free()
+  dpdkc.rte_pktmbuf_free_export(self)
+end
 
 ---------------------------------------------------------------------------
 ---- Metatypes

@@ -45,10 +45,11 @@ void mg_ipv4_check_valid(
     struct mg_bitmask * in_mask,
     struct mg_bitmask * out_mask
     ){
+  // FIXME: this will not allow giving the same mask for in and out
   mg_bitmask_clear_all(out_mask);
   uint16_t i;
   for(i=0; i< in_mask->size; i++){
-    if(mg_bitmask_get_bit(in_mask, i)){
+    if(mg_bitmask_get_bit_inline(in_mask, i)){
       uint16_t flags = pkts[i]->ol_flags;
       if(
           (((PKT_RX_IPV4_HDR | PKT_RX_IPV4_HDR_EXT) & flags) != 0)
@@ -57,8 +58,24 @@ void mg_ipv4_check_valid(
           &&
           (pkts[i]->pkt.data_len >= 20)
         ){
-        mg_bitmask_set_bit(out_mask, i);
+        mg_bitmask_set_bit_inline(out_mask, i);
       }
     }
   }
+}
+uint8_t mg_ipv4_check_valid_single(
+    struct rte_mbuf *pkt
+    ){
+      uint16_t flags = pkt->ol_flags;
+      if(
+          (((PKT_RX_IPV4_HDR | PKT_RX_IPV4_HDR_EXT) & flags) != 0)
+          &&
+          ((PKT_RX_IP_CKSUM_BAD & flags) == 0)
+          &&
+          (pkt->pkt.data_len >= 20)
+        ){
+        return 1;
+      }else{
+        return 0;
+      }
 }

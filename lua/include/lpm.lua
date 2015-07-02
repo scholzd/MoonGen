@@ -50,6 +50,13 @@ int mg_table_lpm_entry_delete(
 void ** mg_lpm_table_allocate_entry_prts(uint16_t n_entries);
 int printf(const char *fmt, ...);
 
+int mg_table_lpm_lookup_big_burst2(
+	void *table,
+	struct rte_mbuf **pkts,
+	struct mg_bitmask* in_mask,
+	struct mg_bitmask* out_mask,
+	void **entries);
+
 int mg_table_lpm_apply_route(
 	struct rte_mbuf **pkts,
   struct mg_bitmask* pkts_mask,
@@ -57,7 +64,16 @@ int mg_table_lpm_apply_route(
   uint16_t offset_entry,
   uint16_t offset_pkt,
   uint16_t size);
-
+int mg_table_lpm_apply_route_single(
+	struct rte_mbuf *pkt,
+	void **entry,
+  uint16_t offset_entry,
+  uint16_t offset_pkt,
+  uint16_t size);
+int mg_table_lpm_lookup_single(
+	void *table,
+	struct rte_mbuf *pkt,
+	void **entry);
 ]]
 
 
@@ -118,6 +134,9 @@ function mg_lpm4Table:lookupBurst(packets, mask, hitMask, entries)
   --  done implicitly?
   return ffi.C.mg_table_lpm_lookup_big_burst(self.table, packets.array, mask.bitmask, hitMask.bitmask, ffi.cast("void **",entries.array))
 end
+function mg_lpm4Table:lookup_single(packet, entry)
+  return ffi.C.mg_table_lpm_lookup_single(self.table, packet, entry)
+end
 
 function mg_lpm4Table:__serialize()
 	return "require 'lpm'; return " .. serpent.addMt(serpent.dumpRaw(self), "require('lpm').mg_lpm4Table"), true
@@ -156,6 +175,11 @@ function mod.applyRoute(pkts, mask, entries, entryOffset)
   return ffi.C.mg_table_lpm_apply_route(pkts.array, mask.bitmask, ffi.cast("void **", entries.array), entryOffset, 128, 6)
 end
 
+function mod.applyRoute_single(pkt, entry, entryOffset)
+  entryOffset = entryOffset or 1
+  return ffi.C.mg_table_lpm_apply_route_single(pkt, entry, entryOffset, 128, 6)
+end
+
 -- FIXME: this should not be in LPM module. but where?
 --- Decrements the IP TTL field of all masked packets by one.
 --  out_mask masks the successfully decremented packets (TTL did not reach zero).
@@ -177,6 +201,24 @@ function mod.decrementTTL(pkts, in_mask, out_mask, ipv4)
       else
         out_mask[i] = 0
       end
+    end
+  else
+    errorf("TTL decrement for ipv6 not yet implemented")
+  end
+end
+
+function mod.decrementTTL_single(pkt, ipv4)
+  ipv4 = ipv4 == nil or ipv4
+  if ipv4 then
+    -- TODO: C implementation might be faster...
+    local ipkt = pkt:getIPPacket()
+    local ttl = ipkt.ip4:getTTL()
+    ttl = ttl - 1;
+    ipkt.ip4:setTTL(ttl)
+    if(ttl ~= 0)then
+      return true
+    else
+      return false
     end
   else
     errorf("TTL decrement for ipv6 not yet implemented")

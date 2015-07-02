@@ -151,6 +151,40 @@ int mg_distribute_send(
   return 0;
 }
 
+int mg_distribute_send_single(
+  struct mg_distribute_config *cfg,
+  struct rte_mbuf *pkt,
+  void **entry
+  ){
+  uint8_t output = ((uint8_t*)(*entry))[cfg->entry_offset];
+
+  //printf(" send out to %d\n", output);
+  // send pkt to the corresponding output...
+  int8_t status = mg_distribute_enqueue(cfg->outputs[output].queue, pkt);
+  if( unlikely( status  == 2  ) ){
+    //printf("  full\n");
+    // packet was enqueued, but queue is full
+    // flush queue
+    mg_distribute_output_flush(cfg, output);
+  }
+  if( unlikely( status  == 1  ) ){
+    //printf("  empty\n");
+    // packet was enqueued, queue was empty
+    // record the time, for possible future timeout
+    cfg->outputs[output].time_first_added = rte_rdtsc();
+    //printf("  stored_time\n");
+  }
+  if(unlikely(cfg->always_flush)){
+    int i;
+    //FIXME check if output valid
+    for (i = 0; i < cfg->nr_outputs; i++){
+      if(likely(cfg->outputs[i].valid)){
+        mg_distribute_output_flush(cfg, i);
+      }
+    }
+  }
+  return 0;
+}
 
 // I was thinking hard about using the dpdk provided timer modules.
 // I decided to implement my own system here because

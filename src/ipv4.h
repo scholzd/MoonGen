@@ -17,4 +17,7 @@ void mg_ipv4_check_valid2(
     struct mg_bitmask * in_mask,
     struct mg_bitmask * out_mask
     );
+uint8_t mg_ipv4_check_valid_single(
+    struct rte_mbuf *pkt
+    );
 #endif

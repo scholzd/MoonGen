@@ -5,6 +5,8 @@
 #include <rte_spinlock.h>
 #include <sys/mman.h>
 
+#include "bitmask.h"
+
 #include <stdint.h>
 
 #define MEMPOOL_CACHE_SIZE 256
@@ -44,6 +46,18 @@ void alloc_mbufs(struct rte_mempool* mp, struct rte_mbuf* bufs[], uint32_t len, 
 	}
 }
 
+void mg_memory_free_mask(
+    struct rte_mbuf **pkts,
+    struct mg_bitmask * mask
+    ){
+  uint16_t i;
+  for(i=0; i< mask->size; i++){
+    if(mg_bitmask_get_bit_inline(mask, i)){
+      rte_pktmbuf_free(pkts[i]);
+      pkts[i] = NULL;
+    }
+  }
+}
 
 uint16_t rte_mbuf_refcnt_read_export(struct rte_mbuf* m) {
 	return rte_mbuf_refcnt_read(m);
