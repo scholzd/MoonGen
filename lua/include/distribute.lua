@@ -117,7 +117,7 @@ function mg_distribute:send(packets, bitMask, routingEntries)
 end
 
 function mg_distribute:send_single(packet, routingEntry)
-  return ffi.C.mg_distribute_send_single(self.cfg, packet, routingEntry)
+  return ffi.C.mg_distribute_send_single(self.cfg, packet, ffi.cast("void **", routingEntry.array))
 end
 
 function mg_distribute:registerOutput(outputNumber, txQueue, bufferSize, timeout)

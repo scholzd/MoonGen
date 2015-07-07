@@ -135,7 +135,7 @@ function mg_lpm4Table:lookupBurst(packets, mask, hitMask, entries)
   return ffi.C.mg_table_lpm_lookup_big_burst(self.table, packets.array, mask.bitmask, hitMask.bitmask, ffi.cast("void **",entries.array))
 end
 function mg_lpm4Table:lookup_single(packet, entry)
-  return ffi.C.mg_table_lpm_lookup_single(self.table, packet, entry)
+  return (ffi.C.mg_table_lpm_lookup_single(self.table, packet, ffi.cast("void **",entry.array)) == 1)
 end
 
 function mg_lpm4Table:__serialize()
@@ -177,7 +177,7 @@ end
 
 function mod.applyRoute_single(pkt, entry, entryOffset)
   entryOffset = entryOffset or 1
-  return ffi.C.mg_table_lpm_apply_route_single(pkt, entry, entryOffset, 128, 6)
+  return ffi.C.mg_table_lpm_apply_route_single(pkt, ffi.cast("void **",entry.array), entryOffset, 128, 6)
 end
 
 -- FIXME: this should not be in LPM module. but where?

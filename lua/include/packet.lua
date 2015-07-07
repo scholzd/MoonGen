@@ -437,7 +437,7 @@ uint8_t mg_ipv4_check_valid_single(
     );
 ]]
 function pkt:checkValidIPv4C_single()
-  ffi.C.mg_ipv4_check_valid_single(self)
+  return (ffi.C.mg_ipv4_check_valid_single(self) == 1)
 end
 
 function pkt:free()
