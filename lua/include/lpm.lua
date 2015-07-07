@@ -191,9 +191,9 @@ function mod.decrementTTL(pkts, in_mask, out_mask, ipv4)
       if in_mask[i] then
         local ipkt = pkt:getIPPacket()
         local ttl = ipkt.ip4:getTTL()
-        ttl = ttl - 1;
-        ipkt.ip4:setTTL(ttl)
         if(ttl > 0)then
+          ttl = ttl - 1;
+          ipkt.ip4:setTTL(ttl)
           out_mask[i] = 1 
         else
           out_mask[i] = 0
@@ -208,14 +208,18 @@ function mod.decrementTTL(pkts, in_mask, out_mask, ipv4)
 end
 
 function mod.decrementTTL_single(pkt, ipv4)
+  -- FIXME FIXME XXX this is for debugging only. return always true to cause segfault
+  -- when sending to distributor
+  return true
+
   ipv4 = ipv4 == nil or ipv4
   if ipv4 then
     -- TODO: C implementation might be faster...
     local ipkt = pkt:getIPPacket()
     local ttl = ipkt.ip4:getTTL()
-    ttl = ttl - 1;
-    ipkt.ip4:setTTL(ttl)
-    if(ttl ~= 0)then
+    if(ttl > 0)then
+      ttl = ttl - 1;
+      ipkt.ip4:setTTL(ttl)
       return true
     else
       return false
