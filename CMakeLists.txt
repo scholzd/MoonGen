@@ -18,6 +18,7 @@ SET(FILES
   src/bitmask.c
   src/lpm_l.c
   src/5tuple.c
+  src/queue.c
   src/distribute.c
   src/ipv4.c
 	src/task-results.cpp
