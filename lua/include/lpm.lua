@@ -193,7 +193,7 @@ function mod.decrementTTL(pkts, in_mask, out_mask, ipv4)
         local ttl = ipkt.ip4:getTTL()
         ttl = ttl - 1;
         ipkt.ip4:setTTL(ttl)
-        if(ttl ~= 0)then
+        if(ttl > 0)then
           out_mask[i] = 1 
         else
           out_mask[i] = 0
