@@ -211,22 +211,22 @@ function mod.decrementTTL_single(pkt, ipv4)
   -- FIXME FIXME XXX this is for debugging only. return always true to cause segfault
   -- when sending to distributor
   return true
-
-  ipv4 = ipv4 == nil or ipv4
-  if ipv4 then
-    -- TODO: C implementation might be faster...
-    local ipkt = pkt:getIPPacket()
-    local ttl = ipkt.ip4:getTTL()
-    if(ttl > 0)then
-      ttl = ttl - 1;
-      ipkt.ip4:setTTL(ttl)
-      return true
-    else
-      return false
-    end
-  else
-    errorf("TTL decrement for ipv6 not yet implemented")
-  end
+--
+--  ipv4 = ipv4 == nil or ipv4
+--  if ipv4 then
+--    -- TODO: C implementation might be faster...
+--    local ipkt = pkt:getIPPacket()
+--    local ttl = ipkt.ip4:getTTL()
+--    if(ttl > 0)then
+--      ttl = ttl - 1;
+--      ipkt.ip4:setTTL(ttl)
+--      return true
+--    else
+--      return false
+--    end
+--  else
+--    errorf("TTL decrement for ipv6 not yet implemented")
+--  end
 end
 
 return mod

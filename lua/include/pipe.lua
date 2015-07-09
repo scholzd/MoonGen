@@ -218,15 +218,15 @@ end
 --- Same as dequeue(ctype), but the dequeued object will always be casted to
 --  "struct rte_mbuf*"
 function mg_fastCPipe:dequeueMbuf()
-  printf("dm")
+  --printf("dm")
   local object = ffi.new("void *")
   local objects = ffi.new("void*[1]")
   objects[0] = object
-  printf("td")
+  --printf("td")
   local result = ffi.C.mg_queue_dequeue_export(self.ring, objects)
-  printf("tdf")
+  --printf("tdf")
   if (result == 0)then
-    printf("k")
+    --printf("k")
     return ffi.cast("struct rte_mbuf*", objects[0])
   else
     return nil
@@ -235,13 +235,17 @@ end
 
 -- Enqueues a set of Mbufs, specified by a bitmask
 function mg_fastCPipe:enqueueMbufsMask(objects, bitmask)
-  printf("enqburst")
+  --printf("enqburst")
   -- TODO: C implementation
+  --bitmask:printout();
   for i,v in ipairs(bitmask) do
     if v then
-      printf("sin")
+      --printf("sin enq i = %u", i)
+      if(objects[i] == nil)then
+        print "NIL HERE"
+      end
       if (ffi.C.mg_queue_enqueue_export(self.ring, objects[i]) ~= 0)then
-        printf("no enqueue possible")
+        --printf("no enqueue possible")
         objects[i]:free();
       end
       -- FIXME: if object is not enqueueable we have to somehow free it
