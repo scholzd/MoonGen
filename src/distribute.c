@@ -156,23 +156,23 @@ int mg_distribute_send_single(
   struct rte_mbuf *pkt,
   void **entry
   ){
-  printf(">>dis s\n");
+  //printf(">>dis s\n");
   uint8_t output = ((uint8_t*)(*entry))[cfg->entry_offset];
-  printf("dis o\n");
+  //printf("dis o\n");
 
   //printf(" send out to %d\n", output);
   // send pkt to the corresponding output...
   int8_t status = mg_distribute_enqueue(cfg->outputs[output].queue, pkt);
-  printf("dis st\n");
+  //printf("dis st\n");
   if( unlikely( status  == 2  ) ){
-    printf("  ful\n");
+    //printf("  ful\n");
     // packet was enqueued, but queue is full
     // flush queue
     mg_distribute_output_flush(cfg, output);
-    printf("  fd\n");
+    //printf("  fd\n");
   }
   if( unlikely( status  == 1  ) ){
-    printf("  empty\n");
+    //printf("  empty\n");
     // packet was enqueued, queue was empty
     // record the time, for possible future timeout
     cfg->outputs[output].time_first_added = rte_rdtsc();
@@ -187,7 +187,7 @@ int mg_distribute_send_single(
       }
     }
   }
-  printf("dis d\n");
+  //printf("dis d\n");
   return 0;
 }
 
