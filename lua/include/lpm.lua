@@ -132,7 +132,7 @@ end
 function mg_lpm4Table:lookupBurst(packets, mask, hitMask, entries)
   -- FIXME: I feel uneasy about this cast, should this cast not be
   --  done implicitly?
-  return ffi.C.mg_table_lpm_lookup_big_burst(self.table, packets.array, mask.bitmask, hitMask.bitmask, ffi.cast("void **",entries.array))
+  return ffi.C.mg_table_lpm_lookup_big_burst2(self.table, packets.array, mask.bitmask, hitMask.bitmask, ffi.cast("void **",entries.array))
 end
 function mg_lpm4Table:lookup_single(packet, entry)
   return (ffi.C.mg_table_lpm_lookup_single(self.table, packet, ffi.cast("void **",entry.array)) == 1)
