@@ -313,6 +313,47 @@ mg_table_lpm_entry_delete(
 	return 0;
 }
 
+int mg_table_lpm_lookup_big_burst2_queue(
+	void *table,
+	struct rte_mbuf **pkts,
+	struct mg_bitmask* in_mask,
+	struct mg_bitmask* out_mask,
+  struct rte_ring *r,
+	void **entries)
+{
+	struct rte_table_lpm *lpm = (struct rte_table_lpm *) table;
+  uint16_t i;
+  for(i=0; i< in_mask->size; i++){
+    if(mg_bitmask_get_bit_inline(in_mask, i)){
+			struct rte_mbuf *pkt = pkts[i];
+			uint32_t ip = rte_bswap32( *((uint32_t*)(pkt->buf_addr + lpm->offset)) );
+			int status;
+			uint8_t nht_pos;
+			status = rte_lpm_lookup(lpm->lpm, ip, &nht_pos);
+			if (status == 0) {
+        mg_bitmask_set_bit_inline(out_mask, i);
+				entries[i] = (void *) &lpm->nht[nht_pos *
+					lpm->entry_size];
+      }else{
+        entries[i] = NULL;
+        mg_bitmask_clear_bit_inline(out_mask, i);
+        // enqueue to the ring
+        int result = rte_ring_mp_enqueue_bulk(r, (void*)(&pkt), 1);
+        if (result != 0){
+          rte_pktmbuf_free(pkts[i]);
+        }
+      }
+    //}else{
+      // FIXME: think of a standard, what to do with out mask, when in mask is not defined
+      //  i think it is a good idea to not touch out mask then.
+      //  this safes calculation and it is eaier to just reset the whole bitmask
+      //  for each bulk/burst
+      //  mg_bitmask_clear_bit_inline(out_mask, i);
+    }
+  }
+  return 0;
+}
+
 int mg_table_lpm_lookup_big_burst2(
 	void *table,
 	struct rte_mbuf **pkts,
@@ -337,8 +378,12 @@ int mg_table_lpm_lookup_big_burst2(
         entries[i] = NULL;
         mg_bitmask_clear_bit_inline(out_mask, i);
       }
-    }else{
-        mg_bitmask_clear_bit_inline(out_mask, i);
+    //}else{
+      // FIXME: think of a standard, what to do with out mask, when in mask is not defined
+      //  i think it is a good idea to not touch out mask then.
+      //  this safes calculation and it is eaier to just reset the whole bitmask
+      //  for each bulk/burst
+      //  mg_bitmask_clear_bit_inline(out_mask, i);
     }
   }
   return 0;

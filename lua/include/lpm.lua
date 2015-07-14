@@ -56,7 +56,13 @@ int mg_table_lpm_lookup_big_burst2(
 	struct mg_bitmask* in_mask,
 	struct mg_bitmask* out_mask,
 	void **entries);
-
+int mg_table_lpm_lookup_big_burst2_queue(
+	void *table,
+	struct rte_mbuf **pkts,
+	struct mg_bitmask* in_mask,
+	struct mg_bitmask* out_mask,
+  struct rte_ring *r,
+	void **entries);
 int mg_table_lpm_apply_route(
 	struct rte_mbuf **pkts,
   struct mg_bitmask* pkts_mask,
@@ -133,6 +139,11 @@ function mg_lpm4Table:lookupBurst(packets, mask, hitMask, entries)
   -- FIXME: I feel uneasy about this cast, should this cast not be
   --  done implicitly?
   return ffi.C.mg_table_lpm_lookup_big_burst2(self.table, packets.array, mask.bitmask, hitMask.bitmask, ffi.cast("void **",entries.array))
+end
+function mg_lpm4Table:lookupBurst_pipe(packets, mask, hitMask, pipe, entries)
+  -- FIXME: I feel uneasy about this cast, should this cast not be
+  --  done implicitly?
+  return ffi.C.mg_table_lpm_lookup_big_burst2_queue(self.table, packets.array, mask.bitmask, hitMask.bitmask, pipe.ring, ffi.cast("void **",entries.array))
 end
 function mg_lpm4Table:lookup_single(packet, entry)
   return (ffi.C.mg_table_lpm_lookup_single(self.table, packet, ffi.cast("void **",entry.array)) == 1)

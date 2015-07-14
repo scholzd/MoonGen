@@ -135,6 +135,13 @@ int mg_table_lpm_lookup_big_burst(
 	struct mg_bitmask* pkts_mask,
 	struct mg_bitmask* lookup_hit_mask,
 	void **entries);
+int mg_table_lpm_lookup_big_burst2_queue(
+	void *table,
+	struct rte_mbuf **pkts,
+	struct mg_bitmask* in_mask,
+	struct mg_bitmask* out_mask,
+  struct rte_ring *r,
+	void **entries);
 int mg_table_lpm_apply_route(
 	struct rte_mbuf **pkts,
   struct mg_bitmask* pkts_mask,
