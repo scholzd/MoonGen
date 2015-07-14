@@ -107,7 +107,10 @@ void mg_ipv4_decrement_ttl_queue(
         mg_bitmask_set_bit_inline(out_mask, i);
       }else{
         mg_bitmask_clear_bit_inline(out_mask, i);
-        rte_ring_mp_enqueue_bulk(r, (void*)(&pkts[i]), 1);
+        int result = rte_ring_mp_enqueue_bulk(r, (void*)(&pkts[i]), 1);
+        if (result != 0){
+          rte_pktmbuf_free(pkts[i]);
+        }
       }
     }
   }

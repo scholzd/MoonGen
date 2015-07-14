@@ -236,7 +236,7 @@ end
 function mod.decrementTTL_pipeC(pkts, in_mask, out_mask, fastPipe, ipv4)
   ipv4 = ipv4 == nil or ipv4
   if ipv4 then
-    ffi.C.mg_ipv4_decrement_ttl_pipe(pkts.array, in_mask.bitmask, out_mask.bitmask, fastPipe.ring);
+    ffi.C.mg_ipv4_decrement_ttl_queue(pkts.array, in_mask.bitmask, out_mask.bitmask, fastPipe.ring);
   else
     errorf("TTL decrement for ipv6 not yet implemented")
   end
