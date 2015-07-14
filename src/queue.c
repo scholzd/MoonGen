@@ -8,6 +8,7 @@
 int mg_queue_enqueue_export(struct rte_ring *r, void *obj){
 
   struct rte_mbuf* buf = (struct rte_mbuf*)obj;
+  // FIXME: remove this debugging output, as soon, as it does not occur anymore
   if(obj == NULL){
     printf("enqAHHH NULLLLL\n");
     exit(0);
@@ -24,6 +25,7 @@ int mg_queue_dequeue_export(struct rte_ring *r, void **obj_p){
   //printf("b\n");
   if(result == 0){
     struct rte_mbuf* buf = (struct rte_mbuf*)(*obj_p);
+    // FIXME: remove this debugging output, as soon, as it does not occur anymore
     if(buf == NULL){
       printf("deqAHHH NULLLLL\n");
       exit(0);

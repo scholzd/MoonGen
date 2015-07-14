@@ -186,7 +186,6 @@ end
 function mod.decrementTTL(pkts, in_mask, out_mask, ipv4)
   ipv4 = ipv4 == nil or ipv4
   if ipv4 then
-    -- TODO: C implementation might be faster...
     for i, pkt in ipairs(pkts) do
       if in_mask[i] then
         local ipkt = pkt:getIPPacket()
@@ -202,6 +201,42 @@ function mod.decrementTTL(pkts, in_mask, out_mask, ipv4)
         out_mask[i] = 0
       end
     end
+  else
+    errorf("TTL decrement for ipv6 not yet implemented")
+  end
+end
+
+ffi.cdef[[
+void mg_ipv4_decrement_ttl(
+    struct rte_mbuf **pkts,
+    struct mg_bitmask * in_mask,
+    struct mg_bitmask * out_mask
+    );
+
+void mg_ipv4_decrement_ttl_queue(
+    struct rte_mbuf **pkts,
+    struct mg_bitmask * in_mask,
+    struct mg_bitmask * out_mask,
+    struct rte_ring *r
+    );
+]]
+
+-- FIXME: this should not be in LPM module. but where?
+--- Decrements the IP TTL field of all masked packets by one.
+--  out_mask masks the successfully decremented packets (TTL did not reach zero).
+function mod.decrementTTLC(pkts, in_mask, out_mask, ipv4)
+  ipv4 = ipv4 == nil or ipv4
+  if ipv4 then
+    ffi.C.mg_ipv4_decrement_ttl(pkts.array, in_mask.bitmask, out_mask.bitmask);
+  else
+    errorf("TTL decrement for ipv6 not yet implemented")
+  end
+end
+
+function mod.decrementTTL_pipeC(pkts, in_mask, out_mask, fastPipe, ipv4)
+  ipv4 = ipv4 == nil or ipv4
+  if ipv4 then
+    ffi.C.mg_ipv4_decrement_ttl_pipe(pkts.array, in_mask.bitmask, out_mask.bitmask, fastPipe.ring);
   else
     errorf("TTL decrement for ipv6 not yet implemented")
   end
