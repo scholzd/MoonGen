@@ -2,6 +2,7 @@ local bor, band, bnot, rshift, lshift, bswap = bit.bor, bit.band, bit.bnot, bit.
 local write = io.write
 local format = string.format
 local random, log, floor = math.random, math.log, math.floor
+local ffi = require "ffi"
 
 function printf(str, ...)
 	return print(str:format(...))
@@ -290,4 +291,15 @@ function incAndWrap(val, max)
 	return band(val + 1, sar(val - max + 1, 31))
 end
 
+ffi.cdef[[
+int memcmp ( const void * ptr1, const void * ptr2, size_t num );
+]]
+-- return true if contents are equal, false otherwise
+function util_compare_cdata(d1, d2, size)
+  if type(d1) ~= "cdata" or type(d2) ~= "cdata" then
+    errorf("ERROR: cdata comparison with objet not of type cdata")
+  end
+  local result = ffi.C.memcmp(d1, d2, size)
+  return (result == 0)
+end
 

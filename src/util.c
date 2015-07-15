@@ -126,4 +126,3 @@ uint32_t get_current_core() {
 uint32_t get_current_socket() {
 	return rte_socket_id();
 }
-

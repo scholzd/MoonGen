@@ -238,9 +238,41 @@ function dev:setRssNQueues(n)
   end
 end
 
+ffi.cdef[[
+struct ether_addr {
+	uint8_t addr_bytes[6];
+} 
+]]
 
-
+-- ID can be a device/port ID or a mac address in string or cdata format
 function mod.get(id)
+  if type(id) == "number" then
+    if id >= mod.numDevices() then
+      printf("[WARNING] device %d does not exist", id)
+      return nil
+    end
+  elseif type(id) == "string" then
+    id = parseMacAddress(id)
+  end
+  if type(id) == "cdata" then
+    local allDevices = mod.getDevices()
+    for i,v in ipairs(allDevices) do
+      local mac = ffi.new("struct ether_addr")
+      ffi.C.rte_eth_macaddr_get(v.id, mac)
+      -- FIXME: it is probably a better idea, to convert the MAC to a string and
+      -- compare it to the one in device.macAddr, which is already in string format
+      if util_compare_cdata(mac, id, 6) then
+        id = v.id
+        print "found"
+        break
+      end
+    end
+    if type(id) ~= "number" then
+      -- we still did not find a device with the mac we want
+      printf("[WARNING] could not find a device with the requested mac address")
+      return nil
+    end
+  end
 	if devices[id] then
 		return devices[id]
 	end
