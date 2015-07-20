@@ -102,7 +102,9 @@ void mg_ipv4_decrement_ttl_queue(
   for(i=0; i< in_mask->size; i++){
     if(mg_bitmask_get_bit_inline(in_mask, i)){
       struct ipv4_hdr * ip_hdr = (struct ipv4_hdr*)(pkts[i]->pkt.data + ETHER_HDR_LEN);
-      if(ip_hdr->time_to_live > 0){
+      // according to RFC 1812 we should discard the packet, as soon as we
+      // decrement to 0. So we check for ttl > 1 here:
+      if(ip_hdr->time_to_live > 1){
         ip_hdr->time_to_live --;
         mg_bitmask_set_bit_inline(out_mask, i);
       }else{
@@ -124,7 +126,9 @@ void mg_ipv4_decrement_ttl(
   for(i=0; i< in_mask->size; i++){
     if(mg_bitmask_get_bit_inline(in_mask, i)){
       struct ipv4_hdr * ip_hdr = (struct ipv4_hdr*)(pkts[i]->pkt.data + ETHER_HDR_LEN);
-      if(ip_hdr->time_to_live > 0){
+      // according to RFC 1812 we should discard the packet, as soon as we
+      // decrement to 0. So we check for ttl > 1 here:
+      if(ip_hdr->time_to_live > 1){
         ip_hdr->time_to_live --;
         mg_bitmask_set_bit_inline(out_mask, i);
       }else{
@@ -132,4 +136,9 @@ void mg_ipv4_decrement_ttl(
       }
     }
   }
+}
+
+void mg_ipv4_print_ip(uint32_t ip){
+  uint8_t * i = (uint8_t*)(&ip);
+  printf("%d.%d.%d.%d\n", i[3], i[2], i[1], i[0]);
 }
