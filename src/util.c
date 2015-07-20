@@ -126,3 +126,10 @@ uint32_t get_current_core() {
 uint32_t get_current_socket() {
 	return rte_socket_id();
 }
+
+void* rte_memcpy_export 	( 	void *  	dst,
+		const void *  	src,
+		size_t  	n 
+	){
+  return rte_memcpy(dst, src, n);
+}

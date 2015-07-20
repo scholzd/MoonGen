@@ -157,6 +157,19 @@ function icmpHeader:setMessageBody(body)
 	--self.body.uint8_t = body
 end
 
+ffi.cdef[[
+static void* rte_memcpy_export 	( 	void *  	dst,
+		const void *  	src,
+		size_t  	n 
+	) 	
+]]
+-- Set the message body
+-- @param ptr a cdata pointer, which points to data, which should be written
+-- @param len amount of data to be written
+function icmpHeader:setPayloadFromPtr(ptr, len)
+  ffi.C.rte_memcpy_export(self.body.uint8+4, ptr, len)
+end
+
 --- Retrieve the message body.
 -- @return Message body as TODO.
 function icmpHeader:getMessageBody()

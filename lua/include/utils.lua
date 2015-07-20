@@ -134,6 +134,15 @@ function parseMacAddress(mac)
 	return  addr 
 end
 
+ffi.cdef[[
+  void mg_ipv4_print_ip(uint32_t ip);
+]]
+
+function printIP(ip)
+  ffi.C.mg_ipv4_print_ip(ip)
+end
+
+
 --- Parse a string to an IP address
 -- @return address ip address in ip4_address or ip6_address format or nil if invalid address
 -- @return boolean true if IPv4 address, false otherwise
