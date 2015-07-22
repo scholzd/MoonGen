@@ -145,6 +145,7 @@ function mg_fastCPipe:__serialize()
 end
 
 
+local cpipe_count = 0
 --- Creates a new fast Pipe. Only LuaJIT ctype objects can be transferred with
 --  this pipe. Multiple consumers, as well as multiple producers are supported,
 --  if enabled. However you should try to stick with single producer and
@@ -177,7 +178,9 @@ function mod.newFastCPipe(args)
   if(args.multipleConsumers == false) then
     flags = bit.bor(flags, 1)
   end
-  local ring = ffi.C.rte_ring_create("mg_ring", args.size, args.socket, flags)
+  -- somehow dpdk does not allow, using the same name twice, so we have to use a different one every time
+  local ring = ffi.C.rte_ring_create("mg_ring" .. tostring(cpipe_count), args.size, args.socket, flags)
+  cpipe_count = cpipe_count + 1
   if(ring == nil)then
     errorf("ERROR creating ring")
     -- TODO: implement wrapper around rte_errno.h

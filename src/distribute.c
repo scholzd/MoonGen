@@ -35,6 +35,7 @@ int mg_distribute_output_flush(
   struct mg_distribute_config *cfg,
   uint16_t number
   ){
+  //printf("output %u flushed...\n", number);
   struct mg_distribute_queue * queue = cfg->outputs[number].queue;
   if(queue->next_idx == 0){
     printf(" output %d should have been flushed, but was empty!\n", number);

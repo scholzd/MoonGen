@@ -263,7 +263,6 @@ function mod.get(id)
       -- compare it to the one in device.macAddr, which is already in string format
       if util_compare_cdata(mac, id, 6) then
         id = v.id
-        print "found"
         break
       end
     end

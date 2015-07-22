@@ -128,7 +128,7 @@ function mg_distribute:registerOutput(outputNumber, txQueue, bufferSize, timeout
   local portID = txQueue.id
   local queueID = txQueue.qid
 
-  print ("register output NR " .. tostring(outputNumber) .. " -> port = " .. tostring(portID) .. " queue = " .. tostring(queueID) .. " timeout = " .. tostring(cycles_timeout))
+  print ("    register output NR " .. tostring(outputNumber) .. " -> port = " .. tostring(portID) .. " queue = " .. tostring(queueID) .. " timeout = " .. tostring(cycles_timeout))
   ffi.C.mg_distribute_register_output(self.cfg, outputNumber, portID, queueID, bufferSize, cycles_timeout)
 end
 
