@@ -375,6 +375,8 @@ local function arpTask(qs)
 						end
 					elseif rxPkt.arp:getOperation() == arp.OP_REPLY then
 						-- learn from all arp replies we see (arp cache poisoning doesn't matter here)
+            -- FIXME: this will eventually overflow memory, as arpTable entries never get removed
+            --  -> we have to implement something like a replacement strategy (LRU or oldest first)
 						local mac = rxPkt.arp:getHardwareSrcString()
 						local ip = rxPkt.arp:getProtoSrcString()
 						arpTable[tostring(parseIPAddress(ip))] = { mac = mac, timestamp = dpdk.getTime() }
@@ -387,6 +389,7 @@ local function arpTask(qs)
 		-- send outstanding requests 
 		arpTable:forEach(function(ip, value)
 			-- TODO: refresh or GC old entries
+      -- FIXME: arpTable entries never get old :( so we can not react to changing network topology
 			if value ~= "pending" then
 				return
 			end
@@ -450,7 +453,9 @@ function arp.blockingLookup(ip, timeout)
 		if mac then
 			return mac, ts
 		end
-		dpdk.sleepMillisIdle(1000)
+    -- FIXME: delay was 1000 ms. WHY ??? In my opinion 100ms or less should be
+    --  more than enough. RTT in LAN is usually less than 10ms
+		dpdk.sleepMillisIdle(100)
 	until dpdk.getTime() >= timeout
 end
 
