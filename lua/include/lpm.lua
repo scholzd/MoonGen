@@ -88,6 +88,7 @@ local mod = {}
 local mg_lpm4Table = {}
 mod.mg_lpm4Table = mg_lpm4Table
 mg_lpm4Table.__index = mg_lpm4Table
+mg_lpm4Table.__gc = function(self) print("collected") end
 
 --- Create a new LPM lookup table.
 -- @param socket optional (default = socket of the calling thread), CPU socket, where memory for the table should be allocated.
@@ -101,11 +102,12 @@ function mod.createLpm4Table(socket, table, entry_ctype)
   --params.offset = 128 + 27+4
   params.offset = 128+ 14 + 12+4
   return setmetatable({
-    table = table or ffi.gc(ffi.C.mg_table_lpm_create(params, socket, ffi.sizeof(entry_ctype)), function(self)
-      -- FIXME: why is destructor never called?
-      print "lpm garbage"
-      ffi.C.mg_table_lpm_free(self)
-    end),
+    table = table or ffi.C.mg_table_lpm_create(params, socket, ffi.sizeof(entry_ctype)),
+    --table = table or ffi.gc(ffi.C.mg_table_lpm_create(params, socket, ffi.sizeof(entry_ctype)), function(self)
+    --  -- FIXME: why is destructor never called?
+    --  print "lpm garbage"
+    --  ffi.C.mg_table_lpm_free(self)
+    --end),
     entry_ctype = entry_ctype
   }, mg_lpm4Table)
 end
