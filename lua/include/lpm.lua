@@ -121,10 +121,11 @@ function mod.createLpm4Table(socket, table, entry_ctype)
   }, mg_lpm4Table)
 end
 
-function mod.buildLpmTableFromRoutes(routes, ports)
+function mg_lpm4Table:addRoutesFromTable(routes, ports)
   -- Create a new routing table.
   -- We use the default entry ctype
-  local lpmTable = mod.createLpm4Table(nil, nil, nil)
+  --local lpmTable = mod.createLpm4Table(nil, nil, nil)
+  local lpmTable = self
   -- add all routes:
   local entry = lpmTable:allocateEntry()
   for i, route in pairs(routes) do
