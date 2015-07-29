@@ -201,6 +201,13 @@ end
 function mg_lpm4Table:allocateEntry()
   return ffi.new(self.entry_ctype)
 end
+--
+--- Allocates an LPM table entry and return a pointer to it
+--- Allocates an LPM table entry
+-- @return Pointer to he newly allocated entry
+function mg_lpm4Table:allocateEntry_ptr()
+  return ffi.new(self.entry_ctype .. "[1]")
+end
 
 local mg_lpm4EntryPtrs = {}
 
@@ -222,6 +229,10 @@ function mg_lpm4EntryPtrs:__index(k)
   else
     return mg_lpm4EntryPtrs[k]
   end
+end
+
+function mg_lpm4EntryPtrs:__newindex(x, y)
+  self.array[x-1] = y
 end
 
 function mod.applyRoute(pkts, mask, entries, entryOffset)

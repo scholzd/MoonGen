@@ -536,6 +536,12 @@ int mg_table_lpm_apply_route_single(
   uint16_t offset_pkt,
   uint16_t size)
 {
+  //printf("c_entry %lx\n", (intptr_t)(entry));
+  //printf("c_entry[0] %lx\n", (intptr_t)(entry[0]));
+  //printf("entry: %x\n", ((uint8_t*)(entry[0]) )[0] );
+  //printf("entry: %x\n", ((uint8_t*)(entry[0]) )[1] );
+  //printf("entry: %x\n", ((uint8_t*)(entry[0]) )[2] );
+  //printf("entry: %x\n", ((uint8_t*)(entry[0]) )[3] );
   struct ether_hdr * ethhdr = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
   ether_addr_copy((struct ether_addr*)(*entry + offset_entry), &ethhdr->d_addr);
   return 0;
