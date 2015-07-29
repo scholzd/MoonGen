@@ -133,3 +133,21 @@ void* rte_memcpy_export 	( 	void *  	dst,
 	){
   return rte_memcpy(dst, src, n);
 }
+
+// bit operations in lua on cdata types are very unstable
+// those are bitlogic operations on 32 bit integers:
+uint32_t mg_util_band32(uint32_t a, uint32_t b){
+  return a & b;
+}
+uint32_t mg_util_bor32(uint32_t a, uint32_t b){
+  return a | b;
+}
+uint32_t mg_util_bnot32(uint32_t a){
+  return ~a;
+}
+uint32_t mg_util_rshift32(uint32_t a, uint8_t n){
+  return a>>n;
+}
+uint32_t mg_util_lshift32(uint32_t a, uint8_t n){
+  return a>>n;
+}

@@ -312,3 +312,26 @@ function util_compare_cdata(d1, d2, size)
   return (result == 0)
 end
 
+ffi.cdef[[
+uint32_t mg_util_band32(uint32_t a, uint32_t b);
+uint32_t mg_util_bor32(uint32_t a, uint32_t b);
+uint32_t mg_util_bnot32(uint32_t a);
+uint32_t mg_util_rshift32(uint32_t a, uint8_t n);
+uint32_t mg_util_lshift32(uint32_t a, uint8_t n);
+]]
+
+function util_band32(a,b)
+  return ffi.C.mg_util_band32(a,b)
+end
+function util_bor32(a,b)
+  return ffi.C.mg_util_bor32(a,b)
+end
+function util_rshift32(a,n)
+  return ffi.C.mg_util_rshift32(a,n)
+end
+function util_lshift32(a,n)
+  return ffi.C.mg_util_lshift32(a,n)
+end
+function util_bnot32(a)
+  return ffi.C.mg_util_bnot32(a)
+end
