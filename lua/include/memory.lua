@@ -251,6 +251,11 @@ function bufArray:offloadIPChecksums(ipv4, l2Len, l3Len, n)
 			local buf = self.array[i]
 			buf.ol_flags = bit.bor(buf.ol_flags, dpdk.PKT_TX_IPV4_CSUM)
 			buf.pkt.header_lengths = l2_len * 512 + l3_len
+			-- FIXME: below is a workaround to set the ip checksum to 0
+			--	which is required for checksum offloading.
+			--	This does not yet recognize the l2_len parameter
+			--	THIS MIGHT INFLUENCE THE PERFORMANCE
+			buf:getIPPacket().ip4:setChecksum(0)
 		end
 	end
 end
