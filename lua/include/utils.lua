@@ -4,6 +4,14 @@ local format = string.format
 local random, log, floor = math.random, math.log, math.floor
 local ffi = require "ffi"
 
+ffi.cdef[[
+void print_ptr(void* ptr);
+]]
+
+function printPtr(ptr)
+  ffi.C.print_ptr(ptr)
+end
+
 function printf(str, ...)
 	return print(str:format(...))
 end

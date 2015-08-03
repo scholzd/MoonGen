@@ -29,6 +29,7 @@ struct rte_mempool* init_mem(uint32_t nb_mbuf, uint32_t socket, uint32_t mbuf_si
 		printf("Memory allocation failed: %s (%d)\n", rte_strerror(rte_errno), rte_errno); 
 		return 0;
 	}
+  printf("mempool init fun: %p\n", pool);
 	return pool;
 }
 

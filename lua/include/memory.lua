@@ -101,10 +101,11 @@ end
 -- 	bufSize optional the size of each buffer, can only be used if all other args are passed as well
 function mod.createMemPool(...)
 	local args = {...}
+	args[1] = args[1] or {}
 	if type(args[1]) == "table" then
 	  args = args[1]
 	else
-	  --print "[WARNING] You are using a depreciated method for calling createMemPool(...). createMemPool(...) should be used with named arguments."
+	  print "[WARNING] You are using a depreciated method for calling createMemPool(...). createMemPool(...) should be used with named arguments."
       if type(args[1]) == "function" then
 	    -- (func[, socket])
 	    args.socket = args[2]
