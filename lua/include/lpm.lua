@@ -5,7 +5,7 @@ local band, lshift, rshift = bit.band, bit.lshift, bit.rshift
 local dpdkc = require "dpdkc"
 local dpdk = require "dpdk"
 local serpent = require "Serpent"
-local arp = require "proto.arp"
+--local arp = require "proto.arp"
 require "memory"
 --local burst = require "burst"
 
@@ -121,7 +121,8 @@ function mod.createLpm4Table(socket, table, entry_ctype)
   }, mg_lpm4Table)
 end
 
-function mg_lpm4Table:addRoutesFromTable(routes, ports)
+function mg_lpm4Table:addRoutesFromTable(routes, ports, arpLookupFun)
+  --arpLookupFun = arpLookupFun or arp.blockingLookup
   -- Create a new routing table.
   -- We use the default entry ctype
   --local lpmTable = mod.createLpm4Table(nil, nil, nil)
@@ -141,7 +142,7 @@ function mg_lpm4Table:addRoutesFromTable(routes, ports)
       lpmTable:addEntry(parseIPAddress(route.networkIP), route.networkPrefix, entry)
     else
       -- we have to make an ARP lookup
-      local mac, _ = arp.blockingLookup(parseIPAddress(route.nhIPv4), 1)
+      local mac, _ = arpLookupFun(parseIPAddress(route.nhIPv4), 1)
       if(mac) then
         entry.mac_next_hop = parseMacAddress(mac)
         lpmTable:addEntry(parseIPAddress(route.networkIP), route.networkPrefix, entry)
