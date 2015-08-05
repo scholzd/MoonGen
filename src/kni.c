@@ -22,15 +22,14 @@ static int kni_config_network_interface(uint8_t port_id, uint8_t if_up){
 }
 
 //struct rte_kni * mg_create_kni(uint8_t port_id, uint8_t core_id, struct rte_mempool* pktmbuf_pool){
-struct rte_kni * mg_create_kni(uint8_t port_id, uint8_t core_id, void* mempool_ptr){
+struct rte_kni * mg_create_kni(uint8_t port_id, uint8_t core_id, void* mempool_ptr, const char name[]){
   //printf("create kni\n");
   //printf("mempool ptr 1 : %p\n", mempool_ptr);
   struct rte_kni *kni;
 	struct rte_kni_conf conf;
   /* Clear conf at first */
   memset(&conf, 0, sizeof(conf));
-  snprintf(conf.name, RTE_KNI_NAMESIZE,
-      "mg_vEth%u", port_id);
+  snprintf(conf.name, RTE_KNI_NAMESIZE, name);
   conf.core_id = core_id;
   conf.force_bind = 1;
   conf.group_id = (uint16_t)port_id;
@@ -66,4 +65,8 @@ struct rte_kni * mg_create_kni(uint8_t port_id, uint8_t core_id, void* mempool_p
 
   //rte_eth_dev_start(port_id);
   return kni;
+}
+
+unsigned mg_kni_tx_single(struct rte_kni * kni, struct rte_mbuf * mbuf){
+  return rte_kni_tx_burst(kni, &mbuf, 1);
 }
