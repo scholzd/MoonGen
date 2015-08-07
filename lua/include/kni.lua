@@ -45,11 +45,8 @@ function mod.createKNI(core, device, mempool, name)
   }, mg_kni)
 end
 
-function mg_kni:rxBurst()
-  ffi.C.rte_kni_rx_burst(self.kni, NULL, 0)
-end
-function mg_kni:txBurst()
-  ffi.C.rte_kni_tx_burst(self.kni, NULL, 0)
+function mg_kni:rxBurst(bufs, nmax)
+  return ffi.C.rte_kni_rx_burst(self.kni, bufs.array, nmax)
 end
 function mg_kni:txSingle(mbuf)
   ffi.C.mg_kni_tx_single(self.kni, mbuf)

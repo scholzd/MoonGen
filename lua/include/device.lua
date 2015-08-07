@@ -507,6 +507,16 @@ function txQueue:getTxRate()
 	return self.rate
 end
 
+--- Sends the first n packets in the buffer array "bufs"
+function txQueue:sendN(bufs, n)
+	self.used = true
+  local ntx = bufs.size
+  if(n< bufs.size) then
+    ntx = n
+  end
+	dpdkc.send_all_packets(self.id, self.qid, bufs.array, ntx);
+	return bufs.size
+end
 function txQueue:send(bufs)
 	self.used = true
 	dpdkc.send_all_packets(self.id, self.qid, bufs.array, bufs.size);
