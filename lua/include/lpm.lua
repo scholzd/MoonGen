@@ -107,7 +107,7 @@ function mod.createLpm4Table(socket, table, entry_ctype)
     -- configure parameters for the LPM table
   local params = ffi.new("struct rte_table_lpm_params")
   params.n_rules = 1000
-  params.entry_unique_size = 5
+  params.entry_unique_size = ffi.sizeof(entry_ctype)
   --params.offset = 128 + 27+4
   params.offset = 128+ 14 + 12+4
   return setmetatable({
@@ -120,38 +120,42 @@ function mg_lpm4Table:free()
   ffi.C.mg_table_lpm_free(self.table)
 end
 
-function mg_lpm4Table:addRoutesFromTable(routes, ports, arpLookupFun)
-  --arpLookupFun = arpLookupFun or arp.blockingLookup
-  -- Create a new routing table.
-  -- We use the default entry ctype
-  --local lpmTable = mod.createLpm4Table(nil, nil, nil)
-  local lpmTable = self
-  -- add all routes:
-  local entry = lpmTable:allocateEntry()
-  for i, route in pairs(routes) do
-    printf(" adding %s: %s/%d via %s", i, route.networkIP, route.networkPrefix, route.nhPort)
-    -- Order in which routes are added, does not matter. the dpdk algorithm
-    -- will overwrite overlapping existing rule entries only, if the new depth
-    -- is more specific than the existing rule depth
-    entry.interface = ports[route.nhPort].device.id
-    if(route.nhMAC ~= nil) then
-      -- we have a static mac address given
-      -- so we use this:
-      entry.mac_next_hop = parseMacAddress(route.nhMAC)
-      lpmTable:addEntry(parseIPAddress(route.networkIP), route.networkPrefix, entry)
-    else
-      -- we have to make an ARP lookup
-      local mac, _ = arpLookupFun(parseIPAddress(route.nhIPv4), 1)
-      if(mac) then
-        entry.mac_next_hop = parseMacAddress(mac)
-        lpmTable:addEntry(parseIPAddress(route.networkIP), route.networkPrefix, entry)
-      else
-        printf("  [WARNING] could not resolve MAC address for route to %s", route.nhIPv4)
-      end
-    end
-  end
-  return lpmTable
-end
+-- this function is now part of the router and extends lpm
+-- function mg_lpm4Table:addRoutesFromTable(routes, ports, arpLookupFun)
+--   print "AAAAA"
+--   --arpLookupFun = arpLookupFun or arp.blockingLookup
+--   -- Create a new routing table.
+--   -- We use the default entry ctype
+--   --local lpmTable = mod.createLpm4Table(nil, nil, nil)
+--   local lpmTable = self
+--   -- add all routes:
+--   local entry = lpmTable:allocateEntry()
+--   for i, route in pairs(routes) do
+--     printf(" adding %s: %s/%d via %s", i, route.networkIP, route.networkPrefix, route.nhPort)
+--     -- Order in which routes are added, does not matter. the dpdk algorithm
+--     -- will overwrite overlapping existing rule entries only, if the new depth
+--     -- is more specific than the existing rule depth
+--     entry.interface = ports[route.nhPort].device.id
+--     if(route.nhMAC ~= nil) then
+--       -- we have a static mac address given
+--       -- so we use this:
+--       entry.mac_next_hop = parseMacAddress(route.nhMAC)
+--       printf("mac static %x", entry.mac_next_hop)
+--       lpmTable:addEntry(parseIPAddress(route.networkIP), route.networkPrefix, entry)
+--     else
+--       -- we have to make an ARP lookup
+--       local mac, _ = arpLookupFun(parseIPAddress(route.nhIPv4), 1)
+--       if(mac) then
+--         entry.mac_next_hop = parseMacAddress(mac)
+--         printf("mac arp %x", entry.mac_next_hop)
+--         lpmTable:addEntry(parseIPAddress(route.networkIP), route.networkPrefix, entry)
+--       else
+--         printf("  [WARNING] could not resolve MAC address for route to %s", route.nhIPv4)
+--       end
+--     end
+--   end
+--   return lpmTable
+-- end
 
 -- --- Free the LPM Table
 -- -- @return 0 on success, error code otherwise

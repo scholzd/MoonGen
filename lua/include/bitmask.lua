@@ -124,6 +124,17 @@ function mg_bitMask:printout()
   end
 end
 
+function mg_bitMask:printoutcompact()
+  for i, v in ipairs(self) do
+    if(v) then
+      io.write("1")
+    else
+      io.write("0")
+    end
+  end
+  print ""
+end
+
 --- Bitwise and
 -- @param mask1
 -- @param mask2
