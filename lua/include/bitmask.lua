@@ -32,11 +32,12 @@ local mg_bitMask = {}
 -- @return Wrapper table around the bitmask
 function mod.createBitMask(size)
   return setmetatable({
-    bitmask = ffi.gc(ffi.C.mg_bitmask_create(size), function (self)
-      print("I HAVE BEEN DESTRUCTED")
-      ffi.C.mg_bitmask_free(self)
-    end )
+    bitmask = ffi.C.mg_bitmask_create(size)
   }, mg_bitMask)
+end
+
+function mg_bitMask:free()
+  ffi.C.mg_bitmask_free(self.bitmask)
 end
 
 -- TODO: think of a better solution - meh

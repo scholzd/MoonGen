@@ -189,12 +189,13 @@ function mod.newFastCPipe(args)
 
 
   return setmetatable({
-    ring = ffi.gc(ring, function (self)
-      print("I HAVE BEEN DESTRUCTED")
-      ffi.C.rte_free(self)
-    end ),
+    ring = ring
     size = args.size
   }, mg_fastCPipe)
+end
+
+function mg_fastCPipe:free()
+  ffi.C.rte_free(self.ring)
 end
 
 -- Enqueue a ctype object

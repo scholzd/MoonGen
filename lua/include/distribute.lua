@@ -100,14 +100,13 @@ function mod.createDistributor(socket, entryOffset, nrOutputs, alwaysFlush)
 
   return setmetatable({
     cfg = ffi.C.mg_distribute_create(entryOffset, nrOutputs, alwaysFlush),
-    --cfg = ffi.gc(ffi.C.mg_distribute_create(entryOffset, nrOutputs, alwaysFlush), function(self)
-    --  print "lpm garbage"
-    --  ffi.C.mg_NOT_YET_IMPLEMENTED(self) -- FIXME
-    --end),
     socket = socket
   }, mg_distribute)
 end
 
+function mg_distribute:free()
+  ffi.C.mg_NOT_YET_IMPLEMENTED(self.cfg) -- FIXME
+end
 
 function mg_distribute:__serialize()
 	return "require 'distribute'; return " .. serpent.addMt(serpent.dumpRaw(self), "require('distribute').mg_distribute"), true
