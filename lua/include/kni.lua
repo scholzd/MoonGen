@@ -55,4 +55,12 @@ function mg_kni:handleRequest()
   ffi.C.rte_kni_handle_request(self.kni)
 end
 
+function mg_kni:release()
+  return ffi.C.rte_kni_release()
+end
+
+function mod.close()
+  ffi.C.rte_kni_close()
+end
+
 return mod
