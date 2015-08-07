@@ -5,7 +5,7 @@ local band, lshift, rshift = bit.band, bit.lshift, bit.rshift
 local dpdkc = require "dpdkc"
 local dpdk = require "dpdk"
 local serpent = require "Serpent"
-local arp = require "proto.arp"
+--local arp = require "proto.arp"
 require "memory"
 --local burst = require "burst"
 
@@ -107,50 +107,17 @@ function mod.createLpm4Table(socket, table, entry_ctype)
     -- configure parameters for the LPM table
   local params = ffi.new("struct rte_table_lpm_params")
   params.n_rules = 1000
-  params.entry_unique_size = 5
+  params.entry_unique_size = ffi.sizeof(entry_ctype)
   --params.offset = 128 + 27+4
   params.offset = 128+ 14 + 12+4
   return setmetatable({
     table = table or ffi.C.mg_table_lpm_create(params, socket, ffi.sizeof(entry_ctype)),
-    --table = table or ffi.gc(ffi.C.mg_table_lpm_create(params, socket, ffi.sizeof(entry_ctype)), function(self)
-    --  -- FIXME: why is destructor never called?
-    --  print "lpm garbage"
-    --  ffi.C.mg_table_lpm_free(self)
-    --end),
     entry_ctype = entry_ctype
   }, mg_lpm4Table)
 end
 
-function mg_lpm4Table:addRoutesFromTable(routes, ports)
-  -- Create a new routing table.
-  -- We use the default entry ctype
-  --local lpmTable = mod.createLpm4Table(nil, nil, nil)
-  local lpmTable = self
-  -- add all routes:
-  local entry = lpmTable:allocateEntry()
-  for i, route in pairs(routes) do
-    printf(" adding %s: %s/%d via %s", i, route.networkIP, route.networkPrefix, route.nhPort)
-    -- Order in which routes are added, does not matter. the dpdk algorithm
-    -- will overwrite overlapping existing rule entries only, if the new depth
-    -- is more specific than the existing rule depth
-    entry.interface = ports[route.nhPort].device.id
-    if(route.nhMAC ~= nil) then
-      -- we have a static mac address given
-      -- so we use this:
-      entry.mac_next_hop = parseMacAddress(route.nhMAC)
-      lpmTable:addEntry(parseIPAddress(route.networkIP), route.networkPrefix, entry)
-    else
-      -- we have to make an ARP lookup
-      local mac, _ = arp.blockingLookup(parseIPAddress(route.nhIPv4), 1)
-      if(mac) then
-        entry.mac_next_hop = parseMacAddress(mac)
-        lpmTable:addEntry(parseIPAddress(route.networkIP), route.networkPrefix, entry)
-      else
-        printf("  [WARNING] could not resolve MAC address for route to %s", route.nhIPv4)
-      end
-    end
-  end
-  return lpmTable
+function mg_lpm4Table:free()
+  ffi.C.mg_table_lpm_free(self.table)
 end
 
 -- --- Free the LPM Table
