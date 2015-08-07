@@ -21,6 +21,8 @@ unsigned rte_kni_rx_burst 	( 	struct rte_kni *  	kni,
 	);
 int rte_kni_handle_request 	( 	struct rte_kni *  	kni	);
 unsigned mg_kni_tx_single(struct rte_kni * kni, struct rte_mbuf * mbuf);
+void rte_kni_close 	( 	void  		);
+int rte_kni_release 	( 	struct rte_kni *  	kni	);
 ]]
 
 function mod.createKNI(core, device, mempool, name)
@@ -56,7 +58,7 @@ function mg_kni:handleRequest()
 end
 
 function mg_kni:release()
-  return ffi.C.rte_kni_release()
+  return ffi.C.rte_kni_release(self.kni)
 end
 
 function mod.close()
