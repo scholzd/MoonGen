@@ -189,7 +189,7 @@ function mod.newFastCPipe(args)
 
 
   return setmetatable({
-    ring = ring
+    ring = ring,
     size = args.size
   }, mg_fastCPipe)
 end
