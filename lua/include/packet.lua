@@ -440,6 +440,7 @@ function pkt:checkValidIPv4C_single()
   return (ffi.C.mg_ipv4_check_valid_single(self) == 1)
 end
 
+--- Free a single packet
 function pkt:free()
   dpdkc.rte_pktmbuf_free_export(self)
 end
