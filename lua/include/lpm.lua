@@ -99,9 +99,12 @@ struct mg_lpm4Table_default_table_entry {
 ]]
 
 --- Create a new LPM lookup table.
--- @param socket optional (default = socket of the calling thread), CPU socket, where memory for the table should be allocated.
+-- @param socket optional (default = socket of the calling thread), CPU socket,
+--  where memory for the table should be allocated.
+-- @param entry_ctype optional (default = "struct mg_lpm4Table_default_table_entry"
+--  containing a 8 bit next hop interface number and a next hop mac address) cdata type of the routing table entries.
 -- @return the table handler
-function mod.createLpm4Table(socket, table, entry_ctype)
+function mod.createLpm4Table(socket, entry_ctype)
   socket = socket or select(2, dpdk.getCore())
   entry_ctype = entry_ctype or "struct mg_lpm4Table_default_table_entry"
     -- configure parameters for the LPM table
@@ -111,22 +114,18 @@ function mod.createLpm4Table(socket, table, entry_ctype)
   --params.offset = 128 + 27+4
   params.offset = 128+ 14 + 12+4
   return setmetatable({
-    table = table or ffi.C.mg_table_lpm_create(params, socket, ffi.sizeof(entry_ctype)),
+    table = ffi.C.mg_table_lpm_create(params, socket, ffi.sizeof(entry_ctype)),
     entry_ctype = entry_ctype
   }, mg_lpm4Table)
 end
 
+--- Free the LPM table.
+-- @return 0 on success, error code otherwise
 function mg_lpm4Table:free()
-  ffi.C.mg_table_lpm_free(self.table)
+  return ffi.C.mg_table_lpm_free(self.table)
 end
 
--- --- Free the LPM Table
--- -- @return 0 on success, error code otherwise
--- function mg_lpm4Table:destruct()
---   return ffi.C.mg_table_lpm_free(self.table)
--- end
-
---- Add an entry to a Table
+--- Add an entry to a Table.
 -- @param addr IPv4 network address of the destination network.
 -- @param depth number of significant bits of the destination network address
 -- @param entry routing table entry (will be copied)
@@ -135,26 +134,41 @@ function mg_lpm4Table:addEntry(addr, depth, entry)
   return 0 == ffi.C.mg_table_entry_add_simple(self.table, addr, depth, entry)
 end
 
---- Perform IPv4 route lookup for a burst of packets
+--- Perform IPv4 route lookup for a burst of packets.
 -- This should not be used for single packet lookup, as ist brings
 -- a significant penalty for bursts <<64
 -- @param packets Array of mbufs (bufArray), for which the lookup will be performed
--- @param mask optional (default = all packets), bitmask, for which packets the lookup should be performed
--- @param hitMask Bitmask, where the routed packets are flagged
--- with one. This may be the same Bitmask as passed in the mask
--- parameter, in this case not routed packets will be cleared in
--- the bitmask.
+-- @param mask bitmask, for which packets the lookup should be performed
+-- @param hitMask Bitmask, where the bits corresponding to the routed packets
+--  will be set to 1 and the bits corresponding to the packets, where no route
+--  could be found will be cleared. NOTE: bits corresponding to packets, where
+--  no lookup was performed will not be touched
 -- @param entries Preallocated routing entry Pointers
+-- @return always 0
 function mg_lpm4Table:lookupBurst(packets, mask, hitMask, entries)
   -- FIXME: I feel uneasy about this cast, should this cast not be
   --  done implicitly?
   return ffi.C.mg_table_lpm_lookup_big_burst2(self.table, packets.array, mask.bitmask, hitMask.bitmask, ffi.cast("void **",entries.array))
 end
+
+--- Perform IPv4 route lookup for a burst of packets.
+-- Same as mg_lpm4Table:lookupBurst(...) but additionally, all packets, where
+-- no route could be found will be enqueued to a fast pipe, or freed, if this
+-- queue is full.
+-- @param pipe fastPipe to which packets will be sent, where no route could
+--  be found
+-- @return always 0
 function mg_lpm4Table:lookupBurst_pipe(packets, mask, hitMask, pipe, entries)
   -- FIXME: I feel uneasy about this cast, should this cast not be
   --  done implicitly?
   return ffi.C.mg_table_lpm_lookup_big_burst2_queue(self.table, packets.array, mask.bitmask, hitMask.bitmask, pipe.ring, ffi.cast("void **",entries.array))
 end
+
+--- Perform IPv4 route lookup for a single packet.
+-- @param packet mbuf containing the packet, for which the lookup should be performed
+-- @param entries Preallocated routing entry Pointers (not a single entry, but
+--  an array, as received with mg_lpm4Table:allocateEntryPtrs(n))
+-- @return 1 on success, 0 when no route was found
 function mg_lpm4Table:lookup_single(packet, entry)
   return (ffi.C.mg_table_lpm_lookup_single(self.table, packet, ffi.cast("void **",entry.array)) == 1)
 end
@@ -202,11 +216,28 @@ function mg_lpm4EntryPtrs:__newindex(x, y)
   self.array[x-1] = y
 end
 
+--- Apply routes to packets
+-- Copies the mac addresses found in the entries to the destination mac address
+-- field of the corresponding packets
+-- @param pkts buffer array, containig packets
+-- @param mask bitMask describing for whick packets the operation should be done
+-- @param entries routing table entries for the packets
+-- @packets entrOffset optional (default = 1 matching the default entry_ctype)
+--  Offset in bytes where to find the mac address in the entry
+-- @return always 0
 function mod.applyRoute(pkts, mask, entries, entryOffset)
   entryOffset = entryOffset or 1
   return ffi.C.mg_table_lpm_apply_route(pkts.array, mask.bitmask, ffi.cast("void **", entries.array), entryOffset, 128, 6)
 end
 
+--- Apply routes to a single packet
+-- Same as mod.applyRoute(), but for a single packet
+-- @param pkt mbuf containing the packet
+-- @param entries Routing entry Pointers (not a single entry, but
+--  an array, as received with mg_lpm4Table:allocateEntryPtrs(n))
+-- @packets entrOffset optional (default = 1 matching the default entry_ctype)
+--  Offset in bytes where to find the mac address in the entry
+-- @return always 0
 function mod.applyRoute_single(pkt, entry, entryOffset)
   entryOffset = entryOffset or 1
   return ffi.C.mg_table_lpm_apply_route_single(pkt, ffi.cast("void **",entry.array), entryOffset, 128, 6)
@@ -215,6 +246,13 @@ end
 -- FIXME: this should not be in LPM module. but where?
 --- Decrements the IP TTL field of all masked packets by one.
 --  out_mask masks the successfully decremented packets (TTL did not reach zero).
+-- @param pkts buffer array
+-- @param in_mask bitmask, for which packets the operation should be performed
+-- @param out_Mask Bitmask, where the bits corresponding to packets, where TTL
+--  was decremented successfully will be set to 1 and the bits corresponding to
+--  the packets, where the TTL reached 0 will be set to 0.
+--  NOTE: bits corresponding to packets, where no operation was performed will
+--  not be touched
 function mod.decrementTTL(pkts, in_mask, out_mask, ipv4)
   ipv4 = ipv4 == nil or ipv4
   if ipv4 then
@@ -229,8 +267,6 @@ function mod.decrementTTL(pkts, in_mask, out_mask, ipv4)
         else
           out_mask[i] = 0
         end
-      else
-        out_mask[i] = 0
       end
     end
   else
@@ -255,7 +291,7 @@ void mg_ipv4_decrement_ttl_queue(
 
 -- FIXME: this should not be in LPM module. but where?
 --- Decrements the IP TTL field of all masked packets by one.
---  out_mask masks the successfully decremented packets (TTL did not reach zero).
+-- This is the same as mod.decrementTTL(...) but uses a faster C implementation
 function mod.decrementTTLC(pkts, in_mask, out_mask, ipv4)
   ipv4 = ipv4 == nil or ipv4
   if ipv4 then
@@ -265,6 +301,11 @@ function mod.decrementTTLC(pkts, in_mask, out_mask, ipv4)
   end
 end
 
+--- Decrements the IP TTL field of all masked packets by one.
+-- This is the same as mod.decrementTTLC(...) but additionally, all packets,
+-- where the TTL reached 0 will be enqueued to a fast pipe, or freed, if this
+-- queue is full.
+-- @param fastPipe fastPipe to which packets will be sent, where the TTL reached 0
 function mod.decrementTTL_pipeC(pkts, in_mask, out_mask, fastPipe, ipv4)
   ipv4 = ipv4 == nil or ipv4
   if ipv4 then
@@ -274,11 +315,14 @@ function mod.decrementTTL_pipeC(pkts, in_mask, out_mask, fastPipe, ipv4)
   end
 end
 
+--- Decrements the IP TTL field of a packet by one.
+-- This is the same as mod.decrementTTL(...) but only works on one packet
+-- @param pkt mbuf containing the packet
+-- @param ipv4 optional (default = true) specifies, if true, the packet is
+--  assumed to be ipv4 otherwise it is assumed to be ipv6. currently only ipv4
+--  packets are supported
+-- @return true if TTL was decremented successfully, false if TTL reached 0
 function mod.decrementTTL_single(pkt, ipv4)
-  -- return true is for debugging only. return always true to cause segfault
-  -- when sending to distributor
-  --return true
-
   ipv4 = ipv4 == nil or ipv4
   if ipv4 then
     -- TODO: C implementation might be faster...

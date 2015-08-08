@@ -28,6 +28,10 @@ deviceDependent[device.PCI_ID_X540] = require "filter_x540"
 deviceDependent[device.PCI_ID_82599] = mergeTables(require "filter_x540", require "filter_82599")
 
 
+--- Installs an ethertype filter on the device.
+--  Matching packets will be redirected into the specified rx queue
+-- @param ethtype The ethertype, this filter should match
+-- @param queue the rx queue, to which matching packets will be forwarded
 function dev:l2Filter(etype, queue)
   fun = deviceDependent[self:getPciId()].l2Filter
   if fun then
@@ -130,7 +134,7 @@ local mg_filter_5tuple = {}
 mod.mg_filter_5tuple = mg_filter_5tuple
 mg_filter_5tuple.__index = mg_filter_5tuple
 
---- Creates a new 5tuple filter / packet classifier
+--- Creates a new 5tuple filter / packet classifier.
 -- @param socket optional (default: socket of calling thread), CPU socket, where memory for the filter should be allocated.
 -- @param acx experimental use only. should be nil.
 -- @param numCategories number of categories, this filter should support
@@ -227,13 +231,13 @@ function mg_filter_5tuple:bindBitmaskToCategory(bitmask, category)
 end
 
 
---- Allocates memory for one 5 tuple rule
+--- Allocates memory for one 5 tuple rule.
 -- @return ctype object "struct mg_5tuple_rule"
 function mg_filter_5tuple:allocateRule()
   return ffi.new("struct mg_5tuple_rule")
 end
 
---- Adds a rule to the filter
+--- Adds a rule to the filter.
 -- @param rule the rule to be added (ctype "struct mg_5tuple_rule")
 -- @priority priority of the rule. Higher number -> higher priority
 -- @category_mask bitmask for the categories, this rule should apply
@@ -246,7 +250,8 @@ function mg_filter_5tuple:addRule(rule, priority, category_mask, value)
   return ffi.C.mg_5tuple_add_rule(self.acx, rule, priority, category_mask, value)
 end
 
---- Builds the filter with the currently added rules. Should be executed after adding rules
+--- Build filter.
+-- Builds the filter with the currently added rules. Should be executed after adding rules.
 -- @param optional (default = number of Categories, set at 5tuple filter creation time) numCategories maximum number of categories, which are in use.
 function mg_filter_5tuple:build(numCategories)
   numCategories = numCategories or self.numRealCategories
@@ -255,7 +260,7 @@ function mg_filter_5tuple:build(numCategories)
   return ffi.C.mg_5tuple_build_filter(self.acx, numCategories)
 end
 
---- Perform packet classification for a burst of packets
+--- Perform packet classification for a burst of packets.
 -- Will do memory violation, when Masks or Values are not correctly bound to categories.
 -- @param pkts Array of mbufs. Mbufs should contain valid IPv4 packets with a
 --  normal ethernet header (no VLAN tags). A L4 Protocol header has to be
