@@ -75,8 +75,8 @@ end
 local devices = {}
 
 -- FIXME: add description for speed and dropEnable parameters.
---- Configure a device
--- @param args A table containing the following named arguments
+--- Configure a device.
+-- @param args A table containing the following named arguments:
 --   port Port to configure
 --   mempool optional (default = create a new mempool) Mempool to associate to the device
 --   rxQueues optional (default = 1) Number of RX queues to configure 
@@ -208,7 +208,6 @@ int rte_eth_dev_rss_reta_update 	( 	uint8_t  	port,
 		struct rte_eth_rss_reta *  	reta_conf 
 	);
 ]]
-
 function dev:setRssNQueues(n)
   if(n>16)then
     errorf("Maximum possible numbers of RSS queues is 16")
