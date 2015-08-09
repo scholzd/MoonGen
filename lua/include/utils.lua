@@ -4,6 +4,14 @@ local format = string.format
 local random, log, floor = math.random, math.log, math.floor
 local ffi = require "ffi"
 
+ffi.cdef[[
+void srand (unsigned int seed);
+]]
+
+function setRandomSeed(n)
+  ffi.C.srand(n)
+end
+
 function printf(str, ...)
 	return print(str:format(...))
 end

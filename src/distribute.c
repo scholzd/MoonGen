@@ -47,10 +47,11 @@ int mg_distribute_output_flush(
 
   // Busy wait, until all packets are stored in tx descriptors.
   // TODO: maybe use a ring for the queue datastructure and do not do bust wait here
-  while(queue->next_idx>0){
-    uint16_t transmitted = rte_eth_tx_burst (cfg->outputs[number].port_id, cfg->outputs[number].queue_id, queue->pkts, queue->next_idx);
-    queue->next_idx -= transmitted;
+  uint16_t sent = 0;
+  while(sent < queue->next_idx){
+    sent += rte_eth_tx_burst(cfg->outputs[number].port_id, cfg->outputs[number].queue_id, queue->pkts + sent, queue->next_idx - sent);
   }
+  queue->next_idx = 0;
   //printf(" output %d has been flushed!\n", number);
   return 0;
 }
@@ -104,12 +105,14 @@ int mg_distribute_send(
   //  - we always iterate multiple of 64...
   //    -> maybe save cycles, when burst is not multiple of 64?
   int i;
+  //uint16_t count = 0;
   for(i = 0; i < pkts_mask->n_blocks; i++){
     //printf(" block %d\n", i);
     uint64_t mask = 1ULL;
     while(mask){
       //printf("while LOOP\n");
       if(mask & pkts_mask->mask[i]){
+        //count++;
         //printf(" pkt mask true\n");
         // determine output, to send the packet to
         // printf(" entry = %p\n", *entries);
@@ -120,6 +123,7 @@ int mg_distribute_send(
         //printf(" send out to %d\n", output);
         // send pkt to the corresponding output...
         int8_t status = mg_distribute_enqueue(cfg->outputs[output].queue, *pkts);
+        // TODO: switch would be better here or if/else if
         if( unlikely( status  == 2  ) ){
           //printf("  full\n");
           // packet was enqueued, but queue is full
@@ -139,6 +143,7 @@ int mg_distribute_send(
       mask = mask<<1;
     }
   }
+  //printf("enqueued %u packets\n", count);
 
   if(unlikely(cfg->always_flush)){
     int i;
@@ -217,6 +222,7 @@ void mg_distribute_handle_timeouts(
         //printf("added = %lu, timeout = %lu, current time = %lu\n", output->time_first_added, output->timeout, time);
         // timeout hit -> flush queue
         //printf("timeout of output %d was hit\n", i);
+        //printf("output had %d packets enqueued\n", output->queue->next_idx);
         mg_distribute_output_flush(cfg, i);
         // prevent timeout from occuring again
         // (will work for a runtime <199 years on 3GHz CPUs)

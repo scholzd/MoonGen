@@ -507,11 +507,11 @@ void rte_delay_us_export(uint32_t us) {
 int mg_rte_eth_dev_rss_reta_update 	( 	uint8_t  	port,
 		struct rte_eth_rss_reta *  	reta_conf 
 	){
-  //printf("reta port = %u\n", port);
-  //uint8_t i;
-  //for(i = 0; i<128; i++){
-  //  printf(" i = %u, reta = %u\n", i, reta_conf->reta[i]);
-  //}
+  printf("reta port = %u\n", port);
+  uint8_t i;
+  for(i = 0; i<128; i++){
+    printf(" i = %u, reta = %u\n", i, reta_conf->reta[i]);
+  }
   reta_conf->mask_lo = 0xffffffffffffffffULL;
   reta_conf->mask_hi = 0xffffffffffffffffULL;
   return rte_eth_dev_rss_reta_update(port, reta_conf);

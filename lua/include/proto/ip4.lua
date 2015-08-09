@@ -47,8 +47,11 @@ ffi.cdef[[
 union ip4_address mg_ipv4_get_random_address();
 ]]
 
+function ip.getRandomAddress()
+  return ffi.C.mg_ipv4_get_random_address()
+end
 function ip4Addr:setRandom()
-  self.uint32 = ffi.C.mg_ipv4_get_random_address()
+  self = ffi.C.mg_ipv4_get_random_address()
 end
 
 --- Set the IPv4 address.

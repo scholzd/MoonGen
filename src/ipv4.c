@@ -16,6 +16,7 @@ union ip4_address {
 union ip4_address mg_ipv4_get_random_address(){
   union ip4_address result;
   result.uint32 = rand();
+  //result.uint32 = 0;
   return result;
 }
 
@@ -106,7 +107,7 @@ uint8_t mg_ipv4_check_valid_single(
           &&
           // we do not check this against the real header length, but against 20
           // as we do not support reading/writing options in the ip header anyways
-          (((struct ipv4_hdr*)(pkts[i]->pkt.data + ETHER_HDR_LEN))->total_length >=20)
+          (((struct ipv4_hdr*)(pkt->pkt.data + ETHER_HDR_LEN))->total_length >=20)
         ){
         return 1;
       }else{
