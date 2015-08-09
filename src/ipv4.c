@@ -6,6 +6,18 @@
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <rte_ring.h>
+#include <stdlib.h>
+
+union ip4_address {
+  uint8_t		uint8[4];
+  uint32_t	uint32;
+};
+
+union ip4_address mg_ipv4_get_random_address(){
+  union ip4_address result;
+  result.uint32 = rand();
+  return result;
+}
 
 void mg_ipv4_check_valid2(
     struct rte_mbuf **pkts,
