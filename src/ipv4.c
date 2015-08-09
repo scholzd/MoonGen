@@ -31,6 +31,10 @@ void mg_ipv4_check_valid2(
           ((PKT_RX_IP_CKSUM_BAD & flags) == 0)
           &&
           (pkts[i-1]->pkt.data_len >= 20)
+          &&
+          // we do not check this against the real header length, but against 20
+          // as we do not support reading/writing options in the ip header anyways
+          (((struct ipv4_hdr*)(pkts[i]->pkt.data + ETHER_HDR_LEN))->total_length >=20)
         ){
         //printf("is valid\n");
         value = 1;
@@ -64,6 +68,10 @@ void mg_ipv4_check_valid(
           ((PKT_RX_IP_CKSUM_BAD & flags) == 0)
           &&
           (pkts[i]->pkt.data_len >= 20)
+          &&
+          // we do not check this against the real header length, but against 20
+          // as we do not support reading/writing options in the ip header anyways
+          (((struct ipv4_hdr*)(pkts[i]->pkt.data + ETHER_HDR_LEN))->total_length >=20)
         ){
         mg_bitmask_set_bit_inline(out_mask, i);
       }else{
@@ -83,6 +91,10 @@ uint8_t mg_ipv4_check_valid_single(
           ((PKT_RX_IP_CKSUM_BAD & flags) == 0)
           &&
           (pkt->pkt.data_len >= 20)
+          &&
+          // we do not check this against the real header length, but against 20
+          // as we do not support reading/writing options in the ip header anyways
+          (((struct ipv4_hdr*)(pkts[i]->pkt.data + ETHER_HDR_LEN))->total_length >=20)
         ){
         return 1;
       }else{
