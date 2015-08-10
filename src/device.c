@@ -37,7 +37,7 @@ static inline volatile uint32_t* get_reg_addr(uint8_t port, uint32_t reg) {
 	return (volatile uint32_t*)(registers[port] + reg);
 }
 
-int configure_device_part1(int port, int tx_queues, int tx_descs, uint16_t link_speed, struct rte_mempool* mempool, bool drop_en, uint8_t rss_enable, struct mg_rss_hash_mask * hash_functions) {
+int configure_device_part1(int port, int rx_queues, int tx_queues, int tx_descs, uint16_t link_speed, uint8_t rss_enable, struct mg_rss_hash_mask * hash_functions) {
   //printf("configure device: rxqueues = %d, txdevs = %d, port = %d\n", rx_queues, tx_queues, port);
 	if (port >= RTE_MAX_ETHPORTS) {
 		printf("error: Maximum number of supported ports is %d\n   This can be changed with the DPDK compile-time configuration variable RTE_MAX_ETHPORTS\n", RTE_MAX_ETHPORTS);
@@ -132,7 +132,7 @@ int configure_device_part1(int port, int tx_queues, int tx_descs, uint16_t link_
   return 0;
 }
 
-int configure_rxQueue(int port, int rx_descs, struct rte_mempool* mempool) {
+int configure_rxQueue(int port, int queueNr, int rx_descs, struct rte_mempool* mempool, bool drop_en) {
   int rc = 0;
 	struct rte_eth_rxconf rx_conf = {
 		.rx_drop_en = drop_en, // TODO: make this configurable per queue
@@ -142,19 +142,18 @@ int configure_rxQueue(int port, int rx_descs, struct rte_mempool* mempool) {
 			.wthresh = RX_WTHRESH,
 		},
 	};
-	for (int i = 0; i < rx_queues; i++) {
-		// TODO: get socket id for the NIC
-    //printf("setting up queue nr %d !\n", i);
-		rc = rte_eth_rx_queue_setup(port, i, rx_descs ? rx_descs : DEFAULT_RX_DESCS, SOCKET_ID_ANY, &rx_conf, mempool);
-		if (rc != 0) {
-			printf("could not configure rx queue %d\n", i);
-			return rc;
-		}
-	}
+  // TODO: get socket id for the NIC
+  //printf("setting up queue nr %d !\n", i);
+  rc = rte_eth_rx_queue_setup(port, queueNr, rx_descs ? rx_descs : DEFAULT_RX_DESCS, SOCKET_ID_ANY, &rx_conf, mempool);
+  if (rc != 0) {
+    printf("could not configure rx queue %d\n", queueNr);
+    return rc;
+  }
   return rc;
 }
 
 int configure_device_part2(int port){
+  int rc = 0;
 	rte_eth_promiscuous_enable(port);
 	rc = rte_eth_dev_start(port);
 	// save memory address of the register file
@@ -173,132 +172,139 @@ int configure_device_part2(int port){
 	return rc; 
 }
 
-int configure_device(int port, int rx_queues, int tx_queues, int rx_descs, int tx_descs, uint16_t link_speed, struct rte_mempool* mempool, bool drop_en, uint8_t rss_enable, struct mg_rss_hash_mask * hash_functions) {
-  //printf("configure device: rxqueues = %d, txdevs = %d, port = %d\n", rx_queues, tx_queues, port);
-	if (port >= RTE_MAX_ETHPORTS) {
-		printf("error: Maximum number of supported ports is %d\n   This can be changed with the DPDK compile-time configuration variable RTE_MAX_ETHPORTS\n", RTE_MAX_ETHPORTS);
-		return -1;
-	}
-  // FIXME: this is a workaround to force the linking of the power module
-  rte_power_init(3);
-
-  uint64_t rss_hash_functions = 0;
-  if(rss_enable && hash_functions != NULL){
-    // configure the selected hash functions:
-    if(hash_functions->ipv4){
-      rss_hash_functions |= ETH_RSS_IPV4;
-      //printf("ipv4\n");
-    }
-    if(hash_functions->udp_ipv4){
-      rss_hash_functions |= ETH_RSS_IPV4_UDP;
-      //printf("ipv4 udp\n");
-    }
-    if(hash_functions->tcp_ipv4){
-      rss_hash_functions |= ETH_RSS_IPV4_TCP;
-      //printf("ipv4 tcp\n");
-    }
-    if(hash_functions->ipv6){
-      rss_hash_functions |= ETH_RSS_IPV6;
-      //printf("ipv6\n");
-    }
-    if(hash_functions->udp_ipv6){
-      rss_hash_functions |= ETH_RSS_IPV6_TCP;
-      //printf("ipv6 udp\n");
-    }
-    if(hash_functions->tcp_ipv6){
-      rss_hash_functions |= ETH_RSS_IPV6_UDP;
-      //printf("ipv6 tcp\n");
-    }
-  }
-
-
-	// TODO: enable other FDIR filter types
-	struct rte_fdir_conf fdir_conf = {
-		.mode = RTE_FDIR_MODE_PERFECT,
-		.pballoc = RTE_FDIR_PBALLOC_64K,
-		.status = RTE_FDIR_REPORT_STATUS_ALWAYS,
-		.flexbytes_offset = 21, // TODO support other values
-		.drop_queue = 63, // TODO: support for other NICs
-	};
-
-  struct rte_eth_rss_conf rss_conf = {
-    .rss_key = NULL,
-    .rss_key_len = 0,
-    .rss_hf = rss_hash_functions,
-  };
-	struct rte_eth_conf port_conf = {
-		.rxmode = {
-      .mq_mode = rss_enable ? ETH_MQ_RX_RSS : ETH_MQ_RX_NONE,
-			.split_hdr_size = 0,
-			.header_split = 0,
-			.hw_ip_checksum = 1,
-			.hw_vlan_filter = 0,
-			.jumbo_frame = 0,
-			.hw_strip_crc = 1,
-		},
-		.txmode = {
-			.mq_mode = ETH_MQ_TX_NONE,
-		},
-		.fdir_conf = fdir_conf,
-		.link_speed = link_speed,
-    .rx_adv_conf.rss_conf = rss_conf,
-	};
-	int rc = rte_eth_dev_configure(port, rx_queues, tx_queues, &port_conf);
-	if (rc) return rc;
-	// DPDK documentation suggests that the tx queues should be set up before the rx queues
-	struct rte_eth_txconf tx_conf = {
-		// TODO: this should use different values for older GbE NICs
-		.tx_thresh = {
-			.pthresh = TX_PTHRESH,
-			.hthresh = TX_HTHRESH,
-			.wthresh = TX_WTHRESH,
-		},
-		.tx_free_thresh = 0, // 0 = default
-		.tx_rs_thresh = 0, // 0 = default
-		.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS,
-	};
-	for (int i = 0; i < tx_queues; i++) {
-		// TODO: get socket id for the NIC
-		rc = rte_eth_tx_queue_setup(port, i, tx_descs ? tx_descs : DEFAULT_TX_DESCS, SOCKET_ID_ANY, &tx_conf);
-		if (rc) {
-			printf("could not configure tx queue %d\n", i);
-			return rc;
-		}
-	}
-	struct rte_eth_rxconf rx_conf = {
-		.rx_drop_en = drop_en, // TODO: make this configurable per queue
-		.rx_thresh = {
-			.pthresh = RX_PTHRESH,
-			.hthresh = RX_HTHRESH,
-			.wthresh = RX_WTHRESH,
-		},
-	};
-	for (int i = 0; i < rx_queues; i++) {
-		// TODO: get socket id for the NIC
-    //printf("setting up queue nr %d !\n", i);
-		rc = rte_eth_rx_queue_setup(port, i, rx_descs ? rx_descs : DEFAULT_RX_DESCS, SOCKET_ID_ANY, &rx_conf, mempool);
-		if (rc != 0) {
-			printf("could not configure rx queue %d\n", i);
-			return rc;
-		}
-	}
-	rte_eth_promiscuous_enable(port);
-	rc = rte_eth_dev_start(port);
-	// save memory address of the register file
-	struct rte_eth_dev_info dev_info;
-	rte_eth_dev_info_get(port, &dev_info);
-	registers[port] = (uint8_t*) dev_info.pci_dev->mem_resource[0].addr;
-	// allow sending large and small frames
-	rte_eth_dev_set_mtu(port, DEFAULT_MTU);
-	uint32_t hlReg0 = read_reg32(port, 0x4240);
-	hlReg0 &= ~(1 << 10); // TXPADEN
-	hlReg0 |= (1 << 2); // JUMBOEN
-	write_reg32(port, 0x4240, hlReg0);
-	uint32_t tctl = read_reg32(port, 0x0400);
-	tctl &= ~(1 << 3); // PSP
-	write_reg32(port, 0x0400, tctl);
-	return rc; 
-}
+// XXX: @paul: do you think this is ok? It is still ugly code, but a little bit
+//  more flexible. Maybe a complete reimplementation of device initialization
+//  should be done in the future.
+// this function is not used anymore, as it was split up in three parts.
+// see above: configure_device_part1, configure_rxQueue and configure_device_part2
+// This allows a more flexible rx queue configuration
+//
+// int configure_device(int port, int rx_queues, int tx_queues, int rx_descs, int tx_descs, uint16_t link_speed, struct rte_mempool* mempool, bool drop_en, uint8_t rss_enable, struct mg_rss_hash_mask * hash_functions) {
+//   //printf("configure device: rxqueues = %d, txdevs = %d, port = %d\n", rx_queues, tx_queues, port);
+// 	if (port >= RTE_MAX_ETHPORTS) {
+// 		printf("error: Maximum number of supported ports is %d\n   This can be changed with the DPDK compile-time configuration variable RTE_MAX_ETHPORTS\n", RTE_MAX_ETHPORTS);
+// 		return -1;
+// 	}
+//   // FIXME: this is a workaround to force the linking of the power module
+//   rte_power_init(3);
+// 
+//   uint64_t rss_hash_functions = 0;
+//   if(rss_enable && hash_functions != NULL){
+//     // configure the selected hash functions:
+//     if(hash_functions->ipv4){
+//       rss_hash_functions |= ETH_RSS_IPV4;
+//       //printf("ipv4\n");
+//     }
+//     if(hash_functions->udp_ipv4){
+//       rss_hash_functions |= ETH_RSS_IPV4_UDP;
+//       //printf("ipv4 udp\n");
+//     }
+//     if(hash_functions->tcp_ipv4){
+//       rss_hash_functions |= ETH_RSS_IPV4_TCP;
+//       //printf("ipv4 tcp\n");
+//     }
+//     if(hash_functions->ipv6){
+//       rss_hash_functions |= ETH_RSS_IPV6;
+//       //printf("ipv6\n");
+//     }
+//     if(hash_functions->udp_ipv6){
+//       rss_hash_functions |= ETH_RSS_IPV6_TCP;
+//       //printf("ipv6 udp\n");
+//     }
+//     if(hash_functions->tcp_ipv6){
+//       rss_hash_functions |= ETH_RSS_IPV6_UDP;
+//       //printf("ipv6 tcp\n");
+//     }
+//   }
+// 
+// 
+// 	// TODO: enable other FDIR filter types
+// 	struct rte_fdir_conf fdir_conf = {
+// 		.mode = RTE_FDIR_MODE_PERFECT,
+// 		.pballoc = RTE_FDIR_PBALLOC_64K,
+// 		.status = RTE_FDIR_REPORT_STATUS_ALWAYS,
+// 		.flexbytes_offset = 21, // TODO support other values
+// 		.drop_queue = 63, // TODO: support for other NICs
+// 	};
+// 
+//   struct rte_eth_rss_conf rss_conf = {
+//     .rss_key = NULL,
+//     .rss_key_len = 0,
+//     .rss_hf = rss_hash_functions,
+//   };
+// 	struct rte_eth_conf port_conf = {
+// 		.rxmode = {
+//       .mq_mode = rss_enable ? ETH_MQ_RX_RSS : ETH_MQ_RX_NONE,
+// 			.split_hdr_size = 0,
+// 			.header_split = 0,
+// 			.hw_ip_checksum = 1,
+// 			.hw_vlan_filter = 0,
+// 			.jumbo_frame = 0,
+// 			.hw_strip_crc = 1,
+// 		},
+// 		.txmode = {
+// 			.mq_mode = ETH_MQ_TX_NONE,
+// 		},
+// 		.fdir_conf = fdir_conf,
+// 		.link_speed = link_speed,
+//     .rx_adv_conf.rss_conf = rss_conf,
+// 	};
+// 	int rc = rte_eth_dev_configure(port, rx_queues, tx_queues, &port_conf);
+// 	if (rc) return rc;
+// 	// DPDK documentation suggests that the tx queues should be set up before the rx queues
+// 	struct rte_eth_txconf tx_conf = {
+// 		// TODO: this should use different values for older GbE NICs
+// 		.tx_thresh = {
+// 			.pthresh = TX_PTHRESH,
+// 			.hthresh = TX_HTHRESH,
+// 			.wthresh = TX_WTHRESH,
+// 		},
+// 		.tx_free_thresh = 0, // 0 = default
+// 		.tx_rs_thresh = 0, // 0 = default
+// 		.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS,
+// 	};
+// 	for (int i = 0; i < tx_queues; i++) {
+// 		// TODO: get socket id for the NIC
+// 		rc = rte_eth_tx_queue_setup(port, i, tx_descs ? tx_descs : DEFAULT_TX_DESCS, SOCKET_ID_ANY, &tx_conf);
+// 		if (rc) {
+// 			printf("could not configure tx queue %d\n", i);
+// 			return rc;
+// 		}
+// 	}
+// 	struct rte_eth_rxconf rx_conf = {
+// 		.rx_drop_en = drop_en, // TODO: make this configurable per queue
+// 		.rx_thresh = {
+// 			.pthresh = RX_PTHRESH,
+// 			.hthresh = RX_HTHRESH,
+// 			.wthresh = RX_WTHRESH,
+// 		},
+// 	};
+// 	for (int i = 0; i < rx_queues; i++) {
+// 		// TODO: get socket id for the NIC
+//     //printf("setting up queue nr %d !\n", i);
+// 		rc = rte_eth_rx_queue_setup(port, i, rx_descs ? rx_descs : DEFAULT_RX_DESCS, SOCKET_ID_ANY, &rx_conf, mempool);
+// 		if (rc != 0) {
+// 			printf("could not configure rx queue %d\n", i);
+// 			return rc;
+// 		}
+// 	}
+// 	rte_eth_promiscuous_enable(port);
+// 	rc = rte_eth_dev_start(port);
+// 	// save memory address of the register file
+// 	struct rte_eth_dev_info dev_info;
+// 	rte_eth_dev_info_get(port, &dev_info);
+// 	registers[port] = (uint8_t*) dev_info.pci_dev->mem_resource[0].addr;
+// 	// allow sending large and small frames
+// 	rte_eth_dev_set_mtu(port, DEFAULT_MTU);
+// 	uint32_t hlReg0 = read_reg32(port, 0x4240);
+// 	hlReg0 &= ~(1 << 10); // TXPADEN
+// 	hlReg0 |= (1 << 2); // JUMBOEN
+// 	write_reg32(port, 0x4240, hlReg0);
+// 	uint32_t tctl = read_reg32(port, 0x0400);
+// 	tctl &= ~(1 << 3); // PSP
+// 	write_reg32(port, 0x0400, tctl);
+// 	return rc; 
+// }
 
 uint64_t get_mac_addr(int port, char* buf) {
 	struct ether_addr addr;
@@ -643,11 +649,11 @@ void rte_delay_us_export(uint32_t us) {
 int mg_rte_eth_dev_rss_reta_update 	( 	uint8_t  	port,
 		struct rte_eth_rss_reta *  	reta_conf 
 	){
-  printf("reta port = %u\n", port);
-  uint8_t i;
-  for(i = 0; i<128; i++){
-    printf(" i = %u, reta = %u\n", i, reta_conf->reta[i]);
-  }
+  //printf("reta port = %u\n", port);
+  //uint8_t i;
+  //for(i = 0; i<128; i++){
+  //  printf(" i = %u, reta = %u\n", i, reta_conf->reta[i]);
+  //}
   reta_conf->mask_lo = 0xffffffffffffffffULL;
   reta_conf->mask_hi = 0xffffffffffffffffULL;
   return rte_eth_dev_rss_reta_update(port, reta_conf);

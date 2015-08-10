@@ -74,6 +74,12 @@ end
 
 local devices = {}
 
+ffi.cdef[[
+int configure_device_part1(int port, int rx_queues, int tx_queues, int tx_descs, uint16_t link_speed, uint8_t rss_enable, struct mg_rss_hash_mask * hash_functions);
+int configure_rxQueue(int port, int queueNr, int rx_descs, struct mempool* mempool, bool drop_en);
+int configure_device_part2(int port);
+]]
+
 -- FIXME: add description for speed and dropEnable parameters.
 --- Configure a device.
 -- @param args A table containing the following named arguments:
@@ -130,16 +136,15 @@ function mod.config(...)
     errorf("Device config needs at least one argument.")
   end
 
+  args.separateMemPools = args.separateMemPools or false
   args.rxQueues = args.rxQueues or 1
   args.txQueues = args.txQueues or 1
   args.rxDescs  = args.rxDescs or 512
   args.txDescs  = args.txDescs or 256
+  -- default mempool size assumes common mempool for all queues
+  args.memPoolSize = args.memPoolSize or (args.rxQueues * args.rxDescs*2)
   args.rssNQueues = args.rssNQueues or 0
   args.rssFunctions = args.rssFunctions or {mod.RSS_FUNCTION_IPV4, mod.RSS_FUNCTION_IPV4_UDP, mod.RSS_FUNCTION_IPV4_TCP, mod.RSS_FUNCTION_IPV6, mod.RSS_FUNCTION_IPV6_UDP, mod.RSS_FUNCTION_IPV6_TCP}
-  -- create a mempool with enough memory to hold tx, as well as rx descriptors
-  -- FIXME: should n = 2^k-1 here too?
-  --args.mempool = args.mempool or memory.createMemPool{n = args.rxQueues * args.rxDescs + args.txQueues * args.txDescs, socket = dpdkc.get_socket(args.port)}
-  args.mempool = args.mempool or memory.createMemPool{n = args.rxQueues * args.rxDescs*2, socket = dpdkc.get_socket(args.port)}
   if devices[args.port] and devices[args.port].initialized then
     printf("[WARNING] Device %d already configured, skipping initilization", port)
     return mod.get(args.port)
@@ -177,7 +182,29 @@ function mod.config(...)
     rss_enabled = 1
   end
   -- TODO: support options
-  local rc = dpdkc.configure_device(args.port, args.rxQueues, args.txQueues, args.rxDescs, args.txDescs, args.speed, args.mempool, args.dropEnable, rss_enabled, rss_hash_mask)
+  -- create a mempool with enough memory to hold rx descriptors
+  -- FIXME: should n = 2^k-1 here too?
+  --args.mempool = args.mempool or memory.createMemPool{n = args.rxQueues * args.rxDescs + args.txQueues * args.txDescs, socket = dpdkc.get_socket(args.port)}
+  --args.mempool = args.mempool or memory.createMemPool{n = args.rxQueues * args.rxDescs*2, socket = dpdkc.get_socket(args.port)}
+  local rc = ffi.C.configure_device_part1(args.port, args.rxQueues, args.txQueues, args.txDescs, args.speed, rss_enabled, rss_hash_mask)
+  if rc ~= 0 then
+    errorf("could not configure device %d: error %d", args.port, rc)
+  end
+  for i = 0, (args.rxQueues - 1) do
+    if(args.separateMemPools == true) then
+      -- each queue gets its own mempool:
+      local mpool = memory.createMemPool{n = args.memPoolSize, socket = dpdkc.get_socket(args.port)}
+      rc = ffi.C.configure_rxQueue(args.port, i, args.rxDescs, mpool, args.dropEnable)
+    else
+      -- we use one mempool for all queues:
+      args.mempool = args.mempool or memory.createMemPool{n = args.memPoolSize, socket = dpdkc.get_socket(args.port)}
+      rc = ffi.C.configure_rxQueue(args.port, i, args.rxDescs, args.mempool, args.dropEnable)
+    end
+    if rc ~= 0 then
+      errorf("could not configure device %d: error %d", args.port, rc)
+    end
+  end
+  rc = ffi.C.configure_device_part2(args.port)
   if rc ~= 0 then
     errorf("could not configure device %d: error %d", args.port, rc)
   end
