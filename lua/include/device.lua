@@ -138,7 +138,8 @@ function mod.config(...)
   args.rssFunctions = args.rssFunctions or {mod.RSS_FUNCTION_IPV4, mod.RSS_FUNCTION_IPV4_UDP, mod.RSS_FUNCTION_IPV4_TCP, mod.RSS_FUNCTION_IPV6, mod.RSS_FUNCTION_IPV6_UDP, mod.RSS_FUNCTION_IPV6_TCP}
   -- create a mempool with enough memory to hold tx, as well as rx descriptors
   -- FIXME: should n = 2^k-1 here too?
-  args.mempool = args.mempool or memory.createMemPool{n = args.rxQueues * args.rxDescs + args. txQueues * args.txDescs, socket = dpdkc.get_socket(args.port)}
+  --args.mempool = args.mempool or memory.createMemPool{n = args.rxQueues * args.rxDescs + args.txQueues * args.txDescs, socket = dpdkc.get_socket(args.port)}
+  args.mempool = args.mempool or memory.createMemPool{n = args.rxQueues * args.rxDescs*2, socket = dpdkc.get_socket(args.port)}
   if devices[args.port] and devices[args.port].initialized then
     printf("[WARNING] Device %d already configured, skipping initilization", port)
     return mod.get(args.port)
