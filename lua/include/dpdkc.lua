@@ -216,6 +216,7 @@ ffi.cdef[[
 
   int rte_power_freq_min(unsigned  	lcore_id);
   int rte_power_init(unsigned 	lcore_id);
+  int rte_power_freq_up(unsigned 	lcore_id);
 
   void mg_memory_free_mask(
     struct rte_mbuf **pkts,
