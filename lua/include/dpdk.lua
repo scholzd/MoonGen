@@ -228,6 +228,9 @@ end
 function mod.setCPUFreqMin(coreID)
   return ffi.C.rte_power_freq_min(coreID)
 end
+function mod.setCPUFreqUp(coreID)
+  return ffi.C.rte_power_freq_up(coreID)
+end
 
 --- get the TSC frequency
 function mod.getCyclesFrequency()
