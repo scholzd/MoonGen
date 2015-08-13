@@ -52,9 +52,9 @@ void mg_memory_free_mask(
     ){
   uint16_t i;
   for(i=0; i< mask->size; i++){
-    if(mg_bitmask_get_bit_inline(mask, i)){
+    if(unlikely(mg_bitmask_get_bit_inline(mask, i))){
       rte_pktmbuf_free(pkts[i]);
-      pkts[i] = NULL;
+      //pkts[i] = NULL;
     }
   }
 }
