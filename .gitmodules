@@ -1,7 +1,0 @@
-[submodule "deps/luajit"]
-	path = deps/luajit
-	url = https://github.com/emmericp/luajit.git
-	ignore = untracked
-[submodule "deps/doxygen-lua"]
-	path = deps/doxygen-lua
-	url = https://github.com/scholzd/doxygen-lua.git
