@@ -274,7 +274,7 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="line"><a name="l00172"></a><span class="lineno">  172</span>&#160;--- Set the hardware source address.</div>
 <div class="line"><a name="l00173"></a><span class="lineno">  173</span>&#160;--- @param addr Address in &#39;struct mac_address&#39; format.</div>
 <div class="line"><a name="l00174"></a><span class="lineno">  174</span>&#160;function <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#a0b0138588bf6cc244941169add8288f0">setHardwareSrc</a>(addr)</div>
-<div class="line"><a name="l00175"></a><span class="lineno">  175</span>&#160;    self.sha:<a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a>(addr)</div>
+<div class="line"><a name="l00175"></a><span class="lineno">  175</span>&#160;    self.sha:<a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a>(addr)</div>
 <div class="line"><a name="l00176"></a><span class="lineno">  176</span>&#160;end</div>
 <div class="line"><a name="l00177"></a><span class="lineno">  177</span>&#160;</div>
 <div class="line"><a name="l00178"></a><span class="lineno">  178</span>&#160;--- Retrieve the hardware source address.</div>
@@ -298,7 +298,7 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="line"><a name="l00196"></a><span class="lineno">  196</span>&#160;--- Set the hardware destination address.</div>
 <div class="line"><a name="l00197"></a><span class="lineno">  197</span>&#160;--- @param addr Address in &#39;struct mac_address&#39; format.</div>
 <div class="line"><a name="l00198"></a><span class="lineno">  198</span>&#160;function <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#a94630c8711097f307d685b2c49b3a337">setHardwareDst</a>(addr)</div>
-<div class="line"><a name="l00199"></a><span class="lineno">  199</span>&#160;    self.tha:<a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a>(addr)</div>
+<div class="line"><a name="l00199"></a><span class="lineno">  199</span>&#160;    self.tha:<a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a>(addr)</div>
 <div class="line"><a name="l00200"></a><span class="lineno">  200</span>&#160;end</div>
 <div class="line"><a name="l00201"></a><span class="lineno">  201</span>&#160;</div>
 <div class="line"><a name="l00202"></a><span class="lineno">  202</span>&#160;--- Retrieve the hardware destination address.</div>
@@ -322,21 +322,21 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="line"><a name="l00220"></a><span class="lineno">  220</span>&#160;--- Set the protocol source address.</div>
 <div class="line"><a name="l00221"></a><span class="lineno">  221</span>&#160;--- @param addr Address in &#39;struct ip4_address&#39; format.</div>
 <div class="line"><a name="l00222"></a><span class="lineno">  222</span>&#160;function <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#a4782c0c48654ccfe24787337da64bf8e">setProtoSrc</a>(addr)</div>
-<div class="line"><a name="l00223"></a><span class="lineno">  223</span>&#160;    self.spa:<a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a>(addr)</div>
-<div class="line"><a name="l00224"></a><span class="lineno"><a class="line" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">  224</a></span>&#160;end</div>
-<div class="line"><a name="l00225"></a><span class="lineno">  225</span>&#160;</div>
+<div class="line"><a name="l00223"></a><span class="lineno">  223</span>&#160;    self.spa:<a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a>(addr)</div>
+<div class="line"><a name="l00224"></a><span class="lineno">  224</span>&#160;end</div>
+<div class="line"><a name="l00225"></a><span class="lineno"><a class="line" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">  225</a></span>&#160;</div>
 <div class="line"><a name="l00226"></a><span class="lineno">  226</span>&#160;--- Retrieve the protocol source address.</div>
 <div class="line"><a name="l00227"></a><span class="lineno">  227</span>&#160;--- @return Address in &#39;struct ip4_address&#39; format.</div>
 <div class="line"><a name="l00228"></a><span class="lineno">  228</span>&#160;function <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#a3b4dff7a116ebd729a548f8089716174">getProtoSrc</a>()</div>
 <div class="line"><a name="l00229"></a><span class="lineno">  229</span>&#160;    return self.spa:<a class="code" href="arp_8lua.html#a0e0d443e1a9b88e6c6e14bcfa2e4535d">get</a>()</div>
 <div class="line"><a name="l00230"></a><span class="lineno">  230</span>&#160;end</div>
 <div class="line"><a name="l00231"></a><span class="lineno">  231</span>&#160;</div>
-<div class="line"><a name="l00232"></a><span class="lineno"><a class="line" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">  232</a></span>&#160;--- Set the protocol source address.</div>
-<div class="line"><a name="l00233"></a><span class="lineno">  233</span>&#160;--- @param addr Address in source format.</div>
+<div class="line"><a name="l00232"></a><span class="lineno">  232</span>&#160;--- Set the protocol source address.</div>
+<div class="line"><a name="l00233"></a><span class="lineno"><a class="line" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">  233</a></span>&#160;--- @param addr Address in source format.</div>
 <div class="line"><a name="l00234"></a><span class="lineno">  234</span>&#160;function <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#aaf9596e969aa4f9e71fac6cfd8c9c85c">setProtoSrcString</a>(addr)</div>
 <div class="line"><a name="l00235"></a><span class="lineno">  235</span>&#160;    self.spa:<a class="code" href="ethernet_8lua.html#a4afb06117eaa384c192769ea5dff8697">setString</a>(addr)</div>
-<div class="line"><a name="l00236"></a><span class="lineno"><a class="line" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">  236</a></span>&#160;end</div>
-<div class="line"><a name="l00237"></a><span class="lineno">  237</span>&#160;</div>
+<div class="line"><a name="l00236"></a><span class="lineno">  236</span>&#160;end</div>
+<div class="line"><a name="l00237"></a><span class="lineno"><a class="line" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">  237</a></span>&#160;</div>
 <div class="line"><a name="l00238"></a><span class="lineno">  238</span>&#160;--- Retrieve the protocol source address.</div>
 <div class="line"><a name="l00239"></a><span class="lineno">  239</span>&#160;--- @return Address in <span class="keywordtype">string</span> format.</div>
 <div class="line"><a name="l00240"></a><span class="lineno">  240</span>&#160;function <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#a3cd6133601110b5cb183e033b218765a">getProtoSrcString</a>()</div>
@@ -346,7 +346,7 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="line"><a name="l00244"></a><span class="lineno">  244</span>&#160;--- Set the protocol destination address.</div>
 <div class="line"><a name="l00245"></a><span class="lineno">  245</span>&#160;--- @param addr Address in &#39;struct ip4_address&#39; format.</div>
 <div class="line"><a name="l00246"></a><span class="lineno">  246</span>&#160;function <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#a72721344db267531b28c75c59ab567fc">setProtoDst</a>(addr)</div>
-<div class="line"><a name="l00247"></a><span class="lineno">  247</span>&#160;    self.tpa:<a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a>(addr)</div>
+<div class="line"><a name="l00247"></a><span class="lineno">  247</span>&#160;    self.tpa:<a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a>(addr)</div>
 <div class="line"><a name="l00248"></a><span class="lineno">  248</span>&#160;end</div>
 <div class="line"><a name="l00249"></a><span class="lineno">  249</span>&#160;</div>
 <div class="line"><a name="l00250"></a><span class="lineno">  250</span>&#160;--- Retrieve the protocol destination address.</div>
@@ -368,13 +368,13 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="line"><a name="l00266"></a><span class="lineno">  266</span>&#160;end</div>
 <div class="line"><a name="l00267"></a><span class="lineno">  267</span>&#160;</div>
 <div class="line"><a name="l00268"></a><span class="lineno">  268</span>&#160;--- Set all members of the <a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a> header.</div>
-<div class="line"><a name="l00269"></a><span class="lineno">  269</span>&#160;--- Per default, all members are <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> to default values specified in the respective <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> function.</div>
-<div class="line"><a name="l00270"></a><span class="lineno">  270</span>&#160;--- Optional named arguments can be used to <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> a member to a user-provided value.</div>
+<div class="line"><a name="l00269"></a><span class="lineno">  269</span>&#160;--- Per default, all members are <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> to default values specified in the respective <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> function.</div>
+<div class="line"><a name="l00270"></a><span class="lineno">  270</span>&#160;--- Optional named arguments can be used to <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> a member to a user-provided value.</div>
 <div class="line"><a name="l00271"></a><span class="lineno">  271</span>&#160;--- @param args Table of named arguments. Available arguments: HardwareAddressType, ProtoAddressType, HardwareAddressLength, ProtoAddressLength, Operation, HardwareSrc, HardwareDst, ProtoSrc, ProtoDst</div>
 <div class="line"><a name="l00272"></a><span class="lineno">  272</span>&#160;--- @param pre prefix for namedArgs. Default &#39;<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>&#39;.</div>
 <div class="line"><a name="l00273"></a><span class="lineno">  273</span>&#160;--- @code</div>
 <div class="line"><a name="l00274"></a><span class="lineno">  274</span>&#160;--- <a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>() --- only default values</div>
-<div class="line"><a name="l00275"></a><span class="lineno">  275</span>&#160;--- <a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>{ arpOperation=2, ipTTL=100 } --- all members are <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> to <span class="keywordflow">default</span> values with the exception of arpOperation</div>
+<div class="line"><a name="l00275"></a><span class="lineno">  275</span>&#160;--- <a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>{ arpOperation=2, ipTTL=100 } --- all members are <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> to <span class="keywordflow">default</span> values with the exception of arpOperation</div>
 <div class="line"><a name="l00276"></a><span class="lineno">  276</span>&#160;--- <span class="keyword">@end</span>code</div>
 <div class="line"><a name="l00277"></a><span class="lineno">  277</span>&#160;<span class="keyword">function</span> <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>(args, pre)</div>
 <div class="line"><a name="l00278"></a><span class="lineno">  278</span>&#160;    args = args or {}</div>
@@ -489,191 +489,192 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="line"><a name="l00387"></a><span class="lineno">  387</span>&#160;--- @param namedArgs Table of named arguments (see See Also)</div>
 <div class="line"><a name="l00388"></a><span class="lineno">  388</span>&#160;--- @param nextHeader The header following after this header in a packet</div>
 <div class="line"><a name="l00389"></a><span class="lineno">  389</span>&#160;--- @param accumulatedLength The so far accumulated length for previous headers in a packet</div>
-<div class="line"><a name="l00390"></a><span class="lineno">  390</span>&#160;--- @see <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a></div>
-<div class="line"><a name="l00391"></a><span class="lineno">  391</span>&#160;function <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#aaa4c6993900839a4f479456fe0d6b813">setDefaultNamedArgs</a>(pre, namedArgs, nextHeader, accumulatedLength)</div>
-<div class="line"><a name="l00392"></a><span class="lineno">  392</span>&#160;    return namedArgs</div>
-<div class="line"><a name="l00393"></a><span class="lineno">  393</span>&#160;end</div>
-<div class="line"><a name="l00394"></a><span class="lineno">  394</span>&#160;    </div>
-<div class="line"><a name="l00395"></a><span class="lineno">  395</span>&#160;---------------------------------------------------------------------------------</div>
-<div class="line"><a name="l00396"></a><span class="lineno">  396</span>&#160;---- Packets</div>
-<div class="line"><a name="l00397"></a><span class="lineno">  397</span>&#160;---------------------------------------------------------------------------------</div>
-<div class="line"><a name="l00398"></a><span class="lineno">  398</span>&#160;</div>
-<div class="line"><a name="l00399"></a><span class="lineno">  399</span>&#160;--- Cast the packet to an Arp packet </div>
-<div class="line"><a name="l00400"></a><span class="lineno">  400</span>&#160;<a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a> = <a class="code" href="packet_8lua.html#a9ec741ec046b38ff23624e841a2ec3da">packetCreate</a>(&quot;<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>&quot;, &quot;<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>&quot;)</div>
-<div class="line"><a name="l00401"></a><span class="lineno">  401</span>&#160;</div>
+<div class="line"><a name="l00390"></a><span class="lineno">  390</span>&#160;--- @return Table of namedArgs</div>
+<div class="line"><a name="l00391"></a><span class="lineno">  391</span>&#160;--- @see <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a></div>
+<div class="line"><a name="l00392"></a><span class="lineno">  392</span>&#160;function <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>:<a class="code" href="arp_8lua.html#aaa4c6993900839a4f479456fe0d6b813">setDefaultNamedArgs</a>(pre, namedArgs, nextHeader, accumulatedLength)</div>
+<div class="line"><a name="l00393"></a><span class="lineno">  393</span>&#160;    return namedArgs</div>
+<div class="line"><a name="l00394"></a><span class="lineno">  394</span>&#160;end</div>
+<div class="line"><a name="l00395"></a><span class="lineno">  395</span>&#160;    </div>
+<div class="line"><a name="l00396"></a><span class="lineno">  396</span>&#160;---------------------------------------------------------------------------------</div>
+<div class="line"><a name="l00397"></a><span class="lineno">  397</span>&#160;---- Packets</div>
+<div class="line"><a name="l00398"></a><span class="lineno">  398</span>&#160;---------------------------------------------------------------------------------</div>
+<div class="line"><a name="l00399"></a><span class="lineno">  399</span>&#160;</div>
+<div class="line"><a name="l00400"></a><span class="lineno">  400</span>&#160;--- Cast the packet to an Arp packet </div>
+<div class="line"><a name="l00401"></a><span class="lineno">  401</span>&#160;<a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a> = <a class="code" href="packet_8lua.html#a9ec741ec046b38ff23624e841a2ec3da">packetCreate</a>(&quot;<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>&quot;, &quot;<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>&quot;)</div>
 <div class="line"><a name="l00402"></a><span class="lineno">  402</span>&#160;</div>
-<div class="line"><a name="l00403"></a><span class="lineno">  403</span>&#160;---------------------------------------------------------------------------------</div>
-<div class="line"><a name="l00404"></a><span class="lineno">  404</span>&#160;---- ARP Handler Task</div>
-<div class="line"><a name="l00405"></a><span class="lineno">  405</span>&#160;---------------------------------------------------------------------------------</div>
-<div class="line"><a name="l00406"></a><span class="lineno">  406</span>&#160;</div>
-<div class="line"><a name="l00407"></a><span class="lineno">  407</span>&#160;--- Arp handler task, responds to ARP queries for given IPs and performs <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a> lookups</div>
-<div class="line"><a name="l00408"></a><span class="lineno">  408</span>&#160;--- @todo TODO implement garbage collection/refreshing entries \<a class="code" href="memory_8lua.html#aeab71244afb687f16d8c4f5ee9d6ef0e">n</a></div>
-<div class="line"><a name="l00409"></a><span class="lineno">  409</span>&#160;--- the current implementation does not handle large tables efficiently \<a class="code" href="memory_8lua.html#aeab71244afb687f16d8c4f5ee9d6ef0e">n</a></div>
-<div class="line"><a name="l00410"></a><span class="lineno">  410</span>&#160;--- @todo TODO multi-NIC support</div>
-<div class="line"><a name="l00411"></a><span class="lineno">  411</span>&#160;<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a> = &quot;__MG_ARP_TASK&quot;</div>
-<div class="line"><a name="l00412"></a><span class="lineno">  412</span>&#160;</div>
-<div class="line"><a name="l00413"></a><span class="lineno">  413</span>&#160;--- Arp table</div>
-<div class="line"><a name="l00414"></a><span class="lineno">  414</span>&#160;--- TODO docu</div>
-<div class="line"><a name="l00415"></a><span class="lineno">  415</span>&#160;local <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a> = ns:<a class="code" href="arp_8lua.html#a0e0d443e1a9b88e6c6e14bcfa2e4535d">get</a>()</div>
-<div class="line"><a name="l00416"></a><span class="lineno">  416</span>&#160;</div>
-<div class="line"><a name="l00417"></a><span class="lineno">  417</span>&#160;--- Arp handler task</div>
-<div class="line"><a name="l00418"></a><span class="lineno">  418</span>&#160;--- @param qs TODO</div>
-<div class="line"><a name="l00419"></a><span class="lineno">  419</span>&#160;--- @todo TODO docu</div>
-<div class="line"><a name="l00420"></a><span class="lineno">  420</span>&#160;local function <a class="code" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a>(qs)</div>
-<div class="line"><a name="l00421"></a><span class="lineno">  421</span>&#160;    -- two ways to call this: single nic or array of nics</div>
-<div class="line"><a name="l00422"></a><span class="lineno">  422</span>&#160;    if qs[1] == nil and qs.rxQueue then</div>
-<div class="line"><a name="l00423"></a><span class="lineno">  423</span>&#160;        return <a class="code" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a>({ qs })</div>
-<div class="line"><a name="l00424"></a><span class="lineno">  424</span>&#160;    end</div>
-<div class="line"><a name="l00425"></a><span class="lineno">  425</span>&#160;</div>
-<div class="line"><a name="l00426"></a><span class="lineno">  426</span>&#160;    local ipToMac = {}</div>
-<div class="line"><a name="l00427"></a><span class="lineno">  427</span>&#160;    -- loop over NICs/Queues</div>
-<div class="line"><a name="l00428"></a><span class="lineno">  428</span>&#160;    <span class="keywordflow">for</span> _, nic in pairs(qs) do</div>
-<div class="line"><a name="l00429"></a><span class="lineno">  429</span>&#160;        if nic.txQueue.dev ~= nic.rxQueue.dev then</div>
-<div class="line"><a name="l00430"></a><span class="lineno">  430</span>&#160;            error(&quot;both queues must belong to the same device&quot;)</div>
-<div class="line"><a name="l00431"></a><span class="lineno">  431</span>&#160;        end</div>
-<div class="line"><a name="l00432"></a><span class="lineno">  432</span>&#160;</div>
-<div class="line"><a name="l00433"></a><span class="lineno">  433</span>&#160;        if type(nic.ips) == &quot;<span class="keywordtype">string</span>&quot; then</div>
-<div class="line"><a name="l00434"></a><span class="lineno">  434</span>&#160;            nic.ips = { nic.ips }</div>
-<div class="line"><a name="l00435"></a><span class="lineno">  435</span>&#160;        end</div>
-<div class="line"><a name="l00436"></a><span class="lineno">  436</span>&#160;</div>
-<div class="line"><a name="l00437"></a><span class="lineno">  437</span>&#160;        <span class="keywordflow">for</span> _, <a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a> in pairs(nic.ips) do</div>
-<div class="line"><a name="l00438"></a><span class="lineno">  438</span>&#160;            ipToMac[<a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a>(<a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a>)] = nic.txQueue.dev:getMac()</div>
-<div class="line"><a name="l00439"></a><span class="lineno">  439</span>&#160;        end</div>
-<div class="line"><a name="l00440"></a><span class="lineno">  440</span>&#160;        nic.txQueue.dev:l2Filter(<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>.<a class="code" href="ethernet_8lua.html#ac44bf7e3e27d6fe66b53b7278a9209b6">TYPE_ARP</a>, nic.rxQueue)</div>
-<div class="line"><a name="l00441"></a><span class="lineno">  441</span>&#160;    end</div>
-<div class="line"><a name="l00442"></a><span class="lineno">  442</span>&#160;</div>
-<div class="line"><a name="l00443"></a><span class="lineno">  443</span>&#160;    local rxBufs = memory.createBufArray(1)</div>
-<div class="line"><a name="l00444"></a><span class="lineno">  444</span>&#160;    local txMem = memory.<a class="code" href="memory_8lua.html#abcc77fc5fbe39024027817be38007e89">createMemPool</a>(function(buf)</div>
-<div class="line"><a name="l00445"></a><span class="lineno">  445</span>&#160;        buf:<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a>():<a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>{ </div>
-<div class="line"><a name="l00446"></a><span class="lineno">  446</span>&#160;            arpOperation    = <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.OP_REPLY,</div>
-<div class="line"><a name="l00447"></a><span class="lineno">  447</span>&#160;            pktLength       = 60</div>
-<div class="line"><a name="l00448"></a><span class="lineno">  448</span>&#160;        }</div>
-<div class="line"><a name="l00449"></a><span class="lineno">  449</span>&#160;    end)</div>
-<div class="line"><a name="l00450"></a><span class="lineno">  450</span>&#160;    local txBufs = txMem:<a class="code" href="memory_8lua.html#ae14f89bf497b843f729b4f816833d12d">bufArray</a>(1)</div>
-<div class="line"><a name="l00451"></a><span class="lineno">  451</span>&#160;    </div>
-<div class="line"><a name="l00452"></a><span class="lineno">  452</span>&#160;    <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.taskRunning = true</div>
-<div class="line"><a name="l00453"></a><span class="lineno">  453</span>&#160;</div>
-<div class="line"><a name="l00454"></a><span class="lineno">  454</span>&#160;    while dpdk.<a class="code" href="dpdk_8lua.html#a9c3302b6465084549f626875f203ff39">running</a>() do</div>
-<div class="line"><a name="l00455"></a><span class="lineno">  455</span>&#160;        </div>
-<div class="line"><a name="l00456"></a><span class="lineno">  456</span>&#160;        for _, nic in pairs(qs) do</div>
-<div class="line"><a name="l00457"></a><span class="lineno">  457</span>&#160;            rx = nic.rxQueue:<a class="code" href="device_8lua.html#a06ccb00dd734ac5c8ca6f92f6cfbafca">tryRecvIdle</a>(rxBufs, 1000)</div>
-<div class="line"><a name="l00458"></a><span class="lineno">  458</span>&#160;            assert(rx &lt;= 1)</div>
-<div class="line"><a name="l00459"></a><span class="lineno">  459</span>&#160;            if rx &gt; 0 then</div>
-<div class="line"><a name="l00460"></a><span class="lineno">  460</span>&#160;                local rxPkt = rxBufs[1]:<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a>()</div>
-<div class="line"><a name="l00461"></a><span class="lineno">  461</span>&#160;                if rxPkt.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#ab948b0bf0cd3136191030aabae5e569e">getType</a>() == <a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>.<a class="code" href="ethernet_8lua.html#ac44bf7e3e27d6fe66b53b7278a9209b6">TYPE_ARP</a> then</div>
-<div class="line"><a name="l00462"></a><span class="lineno">  462</span>&#160;                    if rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a6dd8b7640aaa5fde4c92cf19c856d6ee">getOperation</a>() == <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a0218e910856c59db9026bd1f15a1b003">OP_REQUEST</a> then</div>
-<div class="line"><a name="l00463"></a><span class="lineno">  463</span>&#160;                        local <a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a> = rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a86f7e9293c13fbb3f1e159cd3da06d45">getProtoDst</a>()</div>
-<div class="line"><a name="l00464"></a><span class="lineno">  464</span>&#160;                        local mac = ipToMac[<a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a>]</div>
-<div class="line"><a name="l00465"></a><span class="lineno">  465</span>&#160;                        if mac then</div>
-<div class="line"><a name="l00466"></a><span class="lineno">  466</span>&#160;                            txBufs:alloc(60)</div>
-<div class="line"><a name="l00467"></a><span class="lineno">  467</span>&#160;                            -- TODO: a single-packet API would be nice for things like this</div>
-<div class="line"><a name="l00468"></a><span class="lineno">  468</span>&#160;                            local <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a> = txBufs[1]:<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a>()</div>
-<div class="line"><a name="l00469"></a><span class="lineno">  469</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#a15e9422439fdc27e2ccac9e0328370fd">setSrc</a>(mac)</div>
-<div class="line"><a name="l00470"></a><span class="lineno">  470</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#ab36bb02a7cfb87486cbf6b10e1668e06">setDst</a>(rxPkt.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#a69302ff5ede5ea0391e94f76c071d5f5">getSrc</a>())</div>
-<div class="line"><a name="l00471"></a><span class="lineno">  471</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#ac9785c90863bf1cbb54215e29bb27a4c">setOperation</a>(<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a6335e0518b20057b742b7cbb362b4ef1">OP_REPLY</a>)</div>
-<div class="line"><a name="l00472"></a><span class="lineno">  472</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a94630c8711097f307d685b2c49b3a337">setHardwareDst</a>(rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#ac0726dd4d74a03948ad5ad66956c4d9a">getHardwareSrc</a>())</div>
-<div class="line"><a name="l00473"></a><span class="lineno">  473</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a0b0138588bf6cc244941169add8288f0">setHardwareSrc</a>(mac)</div>
-<div class="line"><a name="l00474"></a><span class="lineno">  474</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a72721344db267531b28c75c59ab567fc">setProtoDst</a>(rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a3b4dff7a116ebd729a548f8089716174">getProtoSrc</a>())</div>
-<div class="line"><a name="l00475"></a><span class="lineno">  475</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a4782c0c48654ccfe24787337da64bf8e">setProtoSrc</a>(<a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a>)</div>
-<div class="line"><a name="l00476"></a><span class="lineno">  476</span>&#160;                            nic.txQueue:send(txBufs)</div>
-<div class="line"><a name="l00477"></a><span class="lineno">  477</span>&#160;                        end</div>
-<div class="line"><a name="l00478"></a><span class="lineno">  478</span>&#160;                    elseif rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a6dd8b7640aaa5fde4c92cf19c856d6ee">getOperation</a>() == <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a6335e0518b20057b742b7cbb362b4ef1">OP_REPLY</a> then</div>
-<div class="line"><a name="l00479"></a><span class="lineno">  479</span>&#160;                        -- learn from all <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a> replies we see (<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a> cache poisoning doesn&#39;t matter here)</div>
-<div class="line"><a name="l00480"></a><span class="lineno">  480</span>&#160;                        local mac = rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#aeaa04f10b3d5de5221fa35ac13318e02">getHardwareSrcString</a>()</div>
-<div class="line"><a name="l00481"></a><span class="lineno">  481</span>&#160;                        local <a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a> = rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a3cd6133601110b5cb183e033b218765a">getProtoSrcString</a>()</div>
-<div class="line"><a name="l00482"></a><span class="lineno">  482</span>&#160;                        <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[tostring(<a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a>(<a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a>))] = { mac = mac, timestamp = dpdk.getTime() }</div>
-<div class="line"><a name="l00483"></a><span class="lineno">  483</span>&#160;                    end</div>
-<div class="line"><a name="l00484"></a><span class="lineno">  484</span>&#160;                end</div>
-<div class="line"><a name="l00485"></a><span class="lineno">  485</span>&#160;                rxBufs:<a class="code" href="memory_8lua.html#ab45e0285d4e972a6358f4548c1965a17">freeAll</a>()</div>
-<div class="line"><a name="l00486"></a><span class="lineno">  486</span>&#160;            end</div>
-<div class="line"><a name="l00487"></a><span class="lineno">  487</span>&#160;        end</div>
-<div class="line"><a name="l00488"></a><span class="lineno">  488</span>&#160;</div>
-<div class="line"><a name="l00489"></a><span class="lineno">  489</span>&#160;        -- send outstanding requests </div>
-<div class="line"><a name="l00490"></a><span class="lineno">  490</span>&#160;        <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>:<a class="code" href="namespaces_8lua.html#a51ba57210a1079a6bbdb36abc2e84ce2">forEach</a>(function(ip, value)</div>
-<div class="line"><a name="l00491"></a><span class="lineno">  491</span>&#160;            -- TODO: refresh or GC old entries</div>
-<div class="line"><a name="l00492"></a><span class="lineno">  492</span>&#160;            if value ~= &quot;pending&quot; then</div>
-<div class="line"><a name="l00493"></a><span class="lineno">  493</span>&#160;                return</div>
-<div class="line"><a name="l00494"></a><span class="lineno">  494</span>&#160;            end</div>
-<div class="line"><a name="l00495"></a><span class="lineno">  495</span>&#160;            <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[ip] = &quot;requested&quot;</div>
-<div class="line"><a name="l00496"></a><span class="lineno">  496</span>&#160;            -- TODO: the format should be compatible with <a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a></div>
-<div class="line"><a name="l00497"></a><span class="lineno">  497</span>&#160;            ip = tonumber(ip)</div>
-<div class="line"><a name="l00498"></a><span class="lineno">  498</span>&#160;            txBufs:alloc(60)</div>
-<div class="line"><a name="l00499"></a><span class="lineno">  499</span>&#160;            local <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a> = txBufs[1]:<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a>()</div>
-<div class="line"><a name="l00500"></a><span class="lineno">  500</span>&#160;            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#a242d4477b0be3196f10cf6c8bb6da9d9">setDstString</a>(<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>.<a class="code" href="ethernet_8lua.html#a7668ff032d08761202742af04398e717">BROADCAST</a>)</div>
-<div class="line"><a name="l00501"></a><span class="lineno">  501</span>&#160;            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#ac9785c90863bf1cbb54215e29bb27a4c">setOperation</a>(<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a0218e910856c59db9026bd1f15a1b003">OP_REQUEST</a>)</div>
-<div class="line"><a name="l00502"></a><span class="lineno">  502</span>&#160;            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#af6bd523d4997ad7dcc564847dbbae9fe">setHardwareDstString</a>(<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>.<a class="code" href="ethernet_8lua.html#a7668ff032d08761202742af04398e717">BROADCAST</a>)</div>
-<div class="line"><a name="l00503"></a><span class="lineno">  503</span>&#160;            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a72721344db267531b28c75c59ab567fc">setProtoDst</a>(ip)</div>
-<div class="line"><a name="l00504"></a><span class="lineno">  504</span>&#160;            -- TODO: do not send requests on all devices, but only the relevant</div>
-<div class="line"><a name="l00505"></a><span class="lineno">  505</span>&#160;            for _, nic in pairs(qs) do</div>
-<div class="line"><a name="l00506"></a><span class="lineno">  506</span>&#160;                local mac = nic.txQueue.dev:getMac()</div>
-<div class="line"><a name="l00507"></a><span class="lineno">  507</span>&#160;                <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#a15e9422439fdc27e2ccac9e0328370fd">setSrc</a>(mac)</div>
-<div class="line"><a name="l00508"></a><span class="lineno">  508</span>&#160;                <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a4782c0c48654ccfe24787337da64bf8e">setProtoSrc</a>(<a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a>(nic.ips[1]))</div>
-<div class="line"><a name="l00509"></a><span class="lineno">  509</span>&#160;                <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a0b0138588bf6cc244941169add8288f0">setHardwareSrc</a>(mac)</div>
-<div class="line"><a name="l00510"></a><span class="lineno">  510</span>&#160;                nic.txQueue:send(txBufs)</div>
-<div class="line"><a name="l00511"></a><span class="lineno">  511</span>&#160;            end</div>
-<div class="line"><a name="l00512"></a><span class="lineno">  512</span>&#160;        end)</div>
-<div class="line"><a name="l00513"></a><span class="lineno">  513</span>&#160;        dpdk.<a class="code" href="dpdk_8lua.html#a4f93c703c54bdf5ffe61239fb6c17bf2">sleepMillisIdle</a>(1)</div>
-<div class="line"><a name="l00514"></a><span class="lineno">  514</span>&#160;    end</div>
-<div class="line"><a name="l00515"></a><span class="lineno">  515</span>&#160;end</div>
-<div class="line"><a name="l00516"></a><span class="lineno">  516</span>&#160;</div>
-<div class="line"><a name="l00517"></a><span class="lineno">  517</span>&#160;--- Perform a <a class="code" href="arp_8lua.html#a2696d941650d044dfba6e60f6b60fc3b">lookup</a> in the ARP table.</div>
-<div class="line"><a name="l00518"></a><span class="lineno">  518</span>&#160;--- Lookup the MAC address for a given IP.</div>
-<div class="line"><a name="l00519"></a><span class="lineno">  519</span>&#160;--- Blocks for up to 1 second if the <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a> task is not yet <a class="code" href="dpdk_8lua.html#a9c3302b6465084549f626875f203ff39">running</a></div>
-<div class="line"><a name="l00520"></a><span class="lineno">  520</span>&#160;--- Caution: this function uses locks and namespaces, must not be used in the fast path</div>
-<div class="line"><a name="l00521"></a><span class="lineno">  521</span>&#160;--- @param ip The ip address in <span class="keywordtype">string</span> or cdata format to look up.</div>
-<div class="line"><a name="l00522"></a><span class="lineno">  522</span>&#160;function <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a2696d941650d044dfba6e60f6b60fc3b">lookup</a>(ip)</div>
-<div class="line"><a name="l00523"></a><span class="lineno">  523</span>&#160;    if type(ip) == &quot;<span class="keywordtype">string</span>&quot; then</div>
-<div class="line"><a name="l00524"></a><span class="lineno">  524</span>&#160;        ip = <a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a>(ip)</div>
-<div class="line"><a name="l00525"></a><span class="lineno">  525</span>&#160;    elseif type(ip) == &quot;cdata&quot; then</div>
-<div class="line"><a name="l00526"></a><span class="lineno">  526</span>&#160;        ip = ip:<a class="code" href="arp_8lua.html#a0e0d443e1a9b88e6c6e14bcfa2e4535d">get</a>()</div>
-<div class="line"><a name="l00527"></a><span class="lineno">  527</span>&#160;    end</div>
-<div class="line"><a name="l00528"></a><span class="lineno">  528</span>&#160;    if not <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.taskRunning then</div>
-<div class="line"><a name="l00529"></a><span class="lineno">  529</span>&#160;        local waitForArpTask = 0</div>
-<div class="line"><a name="l00530"></a><span class="lineno">  530</span>&#160;        while not <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.taskRunning and waitForArpTask &lt; 10 do</div>
-<div class="line"><a name="l00531"></a><span class="lineno">  531</span>&#160;            dpdk.<a class="code" href="dpdk_8lua.html#aa83fbc2e0d94b53aebaabc0021132b20">sleepMillis</a>(100)</div>
-<div class="line"><a name="l00532"></a><span class="lineno">  532</span>&#160;        end</div>
-<div class="line"><a name="l00533"></a><span class="lineno">  533</span>&#160;        if not <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.taskRunning then</div>
-<div class="line"><a name="l00534"></a><span class="lineno">  534</span>&#160;            error(&quot;ARP task is not <a class="code" href="dpdk_8lua.html#a9c3302b6465084549f626875f203ff39">running</a>&quot;)</div>
-<div class="line"><a name="l00535"></a><span class="lineno">  535</span>&#160;        end</div>
-<div class="line"><a name="l00536"></a><span class="lineno">  536</span>&#160;    end</div>
-<div class="line"><a name="l00537"></a><span class="lineno">  537</span>&#160;    local mac = <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[tostring(ip)]</div>
-<div class="line"><a name="l00538"></a><span class="lineno">  538</span>&#160;    if type(mac) == &quot;table&quot; then</div>
-<div class="line"><a name="l00539"></a><span class="lineno">  539</span>&#160;        return mac.mac, mac.timestamp</div>
-<div class="line"><a name="l00540"></a><span class="lineno">  540</span>&#160;    end</div>
-<div class="line"><a name="l00541"></a><span class="lineno">  541</span>&#160;    <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.lock(function()</div>
-<div class="line"><a name="l00542"></a><span class="lineno">  542</span>&#160;        if not <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[tostring(ip)] then</div>
-<div class="line"><a name="l00543"></a><span class="lineno">  543</span>&#160;            <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[tostring(ip)] = &quot;pending&quot;</div>
-<div class="line"><a name="l00544"></a><span class="lineno">  544</span>&#160;        end</div>
-<div class="line"><a name="l00545"></a><span class="lineno">  545</span>&#160;    end)</div>
-<div class="line"><a name="l00546"></a><span class="lineno">  546</span>&#160;    return nil</div>
-<div class="line"><a name="l00547"></a><span class="lineno">  547</span>&#160;end</div>
-<div class="line"><a name="l00548"></a><span class="lineno">  548</span>&#160;</div>
-<div class="line"><a name="l00549"></a><span class="lineno">  549</span>&#160;--- Perform a non-blocking <a class="code" href="arp_8lua.html#a2696d941650d044dfba6e60f6b60fc3b">lookup</a> in the ARP table.</div>
-<div class="line"><a name="l00550"></a><span class="lineno">  550</span>&#160;--- @param ip The ip address in <span class="keywordtype">string</span> or cdata format to look up.</div>
-<div class="line"><a name="l00551"></a><span class="lineno">  551</span>&#160;--- @param timeout TODO</div>
-<div class="line"><a name="l00552"></a><span class="lineno">  552</span>&#160;--- @todo FIXME: this only sends a single request</div>
-<div class="line"><a name="l00553"></a><span class="lineno">  553</span>&#160;function <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a1a65b04d2708f4cfcae7584fba4c484c">blockingLookup</a>(ip, timeout)</div>
-<div class="line"><a name="l00554"></a><span class="lineno">  554</span>&#160;    local timeout = dpdk.<a class="code" href="dpdk_8lua.html#a37026b6180bfebb42c0f985f63e95645">getTime</a>() + timeout</div>
-<div class="line"><a name="l00555"></a><span class="lineno">  555</span>&#160;    repeat</div>
-<div class="line"><a name="l00556"></a><span class="lineno">  556</span>&#160;        local mac, ts = <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a2696d941650d044dfba6e60f6b60fc3b">lookup</a>(ip)</div>
-<div class="line"><a name="l00557"></a><span class="lineno">  557</span>&#160;        if mac then</div>
-<div class="line"><a name="l00558"></a><span class="lineno">  558</span>&#160;            return mac, ts</div>
-<div class="line"><a name="l00559"></a><span class="lineno">  559</span>&#160;        end</div>
-<div class="line"><a name="l00560"></a><span class="lineno">  560</span>&#160;        dpdk.<a class="code" href="dpdk_8lua.html#a4f93c703c54bdf5ffe61239fb6c17bf2">sleepMillisIdle</a>(1000)</div>
-<div class="line"><a name="l00561"></a><span class="lineno">  561</span>&#160;    until dpdk.<a class="code" href="dpdk_8lua.html#a37026b6180bfebb42c0f985f63e95645">getTime</a>() &gt;= timeout</div>
-<div class="line"><a name="l00562"></a><span class="lineno">  562</span>&#160;end</div>
-<div class="line"><a name="l00563"></a><span class="lineno">  563</span>&#160;</div>
-<div class="line"><a name="l00564"></a><span class="lineno">  564</span>&#160;__MG_ARP_TASK = <a class="code" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a></div>
-<div class="line"><a name="l00565"></a><span class="lineno">  565</span>&#160;</div>
+<div class="line"><a name="l00403"></a><span class="lineno">  403</span>&#160;</div>
+<div class="line"><a name="l00404"></a><span class="lineno">  404</span>&#160;---------------------------------------------------------------------------------</div>
+<div class="line"><a name="l00405"></a><span class="lineno">  405</span>&#160;---- ARP Handler Task</div>
+<div class="line"><a name="l00406"></a><span class="lineno">  406</span>&#160;---------------------------------------------------------------------------------</div>
+<div class="line"><a name="l00407"></a><span class="lineno">  407</span>&#160;</div>
+<div class="line"><a name="l00408"></a><span class="lineno">  408</span>&#160;--- Arp handler task, responds to ARP queries for given IPs and performs <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a> lookups</div>
+<div class="line"><a name="l00409"></a><span class="lineno">  409</span>&#160;--- @todo TODO implement garbage collection/refreshing entries \<a class="code" href="memory_8lua.html#aeab71244afb687f16d8c4f5ee9d6ef0e">n</a></div>
+<div class="line"><a name="l00410"></a><span class="lineno">  410</span>&#160;--- the current implementation does not handle large tables efficiently \<a class="code" href="memory_8lua.html#aeab71244afb687f16d8c4f5ee9d6ef0e">n</a></div>
+<div class="line"><a name="l00411"></a><span class="lineno">  411</span>&#160;--- @todo TODO multi-NIC support</div>
+<div class="line"><a name="l00412"></a><span class="lineno">  412</span>&#160;<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a> = &quot;__MG_ARP_TASK&quot;</div>
+<div class="line"><a name="l00413"></a><span class="lineno">  413</span>&#160;</div>
+<div class="line"><a name="l00414"></a><span class="lineno">  414</span>&#160;--- Arp table</div>
+<div class="line"><a name="l00415"></a><span class="lineno">  415</span>&#160;--- TODO docu</div>
+<div class="line"><a name="l00416"></a><span class="lineno">  416</span>&#160;local <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a> = ns:<a class="code" href="arp_8lua.html#a0e0d443e1a9b88e6c6e14bcfa2e4535d">get</a>()</div>
+<div class="line"><a name="l00417"></a><span class="lineno">  417</span>&#160;</div>
+<div class="line"><a name="l00418"></a><span class="lineno">  418</span>&#160;--- Arp handler task</div>
+<div class="line"><a name="l00419"></a><span class="lineno">  419</span>&#160;--- @param qs TODO</div>
+<div class="line"><a name="l00420"></a><span class="lineno">  420</span>&#160;--- @todo TODO docu</div>
+<div class="line"><a name="l00421"></a><span class="lineno">  421</span>&#160;local function <a class="code" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a>(qs)</div>
+<div class="line"><a name="l00422"></a><span class="lineno">  422</span>&#160;    -- two ways to call this: single nic or array of nics</div>
+<div class="line"><a name="l00423"></a><span class="lineno">  423</span>&#160;    if qs[1] == nil and qs.rxQueue then</div>
+<div class="line"><a name="l00424"></a><span class="lineno">  424</span>&#160;        return <a class="code" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a>({ qs })</div>
+<div class="line"><a name="l00425"></a><span class="lineno">  425</span>&#160;    end</div>
+<div class="line"><a name="l00426"></a><span class="lineno">  426</span>&#160;</div>
+<div class="line"><a name="l00427"></a><span class="lineno">  427</span>&#160;    local ipToMac = {}</div>
+<div class="line"><a name="l00428"></a><span class="lineno">  428</span>&#160;    -- loop over NICs/Queues</div>
+<div class="line"><a name="l00429"></a><span class="lineno">  429</span>&#160;    <span class="keywordflow">for</span> _, nic in pairs(qs) do</div>
+<div class="line"><a name="l00430"></a><span class="lineno">  430</span>&#160;        if nic.txQueue.dev ~= nic.rxQueue.dev then</div>
+<div class="line"><a name="l00431"></a><span class="lineno">  431</span>&#160;            error(&quot;both queues must belong to the same device&quot;)</div>
+<div class="line"><a name="l00432"></a><span class="lineno">  432</span>&#160;        end</div>
+<div class="line"><a name="l00433"></a><span class="lineno">  433</span>&#160;</div>
+<div class="line"><a name="l00434"></a><span class="lineno">  434</span>&#160;        if type(nic.ips) == &quot;<span class="keywordtype">string</span>&quot; then</div>
+<div class="line"><a name="l00435"></a><span class="lineno">  435</span>&#160;            nic.ips = { nic.ips }</div>
+<div class="line"><a name="l00436"></a><span class="lineno">  436</span>&#160;        end</div>
+<div class="line"><a name="l00437"></a><span class="lineno">  437</span>&#160;</div>
+<div class="line"><a name="l00438"></a><span class="lineno">  438</span>&#160;        <span class="keywordflow">for</span> _, <a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a> in pairs(nic.ips) do</div>
+<div class="line"><a name="l00439"></a><span class="lineno">  439</span>&#160;            ipToMac[<a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a>(<a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a>)] = nic.txQueue.dev:getMac()</div>
+<div class="line"><a name="l00440"></a><span class="lineno">  440</span>&#160;        end</div>
+<div class="line"><a name="l00441"></a><span class="lineno">  441</span>&#160;        nic.txQueue.dev:l2Filter(<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>.<a class="code" href="ethernet_8lua.html#ac44bf7e3e27d6fe66b53b7278a9209b6">TYPE_ARP</a>, nic.rxQueue)</div>
+<div class="line"><a name="l00442"></a><span class="lineno">  442</span>&#160;    end</div>
+<div class="line"><a name="l00443"></a><span class="lineno">  443</span>&#160;</div>
+<div class="line"><a name="l00444"></a><span class="lineno">  444</span>&#160;    local rxBufs = memory.createBufArray(1)</div>
+<div class="line"><a name="l00445"></a><span class="lineno">  445</span>&#160;    local txMem = memory.<a class="code" href="memory_8lua.html#abcc77fc5fbe39024027817be38007e89">createMemPool</a>(function(buf)</div>
+<div class="line"><a name="l00446"></a><span class="lineno">  446</span>&#160;        buf:<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a>():<a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>{ </div>
+<div class="line"><a name="l00447"></a><span class="lineno">  447</span>&#160;            arpOperation    = <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.OP_REPLY,</div>
+<div class="line"><a name="l00448"></a><span class="lineno">  448</span>&#160;            pktLength       = 60</div>
+<div class="line"><a name="l00449"></a><span class="lineno">  449</span>&#160;        }</div>
+<div class="line"><a name="l00450"></a><span class="lineno">  450</span>&#160;    end)</div>
+<div class="line"><a name="l00451"></a><span class="lineno">  451</span>&#160;    local txBufs = txMem:<a class="code" href="memory_8lua.html#ae14f89bf497b843f729b4f816833d12d">bufArray</a>(1)</div>
+<div class="line"><a name="l00452"></a><span class="lineno">  452</span>&#160;    </div>
+<div class="line"><a name="l00453"></a><span class="lineno">  453</span>&#160;    <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.taskRunning = true</div>
+<div class="line"><a name="l00454"></a><span class="lineno">  454</span>&#160;</div>
+<div class="line"><a name="l00455"></a><span class="lineno">  455</span>&#160;    while dpdk.<a class="code" href="dpdk_8lua.html#a9c3302b6465084549f626875f203ff39">running</a>() do</div>
+<div class="line"><a name="l00456"></a><span class="lineno">  456</span>&#160;        </div>
+<div class="line"><a name="l00457"></a><span class="lineno">  457</span>&#160;        for _, nic in pairs(qs) do</div>
+<div class="line"><a name="l00458"></a><span class="lineno">  458</span>&#160;            rx = nic.rxQueue:<a class="code" href="device_8lua.html#a06ccb00dd734ac5c8ca6f92f6cfbafca">tryRecvIdle</a>(rxBufs, 1000)</div>
+<div class="line"><a name="l00459"></a><span class="lineno">  459</span>&#160;            assert(rx &lt;= 1)</div>
+<div class="line"><a name="l00460"></a><span class="lineno">  460</span>&#160;            if rx &gt; 0 then</div>
+<div class="line"><a name="l00461"></a><span class="lineno">  461</span>&#160;                local rxPkt = rxBufs[1]:<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a>()</div>
+<div class="line"><a name="l00462"></a><span class="lineno">  462</span>&#160;                if rxPkt.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#ab948b0bf0cd3136191030aabae5e569e">getType</a>() == <a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>.<a class="code" href="ethernet_8lua.html#ac44bf7e3e27d6fe66b53b7278a9209b6">TYPE_ARP</a> then</div>
+<div class="line"><a name="l00463"></a><span class="lineno">  463</span>&#160;                    if rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a6dd8b7640aaa5fde4c92cf19c856d6ee">getOperation</a>() == <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a0218e910856c59db9026bd1f15a1b003">OP_REQUEST</a> then</div>
+<div class="line"><a name="l00464"></a><span class="lineno">  464</span>&#160;                        local <a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a> = rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a86f7e9293c13fbb3f1e159cd3da06d45">getProtoDst</a>()</div>
+<div class="line"><a name="l00465"></a><span class="lineno">  465</span>&#160;                        local mac = ipToMac[<a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a>]</div>
+<div class="line"><a name="l00466"></a><span class="lineno">  466</span>&#160;                        if mac then</div>
+<div class="line"><a name="l00467"></a><span class="lineno">  467</span>&#160;                            txBufs:alloc(60)</div>
+<div class="line"><a name="l00468"></a><span class="lineno">  468</span>&#160;                            -- TODO: a single-packet API would be nice for things like this</div>
+<div class="line"><a name="l00469"></a><span class="lineno">  469</span>&#160;                            local <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a> = txBufs[1]:<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a>()</div>
+<div class="line"><a name="l00470"></a><span class="lineno">  470</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#a15e9422439fdc27e2ccac9e0328370fd">setSrc</a>(mac)</div>
+<div class="line"><a name="l00471"></a><span class="lineno">  471</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#ab36bb02a7cfb87486cbf6b10e1668e06">setDst</a>(rxPkt.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#a69302ff5ede5ea0391e94f76c071d5f5">getSrc</a>())</div>
+<div class="line"><a name="l00472"></a><span class="lineno">  472</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#ac9785c90863bf1cbb54215e29bb27a4c">setOperation</a>(<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a6335e0518b20057b742b7cbb362b4ef1">OP_REPLY</a>)</div>
+<div class="line"><a name="l00473"></a><span class="lineno">  473</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a94630c8711097f307d685b2c49b3a337">setHardwareDst</a>(rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#ac0726dd4d74a03948ad5ad66956c4d9a">getHardwareSrc</a>())</div>
+<div class="line"><a name="l00474"></a><span class="lineno">  474</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a0b0138588bf6cc244941169add8288f0">setHardwareSrc</a>(mac)</div>
+<div class="line"><a name="l00475"></a><span class="lineno">  475</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a72721344db267531b28c75c59ab567fc">setProtoDst</a>(rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a3b4dff7a116ebd729a548f8089716174">getProtoSrc</a>())</div>
+<div class="line"><a name="l00476"></a><span class="lineno">  476</span>&#160;                            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a4782c0c48654ccfe24787337da64bf8e">setProtoSrc</a>(<a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a>)</div>
+<div class="line"><a name="l00477"></a><span class="lineno">  477</span>&#160;                            nic.txQueue:send(txBufs)</div>
+<div class="line"><a name="l00478"></a><span class="lineno">  478</span>&#160;                        end</div>
+<div class="line"><a name="l00479"></a><span class="lineno">  479</span>&#160;                    elseif rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a6dd8b7640aaa5fde4c92cf19c856d6ee">getOperation</a>() == <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a6335e0518b20057b742b7cbb362b4ef1">OP_REPLY</a> then</div>
+<div class="line"><a name="l00480"></a><span class="lineno">  480</span>&#160;                        -- learn from all <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a> replies we see (<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a> cache poisoning doesn&#39;t matter here)</div>
+<div class="line"><a name="l00481"></a><span class="lineno">  481</span>&#160;                        local mac = rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#aeaa04f10b3d5de5221fa35ac13318e02">getHardwareSrcString</a>()</div>
+<div class="line"><a name="l00482"></a><span class="lineno">  482</span>&#160;                        local <a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a> = rxPkt.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a3cd6133601110b5cb183e033b218765a">getProtoSrcString</a>()</div>
+<div class="line"><a name="l00483"></a><span class="lineno">  483</span>&#160;                        <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[tostring(<a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a>(<a class="code" href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a>))] = { mac = mac, timestamp = dpdk.getTime() }</div>
+<div class="line"><a name="l00484"></a><span class="lineno">  484</span>&#160;                    end</div>
+<div class="line"><a name="l00485"></a><span class="lineno">  485</span>&#160;                end</div>
+<div class="line"><a name="l00486"></a><span class="lineno">  486</span>&#160;                rxBufs:<a class="code" href="memory_8lua.html#ab45e0285d4e972a6358f4548c1965a17">freeAll</a>()</div>
+<div class="line"><a name="l00487"></a><span class="lineno">  487</span>&#160;            end</div>
+<div class="line"><a name="l00488"></a><span class="lineno">  488</span>&#160;        end</div>
+<div class="line"><a name="l00489"></a><span class="lineno">  489</span>&#160;</div>
+<div class="line"><a name="l00490"></a><span class="lineno">  490</span>&#160;        -- send outstanding requests </div>
+<div class="line"><a name="l00491"></a><span class="lineno">  491</span>&#160;        <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>:<a class="code" href="namespaces_8lua.html#a51ba57210a1079a6bbdb36abc2e84ce2">forEach</a>(function(ip, value)</div>
+<div class="line"><a name="l00492"></a><span class="lineno">  492</span>&#160;            -- TODO: refresh or GC old entries</div>
+<div class="line"><a name="l00493"></a><span class="lineno">  493</span>&#160;            if value ~= &quot;pending&quot; then</div>
+<div class="line"><a name="l00494"></a><span class="lineno">  494</span>&#160;                return</div>
+<div class="line"><a name="l00495"></a><span class="lineno">  495</span>&#160;            end</div>
+<div class="line"><a name="l00496"></a><span class="lineno">  496</span>&#160;            <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[ip] = &quot;requested&quot;</div>
+<div class="line"><a name="l00497"></a><span class="lineno">  497</span>&#160;            -- TODO: the format should be compatible with <a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a></div>
+<div class="line"><a name="l00498"></a><span class="lineno">  498</span>&#160;            ip = tonumber(ip)</div>
+<div class="line"><a name="l00499"></a><span class="lineno">  499</span>&#160;            txBufs:alloc(60)</div>
+<div class="line"><a name="l00500"></a><span class="lineno">  500</span>&#160;            local <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a> = txBufs[1]:<a class="code" href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a>()</div>
+<div class="line"><a name="l00501"></a><span class="lineno">  501</span>&#160;            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#a242d4477b0be3196f10cf6c8bb6da9d9">setDstString</a>(<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>.<a class="code" href="ethernet_8lua.html#a7668ff032d08761202742af04398e717">BROADCAST</a>)</div>
+<div class="line"><a name="l00502"></a><span class="lineno">  502</span>&#160;            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#ac9785c90863bf1cbb54215e29bb27a4c">setOperation</a>(<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a0218e910856c59db9026bd1f15a1b003">OP_REQUEST</a>)</div>
+<div class="line"><a name="l00503"></a><span class="lineno">  503</span>&#160;            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#af6bd523d4997ad7dcc564847dbbae9fe">setHardwareDstString</a>(<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>.<a class="code" href="ethernet_8lua.html#a7668ff032d08761202742af04398e717">BROADCAST</a>)</div>
+<div class="line"><a name="l00504"></a><span class="lineno">  504</span>&#160;            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a72721344db267531b28c75c59ab567fc">setProtoDst</a>(ip)</div>
+<div class="line"><a name="l00505"></a><span class="lineno">  505</span>&#160;            -- TODO: do not send requests on all devices, but only the relevant</div>
+<div class="line"><a name="l00506"></a><span class="lineno">  506</span>&#160;            for _, nic in pairs(qs) do</div>
+<div class="line"><a name="l00507"></a><span class="lineno">  507</span>&#160;                local mac = nic.txQueue.dev:getMac()</div>
+<div class="line"><a name="l00508"></a><span class="lineno">  508</span>&#160;                <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>:<a class="code" href="ethernet_8lua.html#a15e9422439fdc27e2ccac9e0328370fd">setSrc</a>(mac)</div>
+<div class="line"><a name="l00509"></a><span class="lineno">  509</span>&#160;                <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a4782c0c48654ccfe24787337da64bf8e">setProtoSrc</a>(<a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a>(nic.ips[1]))</div>
+<div class="line"><a name="l00510"></a><span class="lineno">  510</span>&#160;                <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>:<a class="code" href="arp_8lua.html#a0b0138588bf6cc244941169add8288f0">setHardwareSrc</a>(mac)</div>
+<div class="line"><a name="l00511"></a><span class="lineno">  511</span>&#160;                nic.txQueue:send(txBufs)</div>
+<div class="line"><a name="l00512"></a><span class="lineno">  512</span>&#160;            end</div>
+<div class="line"><a name="l00513"></a><span class="lineno">  513</span>&#160;        end)</div>
+<div class="line"><a name="l00514"></a><span class="lineno">  514</span>&#160;        dpdk.<a class="code" href="dpdk_8lua.html#a4f93c703c54bdf5ffe61239fb6c17bf2">sleepMillisIdle</a>(1)</div>
+<div class="line"><a name="l00515"></a><span class="lineno">  515</span>&#160;    end</div>
+<div class="line"><a name="l00516"></a><span class="lineno">  516</span>&#160;end</div>
+<div class="line"><a name="l00517"></a><span class="lineno">  517</span>&#160;</div>
+<div class="line"><a name="l00518"></a><span class="lineno">  518</span>&#160;--- Perform a <a class="code" href="arp_8lua.html#a2696d941650d044dfba6e60f6b60fc3b">lookup</a> in the ARP table.</div>
+<div class="line"><a name="l00519"></a><span class="lineno">  519</span>&#160;--- Lookup the MAC address for a given IP.</div>
+<div class="line"><a name="l00520"></a><span class="lineno">  520</span>&#160;--- Blocks for up to 1 second if the <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a> task is not yet <a class="code" href="dpdk_8lua.html#a9c3302b6465084549f626875f203ff39">running</a></div>
+<div class="line"><a name="l00521"></a><span class="lineno">  521</span>&#160;--- Caution: this function uses locks and namespaces, must not be used in the fast path</div>
+<div class="line"><a name="l00522"></a><span class="lineno">  522</span>&#160;--- @param ip The ip address in <span class="keywordtype">string</span> or cdata format to look up.</div>
+<div class="line"><a name="l00523"></a><span class="lineno">  523</span>&#160;function <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a2696d941650d044dfba6e60f6b60fc3b">lookup</a>(ip)</div>
+<div class="line"><a name="l00524"></a><span class="lineno">  524</span>&#160;    if type(ip) == &quot;<span class="keywordtype">string</span>&quot; then</div>
+<div class="line"><a name="l00525"></a><span class="lineno">  525</span>&#160;        ip = <a class="code" href="utils_8lua.html#a70410fc00bc98caf32a7fffc9623ed02">parseIPAddress</a>(ip)</div>
+<div class="line"><a name="l00526"></a><span class="lineno">  526</span>&#160;    elseif type(ip) == &quot;cdata&quot; then</div>
+<div class="line"><a name="l00527"></a><span class="lineno">  527</span>&#160;        ip = ip:<a class="code" href="arp_8lua.html#a0e0d443e1a9b88e6c6e14bcfa2e4535d">get</a>()</div>
+<div class="line"><a name="l00528"></a><span class="lineno">  528</span>&#160;    end</div>
+<div class="line"><a name="l00529"></a><span class="lineno">  529</span>&#160;    if not <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.taskRunning then</div>
+<div class="line"><a name="l00530"></a><span class="lineno">  530</span>&#160;        local waitForArpTask = 0</div>
+<div class="line"><a name="l00531"></a><span class="lineno">  531</span>&#160;        while not <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.taskRunning and waitForArpTask &lt; 10 do</div>
+<div class="line"><a name="l00532"></a><span class="lineno">  532</span>&#160;            dpdk.<a class="code" href="dpdk_8lua.html#aa83fbc2e0d94b53aebaabc0021132b20">sleepMillis</a>(100)</div>
+<div class="line"><a name="l00533"></a><span class="lineno">  533</span>&#160;        end</div>
+<div class="line"><a name="l00534"></a><span class="lineno">  534</span>&#160;        if not <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.taskRunning then</div>
+<div class="line"><a name="l00535"></a><span class="lineno">  535</span>&#160;            error(&quot;ARP task is not <a class="code" href="dpdk_8lua.html#a9c3302b6465084549f626875f203ff39">running</a>&quot;)</div>
+<div class="line"><a name="l00536"></a><span class="lineno">  536</span>&#160;        end</div>
+<div class="line"><a name="l00537"></a><span class="lineno">  537</span>&#160;    end</div>
+<div class="line"><a name="l00538"></a><span class="lineno">  538</span>&#160;    local mac = <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[tostring(ip)]</div>
+<div class="line"><a name="l00539"></a><span class="lineno">  539</span>&#160;    if type(mac) == &quot;table&quot; then</div>
+<div class="line"><a name="l00540"></a><span class="lineno">  540</span>&#160;        return mac.mac, mac.timestamp</div>
+<div class="line"><a name="l00541"></a><span class="lineno">  541</span>&#160;    end</div>
+<div class="line"><a name="l00542"></a><span class="lineno">  542</span>&#160;    <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>.lock(function()</div>
+<div class="line"><a name="l00543"></a><span class="lineno">  543</span>&#160;        if not <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[tostring(ip)] then</div>
+<div class="line"><a name="l00544"></a><span class="lineno">  544</span>&#160;            <a class="code" href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a>[tostring(ip)] = &quot;pending&quot;</div>
+<div class="line"><a name="l00545"></a><span class="lineno">  545</span>&#160;        end</div>
+<div class="line"><a name="l00546"></a><span class="lineno">  546</span>&#160;    end)</div>
+<div class="line"><a name="l00547"></a><span class="lineno">  547</span>&#160;    return nil</div>
+<div class="line"><a name="l00548"></a><span class="lineno">  548</span>&#160;end</div>
+<div class="line"><a name="l00549"></a><span class="lineno">  549</span>&#160;</div>
+<div class="line"><a name="l00550"></a><span class="lineno">  550</span>&#160;--- Perform a non-blocking <a class="code" href="arp_8lua.html#a2696d941650d044dfba6e60f6b60fc3b">lookup</a> in the ARP table.</div>
+<div class="line"><a name="l00551"></a><span class="lineno">  551</span>&#160;--- @param ip The ip address in <span class="keywordtype">string</span> or cdata format to look up.</div>
+<div class="line"><a name="l00552"></a><span class="lineno">  552</span>&#160;--- @param timeout TODO</div>
+<div class="line"><a name="l00553"></a><span class="lineno">  553</span>&#160;--- @todo FIXME: this only sends a single request</div>
+<div class="line"><a name="l00554"></a><span class="lineno">  554</span>&#160;function <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a1a65b04d2708f4cfcae7584fba4c484c">blockingLookup</a>(ip, timeout)</div>
+<div class="line"><a name="l00555"></a><span class="lineno">  555</span>&#160;    local timeout = dpdk.<a class="code" href="dpdk_8lua.html#a37026b6180bfebb42c0f985f63e95645">getTime</a>() + timeout</div>
+<div class="line"><a name="l00556"></a><span class="lineno">  556</span>&#160;    repeat</div>
+<div class="line"><a name="l00557"></a><span class="lineno">  557</span>&#160;        local mac, ts = <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a>.<a class="code" href="arp_8lua.html#a2696d941650d044dfba6e60f6b60fc3b">lookup</a>(ip)</div>
+<div class="line"><a name="l00558"></a><span class="lineno">  558</span>&#160;        if mac then</div>
+<div class="line"><a name="l00559"></a><span class="lineno">  559</span>&#160;            return mac, ts</div>
+<div class="line"><a name="l00560"></a><span class="lineno">  560</span>&#160;        end</div>
+<div class="line"><a name="l00561"></a><span class="lineno">  561</span>&#160;        dpdk.<a class="code" href="dpdk_8lua.html#a4f93c703c54bdf5ffe61239fb6c17bf2">sleepMillisIdle</a>(1000)</div>
+<div class="line"><a name="l00562"></a><span class="lineno">  562</span>&#160;    until dpdk.<a class="code" href="dpdk_8lua.html#a37026b6180bfebb42c0f985f63e95645">getTime</a>() &gt;= timeout</div>
+<div class="line"><a name="l00563"></a><span class="lineno">  563</span>&#160;end</div>
+<div class="line"><a name="l00564"></a><span class="lineno">  564</span>&#160;</div>
+<div class="line"><a name="l00565"></a><span class="lineno">  565</span>&#160;__MG_ARP_TASK = <a class="code" href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a></div>
 <div class="line"><a name="l00566"></a><span class="lineno">  566</span>&#160;</div>
-<div class="line"><a name="l00567"></a><span class="lineno">  567</span>&#160;---------------------------------------------------------------------------------</div>
-<div class="line"><a name="l00568"></a><span class="lineno">  568</span>&#160;---- Metatypes</div>
-<div class="line"><a name="l00569"></a><span class="lineno">  569</span>&#160;---------------------------------------------------------------------------------</div>
-<div class="line"><a name="l00570"></a><span class="lineno">  570</span>&#160;</div>
-<div class="line"><a name="l00571"></a><span class="lineno">  571</span>&#160;<a class="code" href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a>.metatype(&quot;struct arp_header&quot;, <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>)</div>
-<div class="line"><a name="l00572"></a><span class="lineno">  572</span>&#160;</div>
-<div class="line"><a name="l00573"></a><span class="lineno">  573</span>&#160;return <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a></div>
-<div class="line"><a name="l00574"></a><span class="lineno">  574</span>&#160;</div>
+<div class="line"><a name="l00567"></a><span class="lineno">  567</span>&#160;</div>
+<div class="line"><a name="l00568"></a><span class="lineno">  568</span>&#160;---------------------------------------------------------------------------------</div>
+<div class="line"><a name="l00569"></a><span class="lineno">  569</span>&#160;---- Metatypes</div>
+<div class="line"><a name="l00570"></a><span class="lineno">  570</span>&#160;---------------------------------------------------------------------------------</div>
+<div class="line"><a name="l00571"></a><span class="lineno">  571</span>&#160;</div>
+<div class="line"><a name="l00572"></a><span class="lineno">  572</span>&#160;<a class="code" href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a>.metatype(&quot;struct arp_header&quot;, <a class="code" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a>)</div>
+<div class="line"><a name="l00573"></a><span class="lineno">  573</span>&#160;</div>
+<div class="line"><a name="l00574"></a><span class="lineno">  574</span>&#160;return <a class="code" href="arp_8lua.html#a02203ea250dfb1428f95db578e7ce4f3">arp</a></div>
+<div class="line"><a name="l00575"></a><span class="lineno">  575</span>&#160;</div>
 <div class="ttc" id="dpdk_8lua_html_aa83fbc2e0d94b53aebaabc0021132b20"><div class="ttname"><a href="dpdk_8lua.html#aa83fbc2e0d94b53aebaabc0021132b20">sleepMillis</a></div><div class="ttdeci">function mod sleepMillis(t)</div><div class="ttdoc">Delay by t milliseconds. </div></div>
 <div class="ttc" id="arp_8lua_html_ac847448eeb4f39fba624e0e8b17a7d17"><div class="ttname"><a href="arp_8lua.html#ac847448eeb4f39fba624e0e8b17a7d17">getHardwareDstString</a></div><div class="ttdeci">function arpHeader getHardwareDstString()</div><div class="ttdoc">Retrieve the hardware destination address. </div></div>
 <div class="ttc" id="arp_8lua_html_a64dfa43ffd8f0e7cdbc3ab64b82437c3"><div class="ttname"><a href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3">arpHeader</a></div><div class="ttdeci">local arpHeader</div><div class="ttdoc">Module for arp_header struct (see headers.lua). </div><div class="ttdef"><b>Definition:</b> <a href="arp_8lua_source.html#l00048">arp.lua:48</a></div></div>
@@ -700,7 +701,8 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="ttc" id="arp_8lua_html_a0baa6a8a8294e9bdaeb617de26d65382"><div class="ttname"><a href="arp_8lua.html#a0baa6a8a8294e9bdaeb617de26d65382">setHardwareAddressType</a></div><div class="ttdeci">function arpHeader setHardwareAddressType(int)</div><div class="ttdoc">Set the hardware address type. </div></div>
 <div class="ttc" id="arp_8lua_html_a0558c33bdd9450f63e75f8d933ab6214"><div class="ttname"><a href="arp_8lua.html#a0558c33bdd9450f63e75f8d933ab6214">setProtoAddressLength</a></div><div class="ttdeci">function arpHeader setProtoAddressLength(int)</div><div class="ttdoc">Set the protocol address length. </div></div>
 <div class="ttc" id="arp_8lua_html_a4782c0c48654ccfe24787337da64bf8e"><div class="ttname"><a href="arp_8lua.html#a4782c0c48654ccfe24787337da64bf8e">setProtoSrc</a></div><div class="ttdeci">function arpHeader setProtoSrc(addr)</div><div class="ttdoc">Set the protocol source address. </div></div>
-<div class="ttc" id="arp_8lua_html_a090dcedba76e1c744c22401a66726b41"><div class="ttname"><a href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a></div><div class="ttdeci">pkt getArpPacket</div><div class="ttdoc">Cast the packet to an Arp packet. </div><div class="ttdef"><b>Definition:</b> <a href="arp_8lua_source.html#l00224">arp.lua:224</a></div></div>
+<div class="ttc" id="ah_8lua_html_a33f224ab9bc8a4fabf72fd9bc264e7a0"><div class="ttname"><a href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a></div><div class="ttdeci">function ipsecICV set(icv)</div><div class="ttdoc">Set the IPsec ICV. </div></div>
+<div class="ttc" id="arp_8lua_html_a090dcedba76e1c744c22401a66726b41"><div class="ttname"><a href="arp_8lua.html#a090dcedba76e1c744c22401a66726b41">getArpPacket</a></div><div class="ttdeci">pkt getArpPacket</div><div class="ttdoc">Cast the packet to an Arp packet. </div><div class="ttdef"><b>Definition:</b> <a href="arp_8lua_source.html#l00225">arp.lua:225</a></div></div>
 <div class="ttc" id="arp_8lua_html_ad6718d6ede853d084f44dd8e1afdf9a7"><div class="ttname"><a href="arp_8lua.html#ad6718d6ede853d084f44dd8e1afdf9a7">resolveNextHeader</a></div><div class="ttdeci">function arpHeader resolveNextHeader()</div><div class="ttdoc">Resolve which header comes after this one (in a packet). </div></div>
 <div class="ttc" id="ethernet_8lua_html_a242d4477b0be3196f10cf6c8bb6da9d9"><div class="ttname"><a href="ethernet_8lua.html#a242d4477b0be3196f10cf6c8bb6da9d9">setDstString</a></div><div class="ttdeci">function etherHeader setDstString(str)</div><div class="ttdoc">Set the destination MAC address. </div></div>
 <div class="ttc" id="arp_8lua_html_aceafc3ea10bd776cdd7f95774bfe4813"><div class="ttname"><a href="arp_8lua.html#aceafc3ea10bd776cdd7f95774bfe4813">getHardwareAddressLengthString</a></div><div class="ttdeci">function arpHeader getHardwareAddressLengthString()</div><div class="ttdoc">Retrieve the hardware address length. </div></div>
@@ -720,7 +722,7 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="ttc" id="arp_8lua_html_a4d6d691098f7accb3b4b0c2cf8625925"><div class="ttname"><a href="arp_8lua.html#a4d6d691098f7accb3b4b0c2cf8625925">PROTO_ADDRESS_TYPE_IP</a></div><div class="ttdeci">arp PROTO_ADDRESS_TYPE_IP</div><div class="ttdoc">Proto address type for IP (for ethernet based protocols uses etherType numbers ethernet.lua) </div><div class="ttdef"><b>Definition:</b> <a href="arp_8lua_source.html#l00038">arp.lua:38</a></div></div>
 <div class="ttc" id="arp_8lua_html_a86f7e9293c13fbb3f1e159cd3da06d45"><div class="ttname"><a href="arp_8lua.html#a86f7e9293c13fbb3f1e159cd3da06d45">getProtoDst</a></div><div class="ttdeci">function arpHeader getProtoDst()</div><div class="ttdoc">Retrieve the protocol destination address. </div></div>
 <div class="ttc" id="arp_8lua_html_a94630c8711097f307d685b2c49b3a337"><div class="ttname"><a href="arp_8lua.html#a94630c8711097f307d685b2c49b3a337">setHardwareDst</a></div><div class="ttdeci">function arpHeader setHardwareDst(addr)</div><div class="ttdoc">Set the hardware destination address. </div></div>
-<div class="ttc" id="arp_8lua_html_a8754b9077c838392308227c93f785f69"><div class="ttname"><a href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a></div><div class="ttdeci">local arpTable</div><div class="ttdoc">Arp table TODO docu. </div><div class="ttdef"><b>Definition:</b> <a href="arp_8lua_source.html#l00236">arp.lua:236</a></div></div>
+<div class="ttc" id="arp_8lua_html_a8754b9077c838392308227c93f785f69"><div class="ttname"><a href="arp_8lua.html#a8754b9077c838392308227c93f785f69">arpTable</a></div><div class="ttdeci">local arpTable</div><div class="ttdoc">Arp table TODO docu. </div><div class="ttdef"><b>Definition:</b> <a href="arp_8lua_source.html#l00237">arp.lua:237</a></div></div>
 <div class="ttc" id="arp_8lua_html_a303984d678b9b229a8601c8c6cb5a1ca"><div class="ttname"><a href="arp_8lua.html#a303984d678b9b229a8601c8c6cb5a1ca">getHardwareDst</a></div><div class="ttdeci">function arpHeader getHardwareDst()</div><div class="ttdoc">Retrieve the hardware destination address. </div></div>
 <div class="ttc" id="ethernet_8lua_html_ab948b0bf0cd3136191030aabae5e569e"><div class="ttname"><a href="ethernet_8lua.html#ab948b0bf0cd3136191030aabae5e569e">getType</a></div><div class="ttdeci">function etherHeader getType()</div><div class="ttdoc">Retrieve the EtherType. </div></div>
 <div class="ttc" id="arp_8lua_html_ac9785c90863bf1cbb54215e29bb27a4c"><div class="ttname"><a href="arp_8lua.html#ac9785c90863bf1cbb54215e29bb27a4c">setOperation</a></div><div class="ttdeci">function arpHeader setOperation(int)</div><div class="ttdoc">Set the operation. </div></div>
@@ -740,7 +742,6 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="ttc" id="memory_8lua_html_aeab71244afb687f16d8c4f5ee9d6ef0e"><div class="ttname"><a href="memory_8lua.html#aeab71244afb687f16d8c4f5ee9d6ef0e">n</a></div><div class="ttdeci">n</div><div class="ttdoc">Create a new array of memory buffers (initialized to nil). </div><div class="ttdef"><b>Definition:</b> <a href="memory_8lua_source.html#l00076">memory.lua:76</a></div></div>
 <div class="ttc" id="arp_8lua_html_aaa4c6993900839a4f479456fe0d6b813"><div class="ttname"><a href="arp_8lua.html#aaa4c6993900839a4f479456fe0d6b813">setDefaultNamedArgs</a></div><div class="ttdeci">function arpHeader setDefaultNamedArgs(pre, namedArgs, nextHeader, accumulatedLength)</div><div class="ttdoc">Change the default values for namedArguments (for fill/get). </div></div>
 <div class="ttc" id="arp_8lua_html_af82cff2f4df57e80cdae7234677933a6"><div class="ttname"><a href="arp_8lua.html#af82cff2f4df57e80cdae7234677933a6">getHardwareAddressLength</a></div><div class="ttdeci">function arpHeader getHardwareAddressLength()</div><div class="ttdoc">Retrieve the hardware address length. </div></div>
-<div class="ttc" id="ethernet_8lua_html_a77e75ae36313b17315d8ced823089f9e"><div class="ttname"><a href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a></div><div class="ttdeci">function macAddr set(addr)</div><div class="ttdoc">Set the MAC address. </div></div>
 <div class="ttc" id="dpdk_8lua_html_a4f93c703c54bdf5ffe61239fb6c17bf2"><div class="ttname"><a href="dpdk_8lua.html#a4f93c703c54bdf5ffe61239fb6c17bf2">sleepMillisIdle</a></div><div class="ttdeci">function mod sleepMillisIdle(t)</div><div class="ttdoc">Sleep by t milliseconds by calling usleep(). </div></div>
 <div class="ttc" id="dpdk_8lua_html_a9c3302b6465084549f626875f203ff39"><div class="ttname"><a href="dpdk_8lua.html#a9c3302b6465084549f626875f203ff39">running</a></div><div class="ttdeci">function mod running(extraTime)</div><div class="ttdoc">Returns false once the app receives SIGTERM or SIGINT, the time set via setRuntime expires...</div></div>
 <div class="ttc" id="namespaces_8lua_html_a51ba57210a1079a6bbdb36abc2e84ce2"><div class="ttname"><a href="namespaces_8lua.html#a51ba57210a1079a6bbdb36abc2e84ce2">forEach</a></div><div class="ttdeci">namespace forEach(func)</div><div class="ttdoc">Iterate over all keys/values in a namespace Note: namespaces do not offer a &#39;normal&#39; iterator (e...</div></div>
@@ -749,7 +750,7 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div class="ttc" id="arp_8lua_html_a3b4dff7a116ebd729a548f8089716174"><div class="ttname"><a href="arp_8lua.html#a3b4dff7a116ebd729a548f8089716174">getProtoSrc</a></div><div class="ttdeci">function arpHeader getProtoSrc()</div><div class="ttdoc">Retrieve the protocol source address. </div></div>
 <div class="ttc" id="arp_8lua_html_aea3244c9bc85cce136e1b2c96bf41cd3"><div class="ttname"><a href="arp_8lua.html#aea3244c9bc85cce136e1b2c96bf41cd3">getHardwareAddressTypeString</a></div><div class="ttdeci">function arpHeader getHardwareAddressTypeString()</div><div class="ttdoc">Retrieve the hardware address type. </div></div>
 <div class="ttc" id="arp_8lua_html_a1a65b04d2708f4cfcae7584fba4c484c"><div class="ttname"><a href="arp_8lua.html#a1a65b04d2708f4cfcae7584fba4c484c">blockingLookup</a></div><div class="ttdeci">function arp blockingLookup(ip, timeout)</div><div class="ttdoc">Perform a non-blocking lookup in the ARP table. </div></div>
-<div class="ttc" id="arp_8lua_html_a4e6b147b1ecc55c7f7a59cc501c89f79"><div class="ttname"><a href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a></div><div class="ttdeci">arp arpTask</div><div class="ttdoc">Arp handler task, responds to ARP queries for given IPs and performs arp lookups. ...</div><div class="ttdef"><b>Definition:</b> <a href="arp_8lua_source.html#l00232">arp.lua:232</a></div></div>
+<div class="ttc" id="arp_8lua_html_a4e6b147b1ecc55c7f7a59cc501c89f79"><div class="ttname"><a href="arp_8lua.html#a4e6b147b1ecc55c7f7a59cc501c89f79">arpTask</a></div><div class="ttdeci">arp arpTask</div><div class="ttdoc">Arp handler task, responds to ARP queries for given IPs and performs arp lookups. ...</div><div class="ttdef"><b>Definition:</b> <a href="arp_8lua_source.html#l00233">arp.lua:233</a></div></div>
 <div class="ttc" id="arp_8lua_html_af6bd523d4997ad7dcc564847dbbae9fe"><div class="ttname"><a href="arp_8lua.html#af6bd523d4997ad7dcc564847dbbae9fe">setHardwareDstString</a></div><div class="ttdeci">function arpHeader setHardwareDstString(addr)</div><div class="ttdoc">Set the hardware destination address. </div></div>
 <div class="ttc" id="arp_8lua_html_a8c987df952427570b63db7dd7a4b8302"><div class="ttname"><a href="arp_8lua.html#a8c987df952427570b63db7dd7a4b8302">setHardwareAddressLength</a></div><div class="ttdeci">function arpHeader setHardwareAddressLength(int)</div><div class="ttdoc">Set the hardware address length. </div></div>
 </div><!-- fragment --></div><!-- contents -->
@@ -758,7 +759,7 @@ $(document).ready(function(){initNavTree('arp_8lua_source.html','');});
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_008ba6cb71e2c02d515844436773d74d.html">proto</a></li><li class="navelem"><a class="el" href="arp_8lua.html">arp.lua</a></li>
-    <li class="footer">Generated on Mon Aug 24 2015 22:09:13 for MoonGen by
+    <li class="footer">Generated on Thu Aug 27 2015 17:38:30 for MoonGen by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>

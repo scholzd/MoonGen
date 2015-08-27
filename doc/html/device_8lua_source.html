@@ -636,9 +636,9 @@ $(document).ready(function(){initNavTree('device_8lua_source.html','');});
 <div class="line"><a name="l00534"></a><span class="lineno">  534</span>&#160;local RF_X540_82599 = 0x00004984</div>
 <div class="line"><a name="l00535"></a><span class="lineno">  535</span>&#160;local RF_ENABLE_BIT = bit.lshift(1, 31)</div>
 <div class="line"><a name="l00536"></a><span class="lineno">  536</span>&#160;</div>
-<div class="line"><a name="l00537"></a><span class="lineno">  537</span>&#160;function txQueue:setTxRateRaw(rate, disable)</div>
+<div class="line"><a name="l00537"></a><span class="lineno">  537</span>&#160;function txQueue:setTxRateRaw(rate, <a class="code" href="ipsec_8lua.html#af49f49033ac026aecd52c87c8a14b1dc">disable</a>)</div>
 <div class="line"><a name="l00538"></a><span class="lineno">  538</span>&#160;    dpdkc.write_reg32(self.<span class="keywordtype">id</span>, RTTDQSEL, self.qid)</div>
-<div class="line"><a name="l00539"></a><span class="lineno">  539</span>&#160;    if disable then</div>
+<div class="line"><a name="l00539"></a><span class="lineno">  539</span>&#160;    if <a class="code" href="ipsec_8lua.html#af49f49033ac026aecd52c87c8a14b1dc">disable</a> then</div>
 <div class="line"><a name="l00540"></a><span class="lineno">  540</span>&#160;        dpdkc.write_reg32(self.<span class="keywordtype">id</span>, RF_X540_82599, 0)</div>
 <div class="line"><a name="l00541"></a><span class="lineno">  541</span>&#160;        return</div>
 <div class="line"><a name="l00542"></a><span class="lineno">  542</span>&#160;    end</div>
@@ -778,6 +778,7 @@ $(document).ready(function(){initNavTree('device_8lua_source.html','');});
 <div class="line"><a name="l00676"></a><span class="lineno">  676</span>&#160;</div>
 <div class="ttc" id="memory_8lua_html_a9496abb53c51edd3d1f29f023bffcfd3"><div class="ttname"><a href="memory_8lua.html#a9496abb53c51edd3d1f29f023bffcfd3">optional</a></div><div class="ttdeci">param n optional(default=2047)</div><div class="ttdoc">Create a new memory pool. </div></div>
 <div class="ttc" id="device_8lua_html_a9f4b12f18a787a92276527a509f9dba4"><div class="ttname"><a href="device_8lua.html#a9f4b12f18a787a92276527a509f9dba4">recv</a></div><div class="ttdeci">function rxQueue recv(bufArray)</div><div class="ttdoc">Receive packets from a rx queue. </div></div>
+<div class="ttc" id="ipsec_8lua_html_af49f49033ac026aecd52c87c8a14b1dc"><div class="ttname"><a href="ipsec_8lua.html#af49f49033ac026aecd52c87c8a14b1dc">disable</a></div><div class="ttdeci">function mod disable(port)</div><div class="ttdoc">Disable the Hardware Crypto Engine. </div></div>
 <div class="ttc" id="dpdkc_8lua_html_ab0fe2c273d26b897ce8facde43ddda0b"><div class="ttname"><a href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a></div><div class="ttdeci">local ffi</div><div class="ttdoc">low-level dpdk wrapper </div><div class="ttdef"><b>Definition:</b> <a href="dpdkc_8lua_source.html#l00006">dpdkc.lua:6</a></div></div>
 <div class="ttc" id="dpdk_8lua_html_a44ab9c82fb663ef97dc859154d6293a2"><div class="ttname"><a href="dpdk_8lua.html#a44ab9c82fb663ef97dc859154d6293a2">sleepMicrosIdle</a></div><div class="ttdeci">function mod sleepMicrosIdle(t)</div><div class="ttdoc">Sleep by t microseconds by calling usleep(). </div></div>
 <div class="ttc" id="device_8lua_html_a6188c40343351e51a0960a9f116ecf0b"><div class="ttname"><a href="device_8lua.html#a6188c40343351e51a0960a9f116ecf0b">tryRecv</a></div><div class="ttdeci">function rxQueue tryRecv(bufArray, maxWait)</div><div class="ttdoc">Receive packets from a rx queue with a timeout. </div></div>
@@ -807,7 +808,7 @@ $(document).ready(function(){initNavTree('device_8lua_source.html','');});
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="device_8lua.html">device.lua</a></li>
-    <li class="footer">Generated on Mon Aug 24 2015 22:09:13 for MoonGen by
+    <li class="footer">Generated on Thu Aug 27 2015 17:38:30 for MoonGen by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>

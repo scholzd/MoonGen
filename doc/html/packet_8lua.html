@@ -139,10 +139,12 @@ function <a class="el" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51"
 <tr class="memitem:a2635156d751e509e4b4f607a2b045c5a"><td class="memItemLeft" align="right" valign="top">function <a class="el" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="packet_8lua.html#a2635156d751e509e4b4f607a2b045c5a">dump</a> (bytes)</td></tr>
 <tr class="memdesc:a2635156d751e509e4b4f607a2b045c5a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dumps the packet data cast to the best fitting packet struct.  <a href="#a2635156d751e509e4b4f607a2b045c5a">More...</a><br/></td></tr>
 <tr class="separator:a2635156d751e509e4b4f607a2b045c5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0685d073d3e09a706083bbabe2328d0d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a0685d073d3e09a706083bbabe2328d0d"></a>
-function <a class="el" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="packet_8lua.html#a0685d073d3e09a706083bbabe2328d0d">offloadIPSec</a> (idx, sec_type, esp_mode)</td></tr>
-<tr class="memdesc:a0685d073d3e09a706083bbabe2328d0d"><td class="mdescLeft">&#160;</td><td class="mdescRight">IPSec offloading. <br/></td></tr>
+<tr class="memitem:a0685d073d3e09a706083bbabe2328d0d"><td class="memItemLeft" align="right" valign="top">function <a class="el" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="packet_8lua.html#a0685d073d3e09a706083bbabe2328d0d">offloadIPSec</a> (idx, sec_type, esp_mode)</td></tr>
+<tr class="memdesc:a0685d073d3e09a706083bbabe2328d0d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Use IPsec offloading.  <a href="#a0685d073d3e09a706083bbabe2328d0d">More...</a><br/></td></tr>
 <tr class="separator:a0685d073d3e09a706083bbabe2328d0d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a98683c8c5fa79fb9964f84125b437b65"><td class="memItemLeft" align="right" valign="top">function <a class="el" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="packet_8lua.html#a98683c8c5fa79fb9964f84125b437b65">setESPTrailerLength</a> (len)</td></tr>
+<tr class="memdesc:a98683c8c5fa79fb9964f84125b437b65"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the ESP trailer length.  <a href="#a98683c8c5fa79fb9964f84125b437b65">More...</a><br/></td></tr>
+<tr class="separator:a98683c8c5fa79fb9964f84125b437b65"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a07b89b4064afceae93179acfa2c91d78"><td class="memItemLeft" align="right" valign="top">function <a class="el" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="packet_8lua.html#a07b89b4064afceae93179acfa2c91d78">offloadIPChecksum</a> (ipv4, l2_len, l3_len)</td></tr>
 <tr class="memdesc:a07b89b4064afceae93179acfa2c91d78"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instruct the NIC to calculate the IP checksum for this packet.  <a href="#a07b89b4064afceae93179acfa2c91d78">More...</a><br/></td></tr>
 <tr class="separator:a07b89b4064afceae93179acfa2c91d78"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -247,7 +249,7 @@ local&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="pac
         </tr>
       </table>
 </div><div class="memdoc">
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000021">Todo:</a></b></dt><dd>TODO docu </dd></dl>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000022">Todo:</a></b></dt><dd>TODO docu </dd></dl>
 
 </div>
 </div>
@@ -375,6 +377,48 @@ Name of the member </dd></dl>
 
 </div>
 </div>
+<a class="anchor" id="a0685d073d3e09a706083bbabe2328d0d"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">function <a class="el" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a> offloadIPSec </td>
+          <td>(</td>
+          <td class="paramtype">idx&#160;</td>
+          <td class="paramname">, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">sec_type&#160;</td>
+          <td class="paramname">, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">esp_mode&#160;</td>
+          <td class="paramname">&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Use IPsec offloading. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">idx</td><td>SA_IDX to use </td></tr>
+    <tr><td class="paramname">sec_type</td><td>IPSec type to use ("esp"/"ah") </td></tr>
+    <tr><td class="paramname">esp_mode</td><td>ESP mode to use encrypt(1) or authenticate(0) </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a class="anchor" id="a2bcf3c64f8c48891a26a5541de496f65"></a>
 <div class="memitem">
 <div class="memproto">
@@ -476,7 +520,7 @@ Name of the member </dd></dl>
 <p>Calculate all checksums manually (not offloading them). </p>
 <p>There also exist functions to calculate the checksum of only one header. Naming convention: pkt:calculate&lt;member&gt;Checksum() (for all existing packets member = {Ip, Tcp, Udp, Icmp}) </p>
 <dl class="section note"><dt>Note</dt><dd>Calculating checksums manually is extremely slow compared to offloading this task to the NIC (~65% performance loss at the moment) </dd></dl>
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000022">Todo:</a></b></dt><dd>Manual calculation of udp and tcp checksums NYI </dd></dl>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000023">Todo:</a></b></dt><dd>Manual calculation of udp and tcp checksums NYI </dd></dl>
 
 </div>
 </div>
@@ -568,9 +612,9 @@ Name of the member </dd></dl>
 
 <p>Set all members of all headers. </p>
 <p>Per default, all members are set to default values specified in the respective set function. Optional named arguments can be used to set a member to a user-provided value. The argument 'pktLength' can be used to automatically calculate and set the length member of headers (e.g. ip header). </p>
-<div class="fragment"><div class="line"><a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>() --- only <span class="keywordflow">default</span> values</div>
-<div class="line"><a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>{ ethSrc=<span class="stringliteral">&quot;12:23:34:45:56:67&quot;</span>, ipTTL=100 } --- all members are <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> to <span class="keywordflow">default</span> values with the exception of ethSrc and ipTTL</div>
-<div class="line"><a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>{ pktLength=64 } --- only <span class="keywordflow">default</span> values, length members of the headers are adjusted</div>
+<div class="fragment"><div class="line"><a class="code" href="ah_8lua.html#ad1accb1a9bd14f199547cd1c93b108ad">fill</a>() --- only <span class="keywordflow">default</span> values</div>
+<div class="line"><a class="code" href="ah_8lua.html#ad1accb1a9bd14f199547cd1c93b108ad">fill</a>{ ethSrc=<span class="stringliteral">&quot;12:23:34:45:56:67&quot;</span>, ipTTL=100 } --- all members are <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> to <span class="keywordflow">default</span> values with the exception of ethSrc and ipTTL</div>
+<div class="line"><a class="code" href="ah_8lua.html#ad1accb1a9bd14f199547cd1c93b108ad">fill</a>{ pktLength=64 } --- only <span class="keywordflow">default</span> values, length members of the headers are adjusted</div>
 </div><!-- fragment --> <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">self</td><td>The packet </td></tr>
@@ -755,6 +799,30 @@ ctype ctype of the struct </dd></dl>
 
 </div>
 </div>
+<a class="anchor" id="a98683c8c5fa79fb9964f84125b437b65"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">function <a class="el" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a> setESPTrailerLength </td>
+          <td>(</td>
+          <td class="paramtype">len&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Set the ESP trailer length. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">len</td><td>ESP Trailer length in bytes </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a class="anchor" id="a04e10ab9efc9f793fb8125de25bc1605"></a>
 <div class="memitem">
 <div class="memproto">
@@ -768,7 +836,7 @@ ctype ctype of the struct </dd></dl>
         </tr>
       </table>
 </div><div class="memdoc">
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000019">Todo:</a></b></dt><dd>TODO docu </dd></dl>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000020">Todo:</a></b></dt><dd>TODO docu </dd></dl>
 
 </div>
 </div>
@@ -785,7 +853,7 @@ ctype ctype of the struct </dd></dl>
         </tr>
       </table>
 </div><div class="memdoc">
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000020">Todo:</a></b></dt><dd>TODO does </dd></dl>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000021">Todo:</a></b></dt><dd>TODO does </dd></dl>
 
 </div>
 </div>
@@ -795,7 +863,7 @@ ctype ctype of the struct </dd></dl>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="packet_8lua.html">packet.lua</a></li>
-    <li class="footer">Generated on Mon Aug 24 2015 22:09:13 for MoonGen by
+    <li class="footer">Generated on Thu Aug 27 2015 17:38:30 for MoonGen by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>

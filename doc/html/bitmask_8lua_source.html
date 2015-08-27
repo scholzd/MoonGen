@@ -197,7 +197,7 @@ $(document).ready(function(){initNavTree('bitmask_8lua_source.html','');});
 <div class="line"><a name="l00095"></a><span class="lineno">   95</span>&#160;</div>
 <div class="line"><a name="l00096"></a><span class="lineno">   96</span>&#160;--- Newindex metamethod for mg_bitMask</div>
 <div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;--- @param x Bit index. Index starts at 1 according to the LUA standard (1 indexes the first bit in the bitmask)</div>
-<div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;--- @param y Assigned value to the index (bit is cleared for y==0 and <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> otherwise)</div>
+<div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;--- @param y Assigned value to the index (bit is cleared for y==0 and <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> otherwise)</div>
 <div class="line"><a name="l00099"></a><span class="lineno">   99</span>&#160;function mg_bitMask:<a class="code" href="bitmask_8lua.html#a01f9ccb10e205fb3e019e785932913c1">__newindex</a>(x, y)</div>
 <div class="line"><a name="l00100"></a><span class="lineno">  100</span>&#160;  --print (&quot;<a class="code" href="barrier_8lua.html#a24e198c210d92b2489e731362d31ba17">new</a> index&quot;)</div>
 <div class="line"><a name="l00101"></a><span class="lineno">  101</span>&#160;  if(y == 0) then</div>
@@ -205,8 +205,8 @@ $(document).ready(function(){initNavTree('bitmask_8lua_source.html','');});
 <div class="line"><a name="l00103"></a><span class="lineno">  103</span>&#160;    --print(&quot;clear&quot;)</div>
 <div class="line"><a name="l00104"></a><span class="lineno">  104</span>&#160;    return <a class="code" href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a>.C.mg_bitmask_clear_bit(self.bitmask, x - 1)</div>
 <div class="line"><a name="l00105"></a><span class="lineno">  105</span>&#160;  else</div>
-<div class="line"><a name="l00106"></a><span class="lineno">  106</span>&#160;    -- <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> bit</div>
-<div class="line"><a name="l00107"></a><span class="lineno">  107</span>&#160;    --print(&quot;<a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a>&quot;)</div>
+<div class="line"><a name="l00106"></a><span class="lineno">  106</span>&#160;    -- <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> bit</div>
+<div class="line"><a name="l00107"></a><span class="lineno">  107</span>&#160;    --print(&quot;<a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a>&quot;)</div>
 <div class="line"><a name="l00108"></a><span class="lineno">  108</span>&#160;    return <a class="code" href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a>.C.mg_bitmask_set_bit(self.bitmask, x - 1)</div>
 <div class="line"><a name="l00109"></a><span class="lineno">  109</span>&#160;  end</div>
 <div class="line"><a name="l00110"></a><span class="lineno">  110</span>&#160;end</div>
@@ -263,6 +263,7 @@ $(document).ready(function(){initNavTree('bitmask_8lua_source.html','');});
 <div class="ttc" id="dpdkc_8lua_html_ab0fe2c273d26b897ce8facde43ddda0b"><div class="ttname"><a href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a></div><div class="ttdeci">local ffi</div><div class="ttdoc">low-level dpdk wrapper </div><div class="ttdef"><b>Definition:</b> <a href="dpdkc_8lua_source.html#l00006">dpdkc.lua:6</a></div></div>
 <div class="ttc" id="bitmask_8lua_html_aa9096b155699385456c6489c7a48ba46"><div class="ttname"><a href="bitmask_8lua.html#aa9096b155699385456c6489c7a48ba46">clearAll</a></div><div class="ttdeci">function mg_bitMask clearAll()</div><div class="ttdoc">sets all bits in a bitmask to 0 </div></div>
 <div class="ttc" id="bitmask_8lua_html_a1b94c0a7ec7d7f6138b5d0b1eb1993c1"><div class="ttname"><a href="bitmask_8lua.html#a1b94c0a7ec7d7f6138b5d0b1eb1993c1">band</a></div><div class="ttdeci">function mod band(mask1, mask2, result)</div><div class="ttdoc">Bitwise and. </div></div>
+<div class="ttc" id="ah_8lua_html_a33f224ab9bc8a4fabf72fd9bc264e7a0"><div class="ttname"><a href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a></div><div class="ttdeci">function ipsecICV set(icv)</div><div class="ttdoc">Set the IPsec ICV. </div></div>
 <div class="ttc" id="barrier_8lua_html_a24e198c210d92b2489e731362d31ba17"><div class="ttname"><a href="barrier_8lua.html#a24e198c210d92b2489e731362d31ba17">new</a></div><div class="ttdeci">function mod new(n)</div></div>
 <div class="ttc" id="bitmask_8lua_html_a41853b9ef8b61dfaec25968b224b477b"><div class="ttname"><a href="bitmask_8lua.html#a41853b9ef8b61dfaec25968b224b477b">bor</a></div><div class="ttdeci">function mod bor(mask1, mask2, result)</div><div class="ttdoc">Bitwise or. </div></div>
 <div class="ttc" id="bitmask_8lua_html_a77392e00d80afce8cd086e769d3b5ab9"><div class="ttname"><a href="bitmask_8lua.html#a77392e00d80afce8cd086e769d3b5ab9">bxor</a></div><div class="ttdeci">function mod bxor(mask1, mask2, result)</div><div class="ttdoc">Bitwise xor. </div></div>
@@ -273,7 +274,6 @@ $(document).ready(function(){initNavTree('bitmask_8lua_source.html','');});
 <div class="ttc" id="bitmask_8lua_html_a01f9ccb10e205fb3e019e785932913c1"><div class="ttname"><a href="bitmask_8lua.html#a01f9ccb10e205fb3e019e785932913c1">__newindex</a></div><div class="ttdeci">function mg_bitMask __newindex(x, y)</div><div class="ttdoc">Newindex metamethod for mg_bitMask. </div></div>
 <div class="ttc" id="bitmask_8lua_html_a86db616f06274bb72a0cdcd547136619"><div class="ttname"><a href="bitmask_8lua.html#a86db616f06274bb72a0cdcd547136619">bnot</a></div><div class="ttdeci">function mod bnot(mask, result)</div><div class="ttdoc">Bitwise not. </div></div>
 <div class="ttc" id="memory_8lua_html_aeab71244afb687f16d8c4f5ee9d6ef0e"><div class="ttname"><a href="memory_8lua.html#aeab71244afb687f16d8c4f5ee9d6ef0e">n</a></div><div class="ttdeci">n</div><div class="ttdoc">Create a new array of memory buffers (initialized to nil). </div><div class="ttdef"><b>Definition:</b> <a href="memory_8lua_source.html#l00076">memory.lua:76</a></div></div>
-<div class="ttc" id="ethernet_8lua_html_a77e75ae36313b17315d8ced823089f9e"><div class="ttname"><a href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a></div><div class="ttdeci">function macAddr set(addr)</div><div class="ttdoc">Set the MAC address. </div></div>
 <div class="ttc" id="bitmask_8lua_html_a94526f4c3b4271da455474561aa3ab55"><div class="ttname"><a href="bitmask_8lua.html#a94526f4c3b4271da455474561aa3ab55">setN</a></div><div class="ttdeci">function mg_bitMask setN(n)</div><div class="ttdoc">sets the first n bits in a bitmask to 1 other bits remain unchanged </div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
@@ -281,7 +281,7 @@ $(document).ready(function(){initNavTree('bitmask_8lua_source.html','');});
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="bitmask_8lua.html">bitmask.lua</a></li>
-    <li class="footer">Generated on Mon Aug 24 2015 22:09:13 for MoonGen by
+    <li class="footer">Generated on Thu Aug 27 2015 17:38:30 for MoonGen by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>

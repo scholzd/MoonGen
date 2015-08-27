@@ -302,7 +302,7 @@ Includes:</p>
   </table>
   </dd>
 </dl>
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000025">Todo:</a></b></dt><dd>TODO docu </dd></dl>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000026">Todo:</a></b></dt><dd>TODO docu </dd></dl>
 
 </div>
 </div>
@@ -338,7 +338,7 @@ Includes:</p>
   </table>
   </dd>
 </dl>
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000026">Todo:</a></b></dt><dd>FIXME: this only sends a single request </dd></dl>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000027">Todo:</a></b></dt><dd>FIXME: this only sends a single request </dd></dl>
 
 </div>
 </div>
@@ -371,14 +371,13 @@ Includes:</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">args</td><td>Table of named arguments. Available arguments: HardwareAddressType, ProtoAddressType, HardwareAddressLength, ProtoAddressLength, Operation, HardwareSrc, HardwareDst, ProtoSrc, ProtoDst </td></tr>
-    <tr><td class="paramname">pre</td><td>prefix for namedArgs. Default 'arp'. <div class="fragment"><div class="line"><a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>() --- only <span class="keywordflow">default</span> values</div>
-<div class="line"><a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>{ arpOperation=2, ipTTL=100 } --- all members are <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> to <span class="keywordflow">default</span> values with the exception of arpOperation</div>
+    <tr><td class="paramname">pre</td><td>prefix for namedArgs. Default 'arp'. <div class="fragment"><div class="line"><a class="code" href="ah_8lua.html#ad1accb1a9bd14f199547cd1c93b108ad">fill</a>() --- only <span class="keywordflow">default</span> values</div>
+<div class="line"><a class="code" href="ah_8lua.html#ad1accb1a9bd14f199547cd1c93b108ad">fill</a>{ arpOperation=2, ipTTL=100 } --- all members are <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> to <span class="keywordflow">default</span> values with the exception of arpOperation</div>
 </div><!-- fragment --> </td></tr>
   </table>
   </dd>
 </dl>
-<dl><dt><b>Examples: </b></dt><dd><a class="el" href="l2-poisson-load-latency_8lua-example.html#a8">l2-poisson-load-latency.lua</a>, <a class="el" href="l3-tcp-syn-flood_8lua-example.html#a10">l3-tcp-syn-flood.lua</a>, and <a class="el" href="quality-of-service-test_8lua-example.html#a11">quality-of-service-test.lua</a>.</dd>
-</dl>
+
 </div>
 </div>
 <a class="anchor" id="a0e0d443e1a9b88e6c6e14bcfa2e4535d"></a>
@@ -840,6 +839,7 @@ Includes:</p>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>Table of namedArgs </dd></dl>
 <dl class="section see"><dt>See Also</dt><dd><a class="el" href="arp_8lua.html#a64dfa43ffd8f0e7cdbc3ab64b82437c3" title="Module for arp_header struct (see headers.lua). ">arpHeader</a>:<a class="el" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4" title="Set all members of the ip header. ">fill</a> </dd></dl>
 
 </div>
@@ -1168,13 +1168,13 @@ Includes:</p>
 </div><div class="memdoc">
 
 <p>Arp handler task, responds to ARP queries for given IPs and performs arp lookups. </p>
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000024">Todo:</a></b></dt><dd><p class="startdd">TODO implement garbage collection/refreshing entries <br/>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000025">Todo:</a></b></dt><dd><p class="startdd">TODO implement garbage collection/refreshing entries <br/>
 the current implementation does not handle large tables efficiently <br/>
  </p>
 <p class="enddd">TODO multi-NIC support </p>
 </dd></dl>
 
-<p>Definition at line <a class="el" href="arp_8lua_source.html#l00232">232</a> of file <a class="el" href="arp_8lua_source.html">arp.lua</a>.</p>
+<p>Definition at line <a class="el" href="arp_8lua_source.html#l00233">233</a> of file <a class="el" href="arp_8lua_source.html">arp.lua</a>.</p>
 
 </div>
 </div>
@@ -1184,7 +1184,7 @@ the current implementation does not handle large tables efficiently <br/>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_008ba6cb71e2c02d515844436773d74d.html">proto</a></li><li class="navelem"><a class="el" href="arp_8lua.html">arp.lua</a></li>
-    <li class="footer">Generated on Mon Aug 24 2015 22:09:13 for MoonGen by
+    <li class="footer">Generated on Thu Aug 27 2015 17:38:30 for MoonGen by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>

@@ -358,8 +358,8 @@ $(document).ready(function(){initNavTree('ip6_8lua_source.html','');});
 <div class="line"><a name="l00256"></a><span class="lineno">  256</span>&#160;--- Retrieve the length.</div>
 <div class="line"><a name="l00257"></a><span class="lineno">  257</span>&#160;--- @return Length as <span class="keywordtype">string</span>.</div>
 <div class="line"><a name="l00258"></a><span class="lineno">  258</span>&#160;function <a class="code" href="ip6_8lua.html#a5d9d1fd6476615da8778acff7ff82acf">ip6Header</a>:<a class="code" href="ip6_8lua.html#a6ac5081f4a5e47f636de685d8b947388">getLengthString</a>()</div>
-<div class="line"><a name="l00259"></a><span class="lineno"><a class="line" href="ip6_8lua.html#ad2eb3ed5caa4b860ab755a04a4bc9ce7">  259</a></span>&#160;    return self:<a class="code" href="ip6_8lua.html#a9a549f614b5745f22fb4cd03bd7701ae">getLength</a>()</div>
-<div class="line"><a name="l00260"></a><span class="lineno">  260</span>&#160;end</div>
+<div class="line"><a name="l00259"></a><span class="lineno">  259</span>&#160;    return self:<a class="code" href="ip6_8lua.html#a9a549f614b5745f22fb4cd03bd7701ae">getLength</a>()</div>
+<div class="line"><a name="l00260"></a><span class="lineno"><a class="line" href="ip6_8lua.html#ad2eb3ed5caa4b860ab755a04a4bc9ce7">  260</a></span>&#160;end</div>
 <div class="line"><a name="l00261"></a><span class="lineno">  261</span>&#160;</div>
 <div class="line"><a name="l00262"></a><span class="lineno">  262</span>&#160;--- Set the next header.</div>
 <div class="line"><a name="l00263"></a><span class="lineno">  263</span>&#160;--- @param <span class="keywordtype">int</span> Next header of the <a class="code" href="ip6_8lua.html#a48f8232a17cb626a8ad3e95972a69e52">ip6</a> header as 8 bit integer.</div>
@@ -563,43 +563,44 @@ $(document).ready(function(){initNavTree('ip6_8lua_source.html','');});
 <div class="line"><a name="l00461"></a><span class="lineno">  461</span>&#160;--- @param namedArgs Table of named arguments (see See Also)</div>
 <div class="line"><a name="l00462"></a><span class="lineno">  462</span>&#160;--- @param nextHeader The header following after this header in a packet</div>
 <div class="line"><a name="l00463"></a><span class="lineno">  463</span>&#160;--- @param accumulatedLength The so far accumulated length for previous headers in a packet</div>
-<div class="line"><a name="l00464"></a><span class="lineno">  464</span>&#160;--- @see <a class="code" href="ip6_8lua.html#a5d9d1fd6476615da8778acff7ff82acf">ip6Header</a>:<a class="code" href="ip6_8lua.html#a7784ecbc4871e500d90fb98b83c528c0">fill</a></div>
-<div class="line"><a name="l00465"></a><span class="lineno">  465</span>&#160;function <a class="code" href="ip6_8lua.html#a5d9d1fd6476615da8778acff7ff82acf">ip6Header</a>:<a class="code" href="ip6_8lua.html#aafb2f22bd67a4b4ec53298440b9fb483">setDefaultNamedArgs</a>(pre, namedArgs, nextHeader, accumulatedLength)</div>
-<div class="line"><a name="l00466"></a><span class="lineno">  466</span>&#160;    -- <a class="code" href="ip6_8lua.html#a39e2c2b9570bbc9400f000751d2776f9">set</a> length</div>
-<div class="line"><a name="l00467"></a><span class="lineno">  467</span>&#160;    if not namedArgs[pre .. &quot;Length&quot;] and namedArgs[&quot;pktLength&quot;] then</div>
-<div class="line"><a name="l00468"></a><span class="lineno">  468</span>&#160;        namedArgs[pre .. &quot;Length&quot;] = namedArgs[&quot;pktLength&quot;] - (accumulatedLength + 40)</div>
-<div class="line"><a name="l00469"></a><span class="lineno">  469</span>&#160;    end</div>
-<div class="line"><a name="l00470"></a><span class="lineno">  470</span>&#160;    </div>
-<div class="line"><a name="l00471"></a><span class="lineno">  471</span>&#160;    -- <a class="code" href="ip6_8lua.html#a39e2c2b9570bbc9400f000751d2776f9">set</a> protocol</div>
-<div class="line"><a name="l00472"></a><span class="lineno">  472</span>&#160;    if not namedArgs[pre .. &quot;NextHeader&quot;] then</div>
-<div class="line"><a name="l00473"></a><span class="lineno">  473</span>&#160;        for name, type in pairs(mapNameProto) do</div>
-<div class="line"><a name="l00474"></a><span class="lineno">  474</span>&#160;            if nextHeader == name then</div>
-<div class="line"><a name="l00475"></a><span class="lineno">  475</span>&#160;                namedArgs[pre .. &quot;NextHeader&quot;] = type</div>
-<div class="line"><a name="l00476"></a><span class="lineno">  476</span>&#160;                break</div>
-<div class="line"><a name="l00477"></a><span class="lineno">  477</span>&#160;            end</div>
-<div class="line"><a name="l00478"></a><span class="lineno">  478</span>&#160;        end</div>
-<div class="line"><a name="l00479"></a><span class="lineno">  479</span>&#160;    end</div>
-<div class="line"><a name="l00480"></a><span class="lineno">  480</span>&#160;    return namedArgs</div>
-<div class="line"><a name="l00481"></a><span class="lineno">  481</span>&#160;end</div>
-<div class="line"><a name="l00482"></a><span class="lineno">  482</span>&#160;</div>
-<div class="line"><a name="l00483"></a><span class="lineno">  483</span>&#160;----------------------------------------------------------------------------------</div>
-<div class="line"><a name="l00484"></a><span class="lineno">  484</span>&#160;---- Packets</div>
-<div class="line"><a name="l00485"></a><span class="lineno">  485</span>&#160;----------------------------------------------------------------------------------</div>
-<div class="line"><a name="l00486"></a><span class="lineno">  486</span>&#160;</div>
-<div class="line"><a name="l00487"></a><span class="lineno">  487</span>&#160;--- Cast the packet to an IP6 packet </div>
-<div class="line"><a name="l00488"></a><span class="lineno">  488</span>&#160;<a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ip6_8lua.html#ad2eb3ed5caa4b860ab755a04a4bc9ce7">getIP6Packet</a> = <a class="code" href="packet_8lua.html#a9ec741ec046b38ff23624e841a2ec3da">packetCreate</a>(&quot;<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>&quot;, &quot;<a class="code" href="ip6_8lua.html#a48f8232a17cb626a8ad3e95972a69e52">ip6</a>&quot;)</div>
-<div class="line"><a name="l00489"></a><span class="lineno">  489</span>&#160;</div>
+<div class="line"><a name="l00464"></a><span class="lineno">  464</span>&#160;--- @return Table of namedArgs</div>
+<div class="line"><a name="l00465"></a><span class="lineno">  465</span>&#160;--- @see <a class="code" href="ip6_8lua.html#a5d9d1fd6476615da8778acff7ff82acf">ip6Header</a>:<a class="code" href="ip6_8lua.html#a7784ecbc4871e500d90fb98b83c528c0">fill</a></div>
+<div class="line"><a name="l00466"></a><span class="lineno">  466</span>&#160;function <a class="code" href="ip6_8lua.html#a5d9d1fd6476615da8778acff7ff82acf">ip6Header</a>:<a class="code" href="ip6_8lua.html#aafb2f22bd67a4b4ec53298440b9fb483">setDefaultNamedArgs</a>(pre, namedArgs, nextHeader, accumulatedLength)</div>
+<div class="line"><a name="l00467"></a><span class="lineno">  467</span>&#160;    -- <a class="code" href="ip6_8lua.html#a39e2c2b9570bbc9400f000751d2776f9">set</a> length</div>
+<div class="line"><a name="l00468"></a><span class="lineno">  468</span>&#160;    if not namedArgs[pre .. &quot;Length&quot;] and namedArgs[&quot;pktLength&quot;] then</div>
+<div class="line"><a name="l00469"></a><span class="lineno">  469</span>&#160;        namedArgs[pre .. &quot;Length&quot;] = namedArgs[&quot;pktLength&quot;] - (accumulatedLength + 40)</div>
+<div class="line"><a name="l00470"></a><span class="lineno">  470</span>&#160;    end</div>
+<div class="line"><a name="l00471"></a><span class="lineno">  471</span>&#160;    </div>
+<div class="line"><a name="l00472"></a><span class="lineno">  472</span>&#160;    -- <a class="code" href="ip6_8lua.html#a39e2c2b9570bbc9400f000751d2776f9">set</a> protocol</div>
+<div class="line"><a name="l00473"></a><span class="lineno">  473</span>&#160;    if not namedArgs[pre .. &quot;NextHeader&quot;] then</div>
+<div class="line"><a name="l00474"></a><span class="lineno">  474</span>&#160;        for name, type in pairs(mapNameProto) do</div>
+<div class="line"><a name="l00475"></a><span class="lineno">  475</span>&#160;            if nextHeader == name then</div>
+<div class="line"><a name="l00476"></a><span class="lineno">  476</span>&#160;                namedArgs[pre .. &quot;NextHeader&quot;] = type</div>
+<div class="line"><a name="l00477"></a><span class="lineno">  477</span>&#160;                break</div>
+<div class="line"><a name="l00478"></a><span class="lineno">  478</span>&#160;            end</div>
+<div class="line"><a name="l00479"></a><span class="lineno">  479</span>&#160;        end</div>
+<div class="line"><a name="l00480"></a><span class="lineno">  480</span>&#160;    end</div>
+<div class="line"><a name="l00481"></a><span class="lineno">  481</span>&#160;    return namedArgs</div>
+<div class="line"><a name="l00482"></a><span class="lineno">  482</span>&#160;end</div>
+<div class="line"><a name="l00483"></a><span class="lineno">  483</span>&#160;</div>
+<div class="line"><a name="l00484"></a><span class="lineno">  484</span>&#160;----------------------------------------------------------------------------------</div>
+<div class="line"><a name="l00485"></a><span class="lineno">  485</span>&#160;---- Packets</div>
+<div class="line"><a name="l00486"></a><span class="lineno">  486</span>&#160;----------------------------------------------------------------------------------</div>
+<div class="line"><a name="l00487"></a><span class="lineno">  487</span>&#160;</div>
+<div class="line"><a name="l00488"></a><span class="lineno">  488</span>&#160;--- Cast the packet to an IP6 packet </div>
+<div class="line"><a name="l00489"></a><span class="lineno">  489</span>&#160;<a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.<a class="code" href="ip6_8lua.html#ad2eb3ed5caa4b860ab755a04a4bc9ce7">getIP6Packet</a> = <a class="code" href="packet_8lua.html#a9ec741ec046b38ff23624e841a2ec3da">packetCreate</a>(&quot;<a class="code" href="ethernet_8lua.html#abd4d16011dee203ba12fc0b0cb1df914">eth</a>&quot;, &quot;<a class="code" href="ip6_8lua.html#a48f8232a17cb626a8ad3e95972a69e52">ip6</a>&quot;)</div>
 <div class="line"><a name="l00490"></a><span class="lineno">  490</span>&#160;</div>
-<div class="line"><a name="l00491"></a><span class="lineno">  491</span>&#160;------------------------------------------------------------------------</div>
-<div class="line"><a name="l00492"></a><span class="lineno">  492</span>&#160;---- Metatypes</div>
-<div class="line"><a name="l00493"></a><span class="lineno">  493</span>&#160;------------------------------------------------------------------------</div>
-<div class="line"><a name="l00494"></a><span class="lineno">  494</span>&#160;</div>
-<div class="line"><a name="l00495"></a><span class="lineno">  495</span>&#160;<a class="code" href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a>.metatype(&quot;union ip6_address&quot;, <a class="code" href="ip6_8lua.html#a1b9499cf80ade2ec44a9404479a11289">ip6Addr</a>)</div>
-<div class="line"><a name="l00496"></a><span class="lineno">  496</span>&#160;<a class="code" href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a>.metatype(&quot;struct ip6_header&quot;, <a class="code" href="ip6_8lua.html#a5d9d1fd6476615da8778acff7ff82acf">ip6Header</a>)</div>
-<div class="line"><a name="l00497"></a><span class="lineno">  497</span>&#160;</div>
-<div class="line"><a name="l00498"></a><span class="lineno">  498</span>&#160;return <a class="code" href="ip6_8lua.html#a48f8232a17cb626a8ad3e95972a69e52">ip6</a></div>
+<div class="line"><a name="l00491"></a><span class="lineno">  491</span>&#160;</div>
+<div class="line"><a name="l00492"></a><span class="lineno">  492</span>&#160;------------------------------------------------------------------------</div>
+<div class="line"><a name="l00493"></a><span class="lineno">  493</span>&#160;---- Metatypes</div>
+<div class="line"><a name="l00494"></a><span class="lineno">  494</span>&#160;------------------------------------------------------------------------</div>
+<div class="line"><a name="l00495"></a><span class="lineno">  495</span>&#160;</div>
+<div class="line"><a name="l00496"></a><span class="lineno">  496</span>&#160;<a class="code" href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a>.metatype(&quot;union ip6_address&quot;, <a class="code" href="ip6_8lua.html#a1b9499cf80ade2ec44a9404479a11289">ip6Addr</a>)</div>
+<div class="line"><a name="l00497"></a><span class="lineno">  497</span>&#160;<a class="code" href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a>.metatype(&quot;struct ip6_header&quot;, <a class="code" href="ip6_8lua.html#a5d9d1fd6476615da8778acff7ff82acf">ip6Header</a>)</div>
+<div class="line"><a name="l00498"></a><span class="lineno">  498</span>&#160;</div>
+<div class="line"><a name="l00499"></a><span class="lineno">  499</span>&#160;return <a class="code" href="ip6_8lua.html#a48f8232a17cb626a8ad3e95972a69e52">ip6</a></div>
 <div class="ttc" id="ip6_8lua_html_a1b9499cf80ade2ec44a9404479a11289"><div class="ttname"><a href="ip6_8lua.html#a1b9499cf80ade2ec44a9404479a11289">ip6Addr</a></div><div class="ttdeci">local ip6Addr</div><div class="ttdoc">Module for ip6_address struct (see headers.lua). </div><div class="ttdef"><b>Definition:</b> <a href="ip6_8lua_source.html#l00039">ip6.lua:39</a></div></div>
-<div class="ttc" id="ip6_8lua_html_ad2eb3ed5caa4b860ab755a04a4bc9ce7"><div class="ttname"><a href="ip6_8lua.html#ad2eb3ed5caa4b860ab755a04a4bc9ce7">getIP6Packet</a></div><div class="ttdeci">pkt getIP6Packet</div><div class="ttdoc">Cast the packet to an IP6 packet. </div><div class="ttdef"><b>Definition:</b> <a href="ip6_8lua_source.html#l00259">ip6.lua:259</a></div></div>
+<div class="ttc" id="ip6_8lua_html_ad2eb3ed5caa4b860ab755a04a4bc9ce7"><div class="ttname"><a href="ip6_8lua.html#ad2eb3ed5caa4b860ab755a04a4bc9ce7">getIP6Packet</a></div><div class="ttdeci">pkt getIP6Packet</div><div class="ttdoc">Cast the packet to an IP6 packet. </div><div class="ttdef"><b>Definition:</b> <a href="ip6_8lua_source.html#l00260">ip6.lua:260</a></div></div>
 <div class="ttc" id="ip6_8lua_html_a0e627fcddbd9af515fac74b396c7dcac"><div class="ttname"><a href="ip6_8lua.html#a0e627fcddbd9af515fac74b396c7dcac">getFlowLabelString</a></div><div class="ttdeci">function ip6Header getFlowLabelString()</div><div class="ttdoc">Retrieve the flow label. </div></div>
 <div class="ttc" id="dpdkc_8lua_html_ab0fe2c273d26b897ce8facde43ddda0b"><div class="ttname"><a href="dpdkc_8lua.html#ab0fe2c273d26b897ce8facde43ddda0b">ffi</a></div><div class="ttdeci">local ffi</div><div class="ttdoc">low-level dpdk wrapper </div><div class="ttdef"><b>Definition:</b> <a href="dpdkc_8lua_source.html#l00006">dpdkc.lua:6</a></div></div>
 <div class="ttc" id="ip6_8lua_html_ab8033143395eda6469046af684e0a165"><div class="ttname"><a href="ip6_8lua.html#ab8033143395eda6469046af684e0a165">getDstString</a></div><div class="ttdeci">function ip6Header getDstString()</div><div class="ttdoc">Retrieve the IP6 destination address. </div></div>
@@ -663,7 +664,7 @@ $(document).ready(function(){initNavTree('ip6_8lua_source.html','');});
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_008ba6cb71e2c02d515844436773d74d.html">proto</a></li><li class="navelem"><a class="el" href="ip6_8lua.html">ip6.lua</a></li>
-    <li class="footer">Generated on Mon Aug 24 2015 22:09:13 for MoonGen by
+    <li class="footer">Generated on Thu Aug 27 2015 17:38:30 for MoonGen by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>
