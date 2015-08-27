@@ -168,11 +168,11 @@ $(document).ready(function(){initNavTree('quality-of-service-test_8lua-example.h
 <div class="line">    mg.<a name="a7"></a><a class="code" href="dpdk_8lua.html#aa83fbc2e0d94b53aebaabc0021132b20">sleepMillis</a>(100) -- wait a few milliseconds to ensure that the rx thread is <a name="a8"></a><a class="code" href="dpdk_8lua.html#a9c3302b6465084549f626875f203ff39">running</a></div>
 <div class="line">    -- TODO: implement barriers</div>
 <div class="line">    local mem = memory.<a name="a9"></a><a class="code" href="memory_8lua.html#abcc77fc5fbe39024027817be38007e89">createMemPool</a>(function(buf)</div>
-<div class="line">        buf:<a name="a10"></a><a class="code" href="udp_8lua.html#adaa53b02964eaa0ac8d46b96eceeabbe">getUdpPacket</a>():<a name="a11"></a><a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>{</div>
+<div class="line">        buf:<a name="a10"></a><a class="code" href="udp_8lua.html#adaa53b02964eaa0ac8d46b96eceeabbe">getUdpPacket</a>():<a name="a11"></a><a class="code" href="ah_8lua.html#ad1accb1a9bd14f199547cd1c93b108ad">fill</a>{</div>
 <div class="line">            pktLength = PKT_SIZE, -- <span class="keyword">this</span> sets all length headers fields in all used protocols</div>
 <div class="line">            ethSrc = queue, -- <span class="keyword">get</span> the src mac from the device</div>
 <div class="line">            ethDst = ETH_DST,</div>
-<div class="line">            -- ipSrc will be <a name="a12"></a><a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> later as it varies</div>
+<div class="line">            -- ipSrc will be <a name="a12"></a><a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> later as it varies</div>
 <div class="line">            ip4Dst = IP_DST,</div>
 <div class="line">            udpSrc = PORT_SRC,</div>
 <div class="line">            udpDst = port,</div>
@@ -192,7 +192,7 @@ $(document).ready(function(){initNavTree('quality-of-service-test_8lua-example.h
 <div class="line">            local <a name="a16"></a><a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a> = buf:<a class="code" href="udp_8lua.html#adaa53b02964eaa0ac8d46b96eceeabbe">getUdpPacket</a>()</div>
 <div class="line">            -- select a randomized source IP address</div>
 <div class="line">            -- you can also use a wrapping counter instead of random</div>
-<div class="line">            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.ip4.src:<a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a>(baseIP + math.random(NUM_FLOWS) - 1)</div>
+<div class="line">            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.ip4.src:<a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a>(baseIP + math.random(NUM_FLOWS) - 1)</div>
 <div class="line">            -- you can modify other fields here (e.g. different source ports or destination addresses)</div>
 <div class="line">        end</div>
 <div class="line">        -- send packets</div>
@@ -252,16 +252,16 @@ $(document).ready(function(){initNavTree('quality-of-service-test_8lua-example.h
 <div class="line">        local port = math.random() &lt;= ratio and port or bgPort</div>
 <div class="line">        local lat = timestamper:measureLatency(PKT_SIZE, function(buf)</div>
 <div class="line">            local <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a> = buf:<a class="code" href="udp_8lua.html#adaa53b02964eaa0ac8d46b96eceeabbe">getUdpPacket</a>()</div>
-<div class="line">            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>:<a class="code" href="arp_8lua.html#aa4fec404844cc2c6cb2c0b83ad3040f4">fill</a>{</div>
+<div class="line">            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>:<a class="code" href="ah_8lua.html#ad1accb1a9bd14f199547cd1c93b108ad">fill</a>{</div>
 <div class="line">                pktLength = PKT_SIZE, -- <span class="keyword">this</span> sets all length headers fields in all used protocols</div>
 <div class="line">                ethSrc = txQueue, -- <span class="keyword">get</span> the src mac from the device</div>
 <div class="line">                ethDst = ETH_DST,</div>
-<div class="line">                -- ipSrc will be <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a> later as it varies</div>
+<div class="line">                -- ipSrc will be <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a> later as it varies</div>
 <div class="line">                ip4Dst = IP_DST,</div>
 <div class="line">                udpSrc = PORT_SRC,</div>
 <div class="line">                udpDst = port,</div>
 <div class="line">            }</div>
-<div class="line">            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.ip4.src:<a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a>(baseIP + math.random(NUM_FLOWS) - 1)</div>
+<div class="line">            <a class="code" href="packet_8lua.html#af8027fe3e9f1acfedd960d3c9b8b6b51">pkt</a>.ip4.src:<a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a>(baseIP + math.random(NUM_FLOWS) - 1)</div>
 <div class="line">        end)</div>
 <div class="line">        <span class="keywordflow">if</span> lat then</div>
 <div class="line">            <span class="keywordflow">if</span> port == bgPort then</div>
@@ -285,7 +285,7 @@ $(document).ready(function(){initNavTree('quality-of-service-test_8lua-example.h
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer">Generated on Mon Aug 24 2015 22:09:13 for MoonGen by
+    <li class="footer">Generated on Thu Aug 27 2015 17:38:30 for MoonGen by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>

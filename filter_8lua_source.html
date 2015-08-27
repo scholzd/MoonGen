@@ -304,7 +304,7 @@ $(document).ready(function(){initNavTree('filter_8lua_source.html','');});
 <div class="line"><a name="l00202"></a><span class="lineno">  202</span>&#160;end</div>
 <div class="line"><a name="l00203"></a><span class="lineno">  203</span>&#160;</div>
 <div class="line"><a name="l00204"></a><span class="lineno">  204</span>&#160;--- Bind a BitMask to a filter category.</div>
-<div class="line"><a name="l00205"></a><span class="lineno">  205</span>&#160;--- On Classification the corresponding bits in the bitmask are <a class="code" href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a>, when a rule</div>
+<div class="line"><a name="l00205"></a><span class="lineno">  205</span>&#160;--- On Classification the corresponding bits in the bitmask are <a class="code" href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a>, when a rule</div>
 <div class="line"><a name="l00206"></a><span class="lineno">  206</span>&#160;--- matches a packet, for the corresponding category.</div>
 <div class="line"><a name="l00207"></a><span class="lineno">  207</span>&#160;--- One Bitmask can be bound to multiple categories. The result will be a bitwise OR</div>
 <div class="line"><a name="l00208"></a><span class="lineno">  208</span>&#160;--- of the Bitmasks, which would be filled for each category.</div>
@@ -382,6 +382,7 @@ $(document).ready(function(){initNavTree('filter_8lua_source.html','');});
 <div class="ttc" id="filter_8lua_html_a05b2cdbf13d3772f8b05300540b286ca"><div class="ttname"><a href="filter_8lua.html#a05b2cdbf13d3772f8b05300540b286ca">bindBitmaskToCategory</a></div><div class="ttdeci">function mg_filter_5tuple bindBitmaskToCategory(bitmask, category)</div><div class="ttdoc">Bind a BitMask to a filter category. </div></div>
 <div class="ttc" id="filter_8lua_html_ab5161bdc12eae03b07f6fcc18802f0fd"><div class="ttname"><a href="filter_8lua.html#ab5161bdc12eae03b07f6fcc18802f0fd">addHW5tupleFilter</a></div><div class="ttdeci">function dev addHW5tupleFilter(filter, queue, priority)</div><div class="ttdoc">Installs a 5tuple filter on the device. </div></div>
 <div class="ttc" id="filter_8lua_html_a561c0a4046cbb613a25d32b303cad427"><div class="ttname"><a href="filter_8lua.html#a561c0a4046cbb613a25d32b303cad427">build</a></div><div class="ttdeci">function mg_filter_5tuple build(numCategories)</div><div class="ttdoc">Builds the filter with the currently added rules. </div></div>
+<div class="ttc" id="ah_8lua_html_a33f224ab9bc8a4fabf72fd9bc264e7a0"><div class="ttname"><a href="ah_8lua.html#a33f224ab9bc8a4fabf72fd9bc264e7a0">set</a></div><div class="ttdeci">function ipsecICV set(icv)</div><div class="ttdoc">Set the IPsec ICV. </div></div>
 <div class="ttc" id="barrier_8lua_html_a24e198c210d92b2489e731362d31ba17"><div class="ttname"><a href="barrier_8lua.html#a24e198c210d92b2489e731362d31ba17">new</a></div><div class="ttdeci">function mod new(n)</div></div>
 <div class="ttc" id="filter_8lua_html_aed80e1cf84fda4a3ac9db4558ebff9f4"><div class="ttname"><a href="filter_8lua.html#aed80e1cf84fda4a3ac9db4558ebff9f4">classifyBurst</a></div><div class="ttdeci">function mg_filter_5tuple classifyBurst(pkts, inMask)</div><div class="ttdoc">Perform packet classification for a burst of packets Will do memory violation, when Masks or Values a...</div></div>
 <div class="ttc" id="ip4_8lua_html_ac3c2261f9840d1606c21b7b21fbc5f17"><div class="ttname"><a href="ip4_8lua.html#ac3c2261f9840d1606c21b7b21fbc5f17">PROTO_ICMP</a></div><div class="ttdeci">ip PROTO_ICMP</div><div class="ttdoc">Protocol field value for Icmp. </div><div class="ttdef"><b>Definition:</b> <a href="ip4_8lua_source.html#l00028">ip4.lua:28</a></div></div>
@@ -396,7 +397,6 @@ $(document).ready(function(){initNavTree('filter_8lua_source.html','');});
 <div class="ttc" id="ip4_8lua_html_a8c7fb5a2fba60839b490d21a99aabcf7"><div class="ttname"><a href="ip4_8lua.html#a8c7fb5a2fba60839b490d21a99aabcf7">PROTO_UDP</a></div><div class="ttdeci">ip PROTO_UDP</div><div class="ttdoc">Protocol field value for Udp. </div><div class="ttdef"><b>Definition:</b> <a href="ip4_8lua_source.html#l00032">ip4.lua:32</a></div></div>
 <div class="ttc" id="ip4_8lua_html_a47df415387eb6f4fdd5752c3b5de89a7"><div class="ttname"><a href="ip4_8lua.html#a47df415387eb6f4fdd5752c3b5de89a7">ip</a></div><div class="ttdeci">local ip</div><div class="ttdoc">IP4 protocol constants. </div><div class="ttdef"><b>Definition:</b> <a href="ip4_8lua_source.html#l00025">ip4.lua:25</a></div></div>
 <div class="ttc" id="utils_8lua_html_aaa76710deef1f005bf87a55d0e496046"><div class="ttname"><a href="utils_8lua.html#aaa76710deef1f005bf87a55d0e496046">errorf</a></div><div class="ttdeci">function errorf(str,...)</div><div class="ttdoc">Print a formatted error string. </div></div>
-<div class="ttc" id="ethernet_8lua_html_a77e75ae36313b17315d8ced823089f9e"><div class="ttname"><a href="ethernet_8lua.html#a77e75ae36313b17315d8ced823089f9e">set</a></div><div class="ttdeci">function macAddr set(addr)</div><div class="ttdoc">Set the MAC address. </div></div>
 <div class="ttc" id="filter_8lua_html_ae5346f6e628bac1b4fc6d85e3e16beb4"><div class="ttname"><a href="filter_8lua.html#ae5346f6e628bac1b4fc6d85e3e16beb4">allocateRule</a></div><div class="ttdeci">function mg_filter_5tuple allocateRule()</div><div class="ttdoc">Allocates memory for one 5 tuple rule. </div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
@@ -404,7 +404,7 @@ $(document).ready(function(){initNavTree('filter_8lua_source.html','');});
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="filter_8lua.html">filter.lua</a></li>
-    <li class="footer">Generated on Mon Aug 24 2015 22:09:13 for MoonGen by
+    <li class="footer">Generated on Thu Aug 27 2015 17:38:30 for MoonGen by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>

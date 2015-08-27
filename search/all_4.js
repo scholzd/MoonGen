@@ -3,6 +3,7 @@ var searchData=
   ['decrementttl',['decrementTTL',['../lpm_8lua.html#a2c922a24ecb9b79a185e1e979b5b27a5',1,'lpm.lua']]],
   ['deprecated_20list',['Deprecated List',['../deprecated.html',1,'']]],
   ['device_2elua',['device.lua',['../device_8lua.html',1,'']]],
+  ['disable',['disable',['../ipsec_8lua.html#af49f49033ac026aecd52c87c8a14b1dc',1,'ipsec.lua']]],
   ['distribute_2elua',['distribute.lua',['../distribute_8lua.html',1,'']]],
   ['downloads',['Downloads',['../download.html',1,'']]],
   ['dpdk_2elua',['dpdk.lua',['../dpdk_8lua.html',1,'']]],
