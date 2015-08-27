@@ -362,7 +362,7 @@ $(document).ready(function(){initNavTree('ipsec_8lua_source.html','');});
 <div class="line"><a name="l00260"></a><span class="lineno">  260</span>&#160;--- Read AES 128 bit Key and Salt from the Hardware TX SA table</div>
 <div class="line"><a name="l00261"></a><span class="lineno">  261</span>&#160;--- @param port The port/interface to use</div>
 <div class="line"><a name="l00262"></a><span class="lineno">  262</span>&#160;--- @param idx Index into the TX SA table (0-1023)</div>
-<div class="line"><a name="l00263"></a><span class="lineno">  263</span>&#160;--- @param return Key and Salt (as hex <span class="keywordtype">string</span>)</div>
+<div class="line"><a name="l00263"></a><span class="lineno">  263</span>&#160;--- @return Key and Salt (as hex <span class="keywordtype">string</span>)</div>
 <div class="line"><a name="l00264"></a><span class="lineno">  264</span>&#160;function <a class="code" href="dpdk_8lua.html#a93cc9d5f326c929f86fabf7a33c1bb65">mod</a>.<a class="code" href="ipsec_8lua.html#aaa6a353081b68de7b4c5c0f80877d44c">tx_get_key</a>(port, idx)</div>
 <div class="line"><a name="l00265"></a><span class="lineno">  265</span>&#160;    if idx &gt; 1023 or idx &lt; 0 then</div>
 <div class="line"><a name="l00266"></a><span class="lineno">  266</span>&#160;        error(&quot;Idx must be in <a class="code" href="utils_8lua.html#a3227751a327f670aff28e258c7e4e61e">range</a> 0-1023&quot;)</div>
@@ -546,7 +546,7 @@ $(document).ready(function(){initNavTree('ipsec_8lua_source.html','');});
 <div class="line"><a name="l00444"></a><span class="lineno">  444</span>&#160;--- @param port The port/interface to use</div>
 <div class="line"><a name="l00445"></a><span class="lineno">  445</span>&#160;--- @param idx Index into the RX IP table (0-127)</div>
 <div class="line"><a name="l00446"></a><span class="lineno">  446</span>&#160;--- @param is_ipv4 IP Version expected (true/false)</div>
-<div class="line"><a name="l00447"></a><span class="lineno">  447</span>&#160;--- @param return The IP(v4/v6)-Address (as <span class="keywordtype">string</span>) and a IP Version Flag (true=IPv4, false=IPv6)</div>
+<div class="line"><a name="l00447"></a><span class="lineno">  447</span>&#160;--- @return The IP(v4/v6)-Address (as <span class="keywordtype">string</span>) and a IP Version Flag (true=IPv4, false=IPv6)</div>
 <div class="line"><a name="l00448"></a><span class="lineno">  448</span>&#160;function <a class="code" href="dpdk_8lua.html#a93cc9d5f326c929f86fabf7a33c1bb65">mod</a>.<a class="code" href="ipsec_8lua.html#ac13f4896690b6bd8c372776d0448b5ce">rx_get_ip</a>(port, idx, is_ipv4)</div>
 <div class="line"><a name="l00449"></a><span class="lineno">  449</span>&#160;    if idx &gt; 127 or idx &lt; 0 then</div>
 <div class="line"><a name="l00450"></a><span class="lineno">  450</span>&#160;        error(&quot;Idx must be in <a class="code" href="utils_8lua.html#a3227751a327f670aff28e258c7e4e61e">range</a> 0-127&quot;)</div>
@@ -782,7 +782,7 @@ $(document).ready(function(){initNavTree('ipsec_8lua_source.html','');});
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="ipsec_8lua.html">ipsec.lua</a></li>
-    <li class="footer">Generated on Thu Aug 27 2015 17:38:30 for MoonGen by
+    <li class="footer">Generated on Thu Aug 27 2015 17:51:42 for MoonGen by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>
