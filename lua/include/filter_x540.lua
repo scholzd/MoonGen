@@ -53,9 +53,12 @@ mg_5tuple_add_HWfilter_ixgbe(uint8_t port_id, uint16_t index,
 			struct rte_5tuple_filter *filter, uint16_t rx_queue);
 ]]
 
--- FIXME: this function is highly device dependent
+--- Installs an ethertype filter on the device.
+--  Matching packets will be redirected into the specified rx queue
+-- @param dev Device on which the filter should be installed
+-- @param ethtype The ethertype, this filter should match
+-- @param queue the rx queue, to which matching packets will be forwarded
 function mod.l2Filter(dev, etype, queue)
-  -- FIXME: ASK: device compatibility???
 	if type(queue) == "table" then
 		if queue.dev ~= dev then
 			error("Queue must belong to the device being configured")
@@ -70,6 +73,7 @@ function mod.l2Filter(dev, etype, queue)
 	dpdkc.write_reg32(dev.id, ETQF[1], bit.bor(ETQF_FILTER_ENABLE, etype))
 	dpdkc.write_reg32(dev.id, ETQS[1], bit.bor(ETQS_QUEUE_ENABLE, bit.lshift(queue, ETQS_RX_QUEUE_OFFS)))
 end
+
 --- Installs a 5tuple filter on the device.
 --  Matching packets will be redirected into the specified rx queue
 --  NOTE: this is currently only tested for X540 NICs, and will probably also

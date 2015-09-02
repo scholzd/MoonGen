@@ -146,7 +146,8 @@ end
 
 
 local cpipe_count = 0
---- Creates a new fast Pipe. Only LuaJIT ctype objects can be transferred with
+--- Creates a new fast Pipe.
+--  Only LuaJIT ctype objects can be transferred with
 --  this pipe. Multiple consumers, as well as multiple producers are supported,
 --  if enabled. However you should try to stick with single producer and
 --  consumer, for lockless behavior.
@@ -194,18 +195,22 @@ function mod.newFastCPipe(args)
   }, mg_fastCPipe)
 end
 
+--- Free the fastPipe.
 function mg_fastCPipe:free()
   ffi.C.rte_free(self.ring)
 end
 
--- Enqueue a ctype object
+--- Enqueue a ctype object.
+-- @param object object of type cdata to be enqueued
+-- @return number of objects enqueued (i.e. 0 if not enqueued, 1 if enqueued)
 function mg_fastCPipe:enqueue(object)
   return ffi.C.mg_queue_enqueue_export(self.ring, object)
 end
 
--- Dequeue a ctype object
+--- Dequeue a ctype object.
 -- @param ctype optonal (default = "struct rte_mbuf*") The type of the object
 --  to be returned. The dequeued object will be casted to this type.
+-- @return the dequeued object casted to the specified type
 function mg_fastCPipe:dequeue(ctype)
   ctype = ctype or "struct rte_mbuf*"
   local object = ffi.new("void *")
@@ -219,7 +224,8 @@ function mg_fastCPipe:dequeue(ctype)
   end
 end
 
---- Same as dequeue(ctype), but the dequeued object will always be casted to
+--- Dequeue an mbuf.
+-- Same as dequeue(ctype), but the dequeued object will always be casted to
 --  "struct rte_mbuf*"
 function mg_fastCPipe:dequeueMbuf()
   --printf("dm")
@@ -237,7 +243,11 @@ function mg_fastCPipe:dequeueMbuf()
   end
 end
 
--- Enqueues a set of Mbufs, specified by a bitmask
+--- Enqueue mbufs.
+-- Enqueues a set of Mbufs, specified by a bitmask. Non enqueueable mbufs
+-- will be freed.
+-- @param bufArray containing pointers to mbufs to be enqueued
+-- @param bitmask bitMask specifying the mbufs to be enqueued
 function mg_fastCPipe:enqueueMbufsMask(objects, bitmask)
   --printf("enqburst")
   -- TODO: C implementation
@@ -252,9 +262,6 @@ function mg_fastCPipe:enqueueMbufsMask(objects, bitmask)
         --printf("no enqueue possible")
         objects[i]:free();
       end
-      -- FIXME: if object is not enqueueable we have to somehow free it
-      -- or notice the caller, that is has not been enqueued :(
-      -- -> fixed this, but it only works for mbufs...
     end
   end
 end

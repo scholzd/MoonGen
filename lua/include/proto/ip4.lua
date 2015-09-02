@@ -43,6 +43,17 @@ function ip4Addr:set(ip)
 	self.uint32 = bswap(ip)
 end
 
+ffi.cdef[[
+union ip4_address mg_ipv4_get_random_address();
+]]
+
+function ip.getRandomAddress()
+  return ffi.C.mg_ipv4_get_random_address()
+end
+function ip4Addr:setRandom()
+  self = ffi.C.mg_ipv4_get_random_address()
+end
+
 --- Set the IPv4 address.
 -- @param ip Address in string format.
 function ip4Addr:setString(ip)

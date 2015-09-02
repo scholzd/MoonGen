@@ -361,7 +361,7 @@ mg_5tuple_add_HWfilter_ixgbe(uint8_t port_id, uint16_t index,
   }
 
   if(filter->tcp_flags != 0){
-		PMD_DEBUG_TRACE("tcp flags not supported in filter\n",);
+		PMD_DEBUG_TRACE("tcp flags not supported in filter\n");
 		return -EINVAL;
   }
 

@@ -214,8 +214,10 @@ ffi.cdef[[
 	// statistics
 	void rte_eth_stats_get(uint8_t port, struct rte_eth_stats* stats);
 
+  int rte_power_freq_max(unsigned  	lcore_id);
   int rte_power_freq_min(unsigned  	lcore_id);
   int rte_power_init(unsigned 	lcore_id);
+  int rte_power_freq_up(unsigned 	lcore_id);
 
   void mg_memory_free_mask(
     struct rte_mbuf **pkts,

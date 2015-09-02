@@ -6,10 +6,15 @@ local ffi = require "ffi"
 
 ffi.cdef[[
 void print_ptr(void* ptr);
+void srand (unsigned int seed);
 ]]
 
 function printPtr(ptr)
   ffi.C.print_ptr(ptr)
+end
+
+function setRandomSeed(n)
+  ffi.C.srand(n)
 end
 
 function printf(str, ...)
@@ -146,6 +151,8 @@ ffi.cdef[[
   void mg_ipv4_print_ip(uint32_t ip);
 ]]
 
+--- Print out a ip address
+-- @param ip ipv4 address in cdata format
 function printIP(ip)
   ffi.C.mg_ipv4_print_ip(ip)
 end
@@ -300,7 +307,7 @@ end
 local band = bit.band
 local sar = bit.arshift
 
---- Increment a wrapping counter, i.e. (val + 1) % max
+--- Increment a wrapping counter, i.e. (val + 1) % max.
 -- This function is optimized to generate branchless code and faster than a naive modulo-based implementation.
 -- 
 -- NOTE: all attempts to wrap this in a nice and simple class have failed (~30% performance impact).
@@ -311,7 +318,12 @@ end
 ffi.cdef[[
 int memcmp ( const void * ptr1, const void * ptr2, size_t num );
 ]]
--- return true if contents are equal, false otherwise
+--- Compare cdata objects.
+-- This is a wrapper around memcmp
+-- @param d1 cdata object
+-- @param d2 cdata object
+-- @param size length on which to compare the two objects in bytes
+-- @return true if contents are equal, false otherwise
 function util_compare_cdata(d1, d2, size)
   if type(d1) ~= "cdata" or type(d2) ~= "cdata" then
     errorf("ERROR: cdata comparison with objet not of type cdata")
@@ -328,18 +340,37 @@ uint32_t mg_util_rshift32(uint32_t a, uint8_t n);
 uint32_t mg_util_lshift32(uint32_t a, uint8_t n);
 ]]
 
+--- Bitwise and on 32bit integers (C implementation).
+-- @param a
+-- @param b
+-- @return an integer resulting from performing a&b
 function util_band32(a,b)
   return ffi.C.mg_util_band32(a,b)
 end
+--- Bitwise or on 32bit integers (C implementation).
+-- @param a
+-- @param b
+-- @return an integer resulting from performing a|b
 function util_bor32(a,b)
   return ffi.C.mg_util_bor32(a,b)
 end
+--- Rightshift for 32bit integers (C implementation).
+-- @param a
+-- @param n
+-- @return an integer resulting from performing a>>n
 function util_rshift32(a,n)
   return ffi.C.mg_util_rshift32(a,n)
 end
+--- Leftshift for 32bit integers (C implementation).
+-- @param a
+-- @param n
+-- @return an integer resulting from performing a<<n
 function util_lshift32(a,n)
   return ffi.C.mg_util_lshift32(a,n)
 end
+--- Bitwise not on 32bit integers (C implementation).
+-- @param a
+-- @return an integer resulting from performing ~a
 function util_bnot32(a)
   return ffi.C.mg_util_bnot32(a)
 end

@@ -225,8 +225,14 @@ end
 function mod.enablePowerManagement(coreID)
   return ffi.C.rte_power_init(coreID)
 end
+function mod.setCPUFreqMax(coreID)
+  return ffi.C.rte_power_freq_max(coreID)
+end
 function mod.setCPUFreqMin(coreID)
   return ffi.C.rte_power_freq_min(coreID)
+end
+function mod.setCPUFreqUp(coreID)
+  return ffi.C.rte_power_freq_up(coreID)
 end
 
 --- get the TSC frequency

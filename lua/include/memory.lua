@@ -405,6 +405,7 @@ function bufArray:checkValidIPv4(in_mask, out_mask)
 end
 
 --- Free the first n buffers.
+-- @param n number of buffers to free
 function bufArray:free(n)
 	for i = 0, n - 1 do
 		if self.array[i] ~= nil then
