@@ -9,6 +9,7 @@ local err = require "error"
 
 mod.DROP = -1
 
+-- Merge tables still does not work as intended... do not use!
 function mergeTables(t1, t2)
   res = {}
   for i, v in ipairs(t1) do
@@ -25,8 +26,8 @@ local dev = device.__devicePrototype
 local deviceDependent = {}
 deviceDependent[device.PCI_ID_X540] = require "filter_x540"
 -- I hope 82599 is very similar to x540, so we can use most functions from x540
-deviceDependent[device.PCI_ID_82599] = mergeTables(require "filter_x540", require "filter_82599")
-
+deviceDependent[device.PCI_ID_82599] = require "filter_x540"
+--deviceDependent[device.PCI_ID_82599] = mergeTables(require "filter_x540", require "filter_82599")
 
 --- Installs an ethertype filter on the device.
 --  Matching packets will be redirected into the specified rx queue
