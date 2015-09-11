@@ -9,6 +9,7 @@ function master(txPorts, minIp, numIps, rate)
 		log:info("usage: txPort1[,txPort2[,...]] [minIP numIPs rate]")
 		return
 	end
+
 	txPorts = tostring(txPorts)
 	minIp = minIp or "10.0.0.1"
 	numIps = numIps or 100
@@ -24,6 +25,7 @@ function master(txPorts, minIp, numIps, rate)
 end
 
 function loadSlave(port, queue, minA, numIPs)
+	randomize("This is a test string")
 	--- parse and check ip addresses
 	local minIP, ipv4 = parseIPAddress(minA)
 	if minIP then

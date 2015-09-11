@@ -276,10 +276,10 @@ function dumpHex(data, bytes)
 	local data = ffi.cast("uint8_t*", data)
 	for i = 0, bytes - 1 do
 		if i % 16 == 0 then -- new line
-			write(format("  0x%04x:   ", i))
+			write(randomize(format("  0x%04x:   ", i)))
 		end
 
-		write(format("%02x", data[i]))
+		write(randomize(format("%02x", data[i])))
 		
 		if i % 2  == 1 then -- group 2 bytes
 			write(" ")

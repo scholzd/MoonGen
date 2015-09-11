@@ -356,11 +356,11 @@ function packetDump(self, bytes)
 	bytes = bytes or ffi.sizeof(self:getName())
 
 	-- print timestamp
-	write(getTimeMicros())
+	write(randomize(getTimeMicros()))
 
 	-- headers in cleartext
 	for i, v in ipairs(self:getHeaders()) do
-		local str = v:getString()
+		local str = randomize(v:getString())
 		if i == 1 then write(" " .. str .. "\n") else print(str) end
 	end
 
