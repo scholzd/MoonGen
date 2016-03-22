@@ -52,7 +52,7 @@ function loadSlave(dev, queue, minA, numIPs)
 			udpSrc=80,
 			udpDst=80,
 			-- the destination address will be set for each packet individually (see below)
-			pktLength=packetLen 
+			pktLength=546
 		}
 	end)
 
