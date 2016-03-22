@@ -34,7 +34,7 @@ function loadSlave(dev, queue, minA, numIPs)
 	--- parse and check ip addresses
 	-- min UDP packet size for IPv6 is 66 bytes
 	-- 4 bytes subtracted as the CRC gets appended by the NIC
-	local packetLen = 66 - 4
+	local packetLen = 546
 
 	local minIP, ipv4 = parseIPAddress(minA)
 	if minIP then
@@ -52,7 +52,7 @@ function loadSlave(dev, queue, minA, numIPs)
 			udpSrc=80,
 			udpDst=80,
 			-- the destination address will be set for each packet individually (see below)
-			pktLength=546
+			pktLength=packetLen
 		}
 	end)
 
