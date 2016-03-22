@@ -10,6 +10,7 @@ local filter	= require "filter"
 local utils 	= require "utils"
 local headers	= require "headers"
 local packet	= require "packet"
+local stats	= require "stats"
 
 local ffi	= require "ffi"
 
@@ -48,6 +49,8 @@ function loadSlave(dev, queue, minA, numIPs)
 			ethSrc="90:e2:ba:2c:cb:02", ethDst="90:e2:ba:35:b5:81", 
 			ip4Src="192.168.1.1", 
 			ip6Src="fd06::1",
+			udpSrc=80,
+			udpDst=80,
 			-- the destination address will be set for each packet individually (see below)
 			pktLength=packetLen 
 		}
@@ -60,6 +63,7 @@ function loadSlave(dev, queue, minA, numIPs)
 	local bufs = mem:bufArray(128)
 	local counter = 0
 	local c = 0
+	local txStats = stats:newDevTxCounter(queue, "plain")
 
 	print("Start sending...")
 	while dpdk.running() do
@@ -89,18 +93,10 @@ function loadSlave(dev, queue, minA, numIPs)
 		
 		-- send packets
 		totalSent = totalSent + queue:send(bufs)
+		txStats:update()
 		
-		-- print statistics
-		local time = dpdk.getTime()
-		if time - lastPrint > 0.1 then
-			local mpps = (totalSent - lastTotal) / (time - lastPrint) / 10^6
-			printf("%.5f %d", time - lastPrint, totalSent - lastTotal)	-- packet_counter-like output
-			--printf("Sent %d packets, current rate %.2f Mpps, %.2f MBit/s, %.2f MBit/s wire rate", totalSent, mpps, mpps * 64 * 8, mpps * 84 * 8)
-			lastTotal = totalSent
-			lastPrint = time
-		end
 	end
-	printf("Sent %d packets", totalSent)
+	txStats:finalize()
 end
 
 
