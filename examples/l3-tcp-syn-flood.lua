@@ -1,15 +1,16 @@
-local dpdk		= require "dpdk"
+local mg		= require "dpdk"
 local memory	= require "memory"
 local device	= require "device"
 local stats		= require "stats"
 local log 		= require "log"
 
-function master(txPorts, minIp, numIps, rate)
-	if not txPorts then
-		log:info("usage: txPort1[,txPort2[,...]] [minIP numIPs rate]")
+function master(txPorts, rxPorts, minIp, numIps, rate)
+	if not txPorts or not rxPorts then
+		log:info("usage: txPort1[,txPort2[,...]] rxPort1[,rxPort2[,...]] [minIP numIPs rate]")
 		return
 	end
 	txPorts = tostring(txPorts)
+	rxPorts = tostring(rxPorts)
 	minIp = minIp or "10.0.0.1"
 	numIps = numIps or 100
 	rate = rate or 0
@@ -18,9 +19,29 @@ function master(txPorts, minIp, numIps, rate)
 		local txDev = device.config{ port = currentTxPort }
 		txDev:wait()
 		txDev:getTxQueue(0):setRate(rate)
-		dpdk.launchLua("loadSlave", currentTxPort, 0, minIp, numIps)
+		mg.launchLua("loadSlave", currentTxPort, 0, minIp, numIps)
 	end
-	dpdk.waitForSlaves()
+	for currentRxPort in rxPorts:gmatch("(%d+),?") do
+		currentRxPort = tonumber(currentRxPort) 
+		local rxDev = device.config{ port = currentRxPort }
+		rxDev:wait()
+		mg.launchLua("counterSlave", rxDev)
+	end
+	mg.waitForSlaves()
+end
+
+function counterSlave(dev)
+	local bufs = memory.bufArray()
+	rxStats = stats:newDevRxCounter(dev, "plain")
+
+	while mg.running(1000) do
+		local rx = dev:getRxQueue(0):recv(bufs)
+		if rx > 0 then
+			bufs:freeAll()
+		end
+		rxStats:update()
+	end
+	rxStats:finalize()
 end
 
 function loadSlave(port, queue, minA, numIPs)
@@ -39,8 +60,9 @@ function loadSlave(port, queue, minA, numIPs)
 	local queue = device.get(port):getTxQueue(queue)
 	local mem = memory.createMemPool(function(buf)
 		buf:getTcpPacket(ipv4):fill{ 
-			ethSrc="90:e2:ba:98:58:78", ethDst="90:e2:ba:98:88:e8", 
+			ethSrc="90:e2:ba:98:58:78", ethDst="90:e2:ba:98:88:e8",
 			ip4Dst="192.168.1.1", 
+			ip6Dst="fd06::1",
 			tcpSyn=1,
 			tcpSeqNumber=1,
 			tcpWindow=10,
@@ -52,7 +74,7 @@ function loadSlave(port, queue, minA, numIPs)
 	local c = 0
 
 	local txStats = stats:newDevTxCounter(queue, "plain")
-	while dpdk.running() do
+	while mg.running() do
 		-- fill packets and set their size 
 		bufs:alloc(packetLen)
 		for i, buf in ipairs(bufs) do 			
