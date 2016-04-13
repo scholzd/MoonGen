@@ -39,9 +39,8 @@ function loadSlave(port, queue, minA, numIPs)
 	local queue = device.get(port):getTxQueue(queue)
 	local mem = memory.createMemPool(function(buf)
 		buf:getTcpPacket(ipv4):fill{ 
-			ethSrc="90:e2:ba:2c:cb:02", ethDst="90:e2:ba:35:b5:81", 
+			ethSrc="90:e2:ba:98:58:78", ethDst="90:e2:ba:98:88:e8", 
 			ip4Dst="192.168.1.1", 
-			ip6Dst="fd06::1",
 			tcpSyn=1,
 			tcpSeqNumber=1,
 			tcpWindow=10,
