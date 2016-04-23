@@ -13,19 +13,43 @@ local log 		= require "log"
 
 -- DPDK constants (lib/librte_mbuf/rte_mbuf.h)
 -- TODO: import more constants here
-mod.PKT_RX_VLAN_PKT			= 0x0001
-mod.PKT_RX_IEEE1588_TMST	= 0x0400
-mod.PKT_RX_IPSEC_SECP		= 0x0800
-mod.PKT_RX_SECERR_LSB		= 0x1000
-mod.PKT_RX_SECERR_MSB		= 0x2000
+mod.PKT_RX_VLAN_PKT			= bit.lshift(1ULL, 0)
+mod.PKT_RX_RSS_HASH			= bit.lshift(1ULL, 1)
+mod.PKT_RX_FDIR				= bit.lshift(1ULL, 2)
+mod.PKT_RX_L4_CKSUM_BAD		= bit.lshift(1ULL, 3)
+mod.PKT_RX_IP_CKSUM_BAD		= bit.lshift(1ULL, 4)
+mod.PKT_RX_EIP_CKSUM_BAD	= bit.lshift(0ULL, 0)
+mod.PKT_RX_OVERSIZE			= bit.lshift(0ULL, 0)
+mod.PKT_RX_HBUF_OVERFLOW	= bit.lshift(0ULL, 0)
+mod.PKT_RX_RECIP_ERR		= bit.lshift(0ULL, 0)
+mod.PKT_RX_MAC_ERR			= bit.lshift(0ULL, 0)
+mod.PKT_RX_IPV4_HDR			= bit.lshift(1ULL, 5)
+mod.PKT_RX_IPV4_HDR_EXT		= bit.lshift(1ULL, 6)
+mod.PKT_RX_IPV6_HDR			= bit.lshift(1ULL, 7)
+mod.PKT_RX_IPV6_HDR_EXT		= bit.lshift(1ULL, 8)
+mod.PKT_RX_IEEE1588_PTP		= bit.lshift(1ULL, 9)
+mod.PKT_RX_IEEE1588_TMST	= bit.lshift(1ULL, 10)
+mod.PKT_RX_TUNNEL_IPV4_HDR	= bit.lshift(1ULL, 11)
+mod.PKT_RX_TUNNEL_IPV6_HDR	= bit.lshift(1ULL, 12)
+mod.PKT_RX_FDIR_ID			= bit.lshift(1ULL, 13)
+mod.PKT_RX_FDIR_FLX			= bit.lshift(1ULL, 14)
 
-mod.PKT_TX_IPV4_CSUM		= 0x1000
-mod.PKT_TX_TCP_CKSUM     	= 0x2000
-mod.PKT_TX_UDP_CKSUM		= 0x6000
-mod.PKT_TX_NO_CRC_CSUM		= 0x0001
-mod.PKT_TX_IPSEC			= 0x0002
-mod.PKT_TX_VLAN_PKT			= 0x0800
-mod.PKT_TX_IEEE1588_TMST	= 0x8000
+mod.PKT_TX_NO_CRC_CSUM		= bit.lshift(1ULL, 48)
+mod.PKT_TX_QINQ_PKT			= bit.lshift(1ULL, 49)
+mod.PKT_TX_TCP_SEG			= bit.lshift(1ULL, 50)
+mod.PKT_TX_IEEE1588_TMST	= bit.lshift(1ULL, 51)
+mod.PKT_TX_L4_NO_CKSUM		= bit.lshift(0ULL, 52)
+mod.PKT_TX_TCP_CKSUM		= bit.lshift(1ULL, 52)
+mod.PKT_TX_SCTP_CKSUM		= bit.lshift(2ULL, 52)
+mod.PKT_TX_UDP_CKSUM		= bit.lshift(3ULL, 52)
+mod.PKT_TX_L4_MASK			= bit.lshift(3ULL, 52)
+mod.PKT_TX_IP_CKSUM			= bit.lshift(1ULL, 54)
+mod.PKT_TX_IPV4				= bit.lshift(1ULL, 55)
+mod.PKT_TX_IPV6				= bit.lshift(1ULL, 56)
+mod.PKT_TX_VLAN_PKT			= bit.lshift(1ULL, 57)
+mod.PKT_TX_OUTER_IP_CKSUM	= bit.lshift(1ULL, 58)
+mod.PKT_TX_OUTER_IPV4		= bit.lshift(1ULL, 59)
+mod.PKT_TX_OUTER_IPV6		= bit.lshift(1ULL, 60)
 
 local function fileExists(f)
 	local file = io.open(f, "r")
@@ -122,8 +146,20 @@ function mod.init(cfgfile, ...)
                 else
 			log:warn("Need a list for the PCI black list")
 			return
-		end 
+		end
 	end
+
+	if cfg.pciwhite then
+		if type(cfg.pciwhite) == "table" then
+			for i, v in ipairs(cfg.pciwhite) do
+				argv[#argv + 1] = "-w" .. v
+			end
+				else
+			log:warn("Need a list for the PCI white list")
+			return
+		end
+	end
+
 
 	if cfg.socketmem then
 		argv[#argv + 1] = "--socket-mem=" .. cfg.socketmem
@@ -140,7 +176,7 @@ end
 
 ffi.cdef[[
 	void launch_lua_core(int core, uint64_t task_id, char* userscript, char* args);
-	
+
 	void free(void* ptr);
 	uint64_t generate_task_id();
 	void store_result(uint64_t task_id, char* result);
@@ -215,7 +251,7 @@ end
 
 --- launches the lua file on the first free core
 function mod.launchLua(...)
-	checkCore() 
+	checkCore()
 	for i = 2, #cores do -- skip master
 		local core = cores[i]
 		local status = dpdkc.rte_eal_get_lcore_state(core)
@@ -321,4 +357,3 @@ function mod.disableBadSocketWarning()
 end
 
 return mod
-

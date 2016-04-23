@@ -36,6 +36,7 @@ mod.PCI_ID_82599	= 0x808610FB
 mod.PCI_ID_82580	= 0x8086150E
 mod.PCI_ID_I350		= 0x80861521
 mod.PCI_ID_82576	= 0x80861526
+mod.PCI_ID_X710		= 0x80861572
 mod.PCI_ID_XL710	= 0x80861583
 
 mod.PCI_ID_82599_VF	= 0x808610ed
@@ -198,8 +199,11 @@ function mod.config(...)
 		end
 		rss_enabled = 1
 	end
+	-- FIXME: this is stupid and should be fixed in DPDK
+	local isi40e = dpdkc.get_pci_id(args.port) == mod.PCI_ID_XL710
+			or dpdkc.get_pci_id(args.port) == mod.PCI_ID_X710
 	-- TODO: support options
-	local rc = dpdkc.configure_device(args.port, args.rxQueues, args.txQueues, args.rxDescs, args.txDescs, args.speed, args.mempool, args.dropEnable, rss_enabled, rss_hash_mask, args.disableOffloads or false)
+	local rc = dpdkc.configure_device(args.port, args.rxQueues, args.txQueues, args.rxDescs, args.txDescs, args.speed, args.mempool, args.dropEnable, rss_enabled, rss_hash_mask, args.disableOffloads or false, isi40e)
 	if rc ~= 0 then
 	    log:fatal("Could not configure device %d: error %d", args.port, rc)
 	end
@@ -406,6 +410,7 @@ local deviceNames = {
 	[mod.PCI_ID_X520]	= "Ethernet 10G 2P X520 Adapter", -- Dell-branded NIC with an 82599
 	[mod.PCI_ID_X520_T2]	= "82599EB 10G 2xRJ45 X520-T2 Adapter",
 	[mod.PCI_ID_X540]	= "Ethernet Controller 10-Gigabit X540-AT2",
+	[mod.PCI_ID_X710]	= "Intel Corporation Ethernet 10G 2P X710 Adapter",
 	[mod.PCI_ID_XL710]	= "Ethernet Controller LX710 for 40GbE QSFP+",
 	[mod.PCI_ID_82599_VF]	= "Intel Corporation 82599 Ethernet Controller Virtual Function",
 }
@@ -448,7 +453,7 @@ local function readCtr48(id, addr, last)
 	if h2 ~= h then
 		-- overflow during the read
 		-- we can just read the lower value again (1 overflow every 850ms max)
-		l = dpdkc.read_reg32(self.id, 0x00300680)
+		l = dpdkc.read_reg32(self.id, addrl)
 		h = h2 -- use the new high value
 	end
 	local val = l + h * 2^32 -- 48 bits, double is fine
@@ -471,20 +476,60 @@ local GPTC	= 0x00004080
 local GOTCL	= 0x00004090
 local GOTCH	= 0x00004094
 
-local lastGorc = 0
-local lastUprc = 0
-local lastMprc = 0
-local lastBprc = 0
+
+-- stupid XL710 NICs
+local lastGorc = {}
+local lastUprc = {}
+local lastMprc = {}
+local lastBprc = {}
+local lastGotc = {}
+local lastUptc = {}
+local lastMptc = {}
+local lastBptc = {}
+
+-- required when using multiple ports from a single thread
+for i = 0, dpdkc.get_max_ports() - 1 do
+	lastGorc[i] = 0
+	lastUprc[i] = 0
+	lastMprc[i] = 0
+	lastBprc[i] = 0
+	lastGotc[i] = 0
+	lastUptc[i] = 0
+	lastMptc[i] = 0
+	lastBptc[i] = 0
+end
+
+local GLPRT_UPRCL = {}
+local GLPRT_MPRCL = {}
+local GLPRT_BPRCL = {}
+local GLPRT_GORCL = {}
+local GLPRT_UPTCL = {}
+local GLPRT_MPTCL = {}
+local GLPRT_BPTCL = {}
+local GLPRT_GOTCL = {}
+for i = 0, 3 do
+	GLPRT_UPRCL[i] = 0x003005A0 + 0x8 * i
+	GLPRT_MPRCL[i] = 0x003005C0 + 0x8 * i
+	GLPRT_BPRCL[i] = 0x003005E0 + 0x8 * i
+	GLPRT_GORCL[i] = 0x00300000 + 0x8 * i
+	GLPRT_UPTCL[i] = 0x003009C0 + 0x8 * i
+	GLPRT_MPTCL[i] = 0x003009E0 + 0x8 * i
+	GLPRT_BPTCL[i] = 0x00300A00 + 0x8 * i
+	GLPRT_GOTCL[i] = 0x00300680 + 0x8 * i
+end
 
 --- get the number of packets received since the last call to this function
 function dev:getRxStats()
 	local devId = self:getPciId()
-	if devId == mod.PCI_ID_XL710 then
+	if devId == mod.PCI_ID_XL710 or devId == mod.PCI_ID_X710 then
 		local uprc, mprc, bprc, gorc
-		uprc, lastUprc = readCtr32(self.id, 0x003005A0, lastUprc)
-		mprc, lastMprc = readCtr32(self.id, 0x003005C0, lastMprc)
-		bprc, lastBprc = readCtr32(self.id, 0x003005E0, lastBprc)
-		gorc, lastGorc = readCtr48(self.id, 0x00300000, lastGorc)
+		-- TODO: is this always correct?
+		-- I guess it fails on VFs :/
+		local port = dpdkc.get_pci_function(self.id)
+		uprc, lastUprc[self.id] = readCtr32(self.id, GLPRT_UPRCL[port], lastUprc[self.id])
+		mprc, lastMprc[self.id] = readCtr32(self.id, GLPRT_MPRCL[port], lastMprc[self.id])
+		bprc, lastBprc[self.id] = readCtr32(self.id, GLPRT_BPRCL[port], lastBprc[self.id])
+		gorc, lastGorc[self.id] = readCtr48(self.id, GLPRT_GORCL[port], lastGorc[self.id])
 		return uprc + mprc + bprc, gorc
 	else
 		return dpdkc.read_reg32(self.id, GPRC), dpdkc.read_reg32(self.id, GORCL) + dpdkc.read_reg32(self.id, GORCH) * 2^32
@@ -492,23 +537,18 @@ function dev:getRxStats()
 end
 
 
-
-local lastGotc = 0
-local lastUptc = 0
-local lastMptc = 0
-local lastBptc = 0
-
 function dev:getTxStats()
 	local badPkts = tonumber(dpdkc.get_bad_pkts_sent(self.id))
 	local badBytes = tonumber(dpdkc.get_bad_bytes_sent(self.id))
 	-- FIXME: this should really be split up into separate functions/files
 	local devId = self:getPciId()
-	if devId == mod.PCI_ID_XL710 then
+	if devId == mod.PCI_ID_XL710 or devId == mod.PCI_ID_X710 then
 		local uptc, mptc, bptc, gotc
-		uptc, lastUptc = readCtr32(self.id, 0x003009C0, lastUptc)
-		mptc, lastMptc = readCtr32(self.id, 0x003009E0, lastMptc)
-		bptc, lastBptc = readCtr32(self.id, 0x00300A00, lastBptc)
-		gotc, lastGotc = readCtr48(self.id, 0x00300680, lastGotc)
+		local port = dpdkc.get_pci_function(self.id)
+		uptc, lastUptc[self.id] = readCtr32(self.id, GLPRT_UPTCL[port], lastUptc[self.id])
+		mptc, lastMptc[self.id] = readCtr32(self.id, GLPRT_MPTCL[port], lastMptc[self.id])
+		bptc, lastBptc[self.id] = readCtr32(self.id, GLPRT_BPTCL[port], lastBptc[self.id])
+		gotc, lastGotc[self.id] = readCtr48(self.id, GLPRT_GOTCL[port], lastGotc[self.id])
 		return uptc + mptc + bptc - badPkts, gotc - badBytes
 	else
 		-- TODO: check for ixgbe
@@ -535,8 +575,17 @@ local RTTDQSEL = 0x00004904
 --- A simple work-around for this is using two queues with 50% of the desired rate.
 --- Note that this changes the inter-arrival times as the rate control of both queues is independent.
 function txQueue:setRate(rate)
-	if self.dev:getPciId() ~= mod.PCI_ID_82599 and self.dev:getPciId() ~= mod.PCI_ID_X540 and self.dev:getPciId() ~= mod.PCI_ID_X520 and self.dev:getPciId() ~= mod.PCI_ID_X520_T2 then
-
+	local id = self.dev:getPciId()
+	local dev = self.dev
+	if id == mod.PCI_ID_X710 or id == mod.PCI_ID_XL710 then
+		-- obviously fails if doing that from multiple threads; but you shouldn't do that anways
+		dev.totalRate = dev.totalRate or 0
+		dev.totalRate = dev.totalRate + rate
+		log:warn("Per-queue rate limit NYI on this device, setting per-device rate limit to %d instead", dev.totalRate)
+		self.dev:setRate(dev.totalRate)
+		return
+	end
+	if id ~= mod.PCI_ID_82599 and id ~= mod.PCI_ID_X540 and id ~= mod.PCI_ID_X520 and id ~= mod.PCI_ID_X520_T2 then
 		log:fatal("TX rate control not yet implemented for this NIC")
 	end
 	local speed = self.dev:getLinkStatus().speed
@@ -552,12 +601,6 @@ function txQueue:setRate(rate)
 	local link = self.dev:getLinkStatus()
 	self.speed = link.speed
 	rate = rate / speed
-	-- the X540 and 82599 chips have a hardware bug: they assume that the wire size of an
-	-- ethernet frame is 64 byte when it is actually 84 byte (8 byte preamble/SFD, 12 byte IFG)
-	-- TODO: software fallback for bugged rates and unsupported NICs
-	if rate >= (64 * 64) / (84 * 84) and rate < 1 then
-		log:warn("Rates with a payload rate >= 64/84%% do not work properly with small packets due to a hardware bug, see documentation for details")
-	end
 	if rate <= 0 then
 		log:fatal("Rate must be > 0")
 	end
@@ -604,6 +647,22 @@ function txQueue:getTxRate()
 	return self.rate
 end
 
+ffi.cdef[[
+int i40e_aq_config_vsi_bw_limit(void *hw, uint16_t seid, uint16_t credit, uint8_t max_bw, struct i40e_asq_cmd_details *cmd_details);
+]]
+
+--- Set the maximum rate by all queues in Mbit/s.
+--- Only supported on XL710 NICs.
+--- Note: these NICs use packet size excluding CRC checksum unlike the ixgbe-style NICs.
+--- This means you will get an unexpectedly high rate.
+function dev:setRate(rate)
+	-- we cannot calculate the "proper" rate here as we do not know the packet size
+	rate = math.floor(rate / 50 + 0.5) -- 50mbit granularity
+	local i40eDev = dpdkc.get_i40e_dev(self.id)
+	local vsiSeid = dpdkc.get_i40e_vsi_seid(self.id)
+	assert(ffi.C.i40e_aq_config_vsi_bw_limit(i40eDev, vsiSeid, rate, 0, nil) == 0)
+end
+
 function txQueue:send(bufs)
 	self.used = true
 	dpdkc.send_all_packets(self.id, self.qid, bufs.array, bufs.size)
@@ -640,7 +699,8 @@ do
 	-- @param targetRate optional, hint to the driver which total rate you are trying to achieve.
 	--   increases precision at low non-cbr rates
 	-- @param method optional, defaults to "crc" (which is also the only one that is implemented)
-	function txQueue:sendWithDelay(bufs, targetRate, method)
+	-- @param n optional, number of packets to send (defaults to full bufs)
+	function txQueue:sendWithDelay(bufs, targetRate, method, n)
 		targetRate = targetRate or 14.88
 		self.used = true
 		mempool = mempool or memory.createMemPool{
@@ -650,6 +710,7 @@ do
 			end
 		}
 		method = method or "crc"
+		n = n or bufs.size
 		local avgPacketSize = 1.25 / (targetRate * 2) * 1000
 		local minPktSize
 		-- allow smaller packets at low rates
@@ -661,9 +722,9 @@ do
 			minPktSize = 76
 		end
 		if method == "crc" then
-			dpdkc.send_all_packets_with_delay_bad_crc(self.id, self.qid, bufs.array, bufs.size, mempool, minPktSize)
+			dpdkc.send_all_packets_with_delay_bad_crc(self.id, self.qid, bufs.array, n, mempool, minPktSize)
 		elseif method == "size" then
-			dpdkc.send_all_packets_with_delay_invalid_size(self.id, self.qid, bufs.array, bufs.size, mempool)
+			dpdkc.send_all_packets_with_delay_invalid_size(self.id, self.qid, bufs.array, n, mempool)
 		else
 			log:fatal("Unknown delay method %s", method)
 		end
@@ -686,9 +747,10 @@ end
 
 --- Receive packets from a rx queue.
 --- Returns as soon as at least one packet is available.
-function rxQueue:recv(bufArray)
+function rxQueue:recv(bufArray, numpkts)
+	numpkts = numpkts or bufArray.size
 	while dpdk.running() do
-		local rx = dpdkc.rte_eth_rx_burst_export(self.id, self.qid, bufArray.array, bufArray.size)
+		local rx = dpdkc.rte_eth_rx_burst_export(self.id, self.qid, bufArray.array, math.min(bufArray.size, numpkts))
 		if rx > 0 then
 			return rx
 		end
@@ -699,8 +761,9 @@ end
 --- Receive packets from a rx queue and save timestamps in a separate array.
 --- Returns as soon as at least one packet is available.
 -- TODO: use the udata64 field in dpdk2.x
-function rxQueue:recvWithTimestamps(bufArray, timestamps)
-	return dpdkc.receive_with_timestamps_software(self.id, self.qid, bufArray.array, bufArray.size, timestamps)
+function rxQueue:recvWithTimestamps(bufArray, timestamps, numpkts)
+	numpkts = numpkts or bufArray.size
+	return dpdkc.receive_with_timestamps_software(self.id, self.qid, bufArray.array, math.min(bufArray.size, numpkts), timestamps)
 end
 
 function rxQueue:getMacAddr()

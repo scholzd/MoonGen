@@ -2,11 +2,7 @@
 #include <rte_common.h>
 #include <rte_ring.h>
 #include <rte_mbuf.h>
-// required for gcc 4.7 for some reason
 #include <stdint.h>
-// ???
-#define UINT8_MAX 255
-#define UINT16_MAX 65535U
 #include <rte_ethdev.h> 
 #include <rte_mempool.h>
 #include <rte_ether.h>
@@ -14,6 +10,15 @@
 #include <random>
 #include <iostream>
 #include "ring.h"
+
+// required for gcc 4.7 for some reason
+// ???
+#ifndef UINT8_MAX
+#define UINT8_MAX 255
+#endif
+#ifndef UINT16_MAX
+#define UINT16_MAX 65535U
+#endif
 
 // FIXME: duplicate code (needed for a paper, so the usual quick & dirty hacks)
 namespace rate_limiter {
@@ -51,7 +56,7 @@ namespace rate_limiter {
 			if (rc == 0) {
 				uint32_t sent = 0;
 				while (sent < batch_size) {
-					uint64_t pkt_time = (bufs[sent]->pkt.pkt_len + 24) * 8 / (link_speed / 1000);
+					uint64_t pkt_time = (bufs[sent]->pkt_len + 24) * 8 / (link_speed / 1000);
 					uint64_t avg = (uint64_t) (tsc_hz / (1000000000 / target) - pkt_time);
 					std::exponential_distribution<double> distribution(1.0 / avg);
 					while ((cur = rte_get_tsc_cycles()) < next_send);

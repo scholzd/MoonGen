@@ -15,6 +15,7 @@ local eth		= require "proto.ethernet"
 local memory	= require "memory"
 local timer		= require "timer"
 local log		= require "log"
+local filter	= require "filter"
 
 require "proto.ptp"
 
@@ -42,6 +43,26 @@ local SYSTIMEH			= 0x00008C10
 local TIMEADJL			= 0x00008C18
 local TIMEADJH			= 0x00008C1C
 
+-- registers, mostly X710/XL710-specific
+local PRTTSYN_CTL0      = 0x001E4200
+local PRTTSYN_CTL1      = 0x00085020
+local PRTTSYN_RXTIME_H  = {}
+local PRTTSYN_RXTIME_L  = {}
+for i = 0, 3 do
+	PRTTSYN_RXTIME_H[i] = 0x00085040 + 0x20 * i
+	PRTTSYN_RXTIME_L[i] = 0x000850C0 + 0x20 * i
+end
+local PRTTSYN_STAT_1    = 0x00085140
+local PRTTSYN_INC_L     = 0x001E4040
+local PRTTSYN_INC_H     = 0x001E4060
+local PRTTSYN_TIME_L    = 0x001E4100
+local PRTTSYN_TIME_H    = 0x001E4120
+local PRTTSYN_ADJ       = 0x001E4280
+local PRTTSYN_ADJ_DUMMY = 0x00083100 -- actually GL_FWRESETCNT (RO)
+local PRTTSYN_TXTIME_L  = 0x001E41C0
+local PRTTSYN_TXTIME_H  = 0x001E41E0
+local PRTTSYN_STAT_0    = 0x001E4220
+
 -- 82580 (and others gbit cards?) registers
 local TSAUXC			= 0x0000B640
 local TIMINCA_82580		= 0x0000B608
@@ -68,6 +89,21 @@ end
 -- TODO: support for more registers
 
 -- bit names in registers
+local PRTTSYN_CTL0_TSYNENA  = bit.lshift(1, 31)
+
+local PRTTSYN_CTL1_TSYNENA  = bit.lshift(1, 31)
+local PRTTSYN_CTL1_TSYNTYPE_OFFS = 24
+local PRTTSYN_CTL1_TSYNTYPE_MASK = bit.lshift(3, PRTTSYN_CTL1_TSYNTYPE_OFFS)
+local PRTTSYN_CTL1_UDP_ENA_OFFS = 26
+local PRTTSYN_CTL1_UDP_ENA_MASK = bit.lshift(3, PRTTSYN_CTL1_UDP_ENA_OFFS)
+
+local PRTTSYN_STAT_1_RXT0 = 1
+local PRTTSYN_STAT_1_RXT1 = bit.lshift(1, 1)
+local PRTTSYN_STAT_1_RXT2 = bit.lshift(1, 2)
+local PRTTSYN_STAT_1_RXT3 = bit.lshift(1, 3)
+local PRTTSYN_STAT_1_RXT_ALL = 0xf
+
+local PRTTSYN_STAT_0_TXTIME = bit.lshift(1, 4)
 local TSYNCRXCTL_RXTT		= 1
 local TSYNCRXCTL_TYPE_OFFS	= 1
 local TSYNCRXCTL_TYPE_MASK	= bit.lshift(7, TSYNCRXCTL_TYPE_OFFS)
@@ -90,28 +126,23 @@ local TSAUXC_DISABLE		= bit.lshift(1, 31)
 
 local SRRCTL_TIMESTAMP		= bit.lshift(1, 30)
 
--- offloading flags
-local PKT_TX_IEEE1588_TMST	= 0x8000
-local PKT_TX_IP_CKSUM		= 0x1000
-local PKT_TX_UDP_CKSUM		= 0x6000
+-- constants
+local I40E_PTP_10GB_INCVAL  = 0x0333333333ULL
 
-
----
 --- @deprecated
 function mod.fillL2Packet(buf, seq)
 	seq = seq or (((3 * 255) + 2) * 255 + 1) * 255
-	buf.pkt.pkt_len = 60
-	buf.pkt.data_len = 60
+	buf.pkt_len = 60
+	buf.data_len = 60
 	buf:getPtpPacket():fill{
 		ptpSequenceID = seq
 	}
-	buf.ol_flags = bit.bor(buf.ol_flags, PKT_TX_IEEE1588_TMST)
+	buf.ol_flags = bit.bor(buf.ol_flags, dpdk.PKT_TX_IEEE1588_TMST)
 end
 
----
 --- @deprecated
 function mod.readSeq(buf)
-	if buf.pkt.pkt_len < 4 then
+	if buf.pkt_len < 4 then
 	  return nil
 	end
 	return buf:getPtpPacket().ptp:getSequenceID()
@@ -121,8 +152,16 @@ end
 
 --- try to read a tx timestamp if one is available, returns -1 if no timestamp is available
 function mod.tryReadTxTimestamp(port)
-	local isIgb = device.get(port):getPciId() == device.PCI_ID_82580
-	if isIgb then
+	local id = device.get(port):getPciId()
+	if id == device.PCI_ID_X710 or id == device.PCI_ID_XL710 then
+		local val = dpdkc.read_reg32(port, PRTTSYN_STAT_0)
+		if bit.band(val, PRTTSYN_STAT_0_TXTIME) == 0 then
+			return nil
+		end
+		local low = dpdkc.read_reg32(port, PRTTSYN_TXTIME_L)
+		local high = dpdkc.read_reg32(port, PRTTSYN_TXTIME_H)
+		return low
+	elseif id == device.PCI_ID_82580 then
 		if bit.band(dpdkc.read_reg32(port, TSYNCTXCTL_82580), TSYNCTXCTL_TXTT) == 0 then
 			return nil
 		end
@@ -139,9 +178,17 @@ function mod.tryReadTxTimestamp(port)
 	end
 end
 
-function mod.tryReadRxTimestamp(port)
-	local isIgb = device.get(port):getPciId() == device.PCI_ID_82580
-	if isIgb then
+function mod.tryReadRxTimestamp(port, timesync)
+	local id = device.get(port):getPciId()
+	if id == device.PCI_ID_X710 or id == device.PCI_ID_XL710 then
+		local rtxindex = bit.lshift(1, timesync)
+		if bit.band(dpdkc.read_reg32(port, PRTTSYN_STAT_1), rtxindex) == 0 then
+ 			return nil
+ 		end
+		local low = dpdkc.read_reg32(port, PRTTSYN_RXTIME_L[timesync])
+		local high = dpdkc.read_reg32(port, PRTTSYN_RXTIME_H[timesync])
+		return low
+	elseif id == device.PCI_ID_82580 then
 		if bit.band(dpdkc.read_reg32(port, TSYNCRXCTL_82580), TSYNCRXCTL_RXTT) == 0 then
 			return nil
 		end
@@ -155,6 +202,34 @@ function mod.tryReadRxTimestamp(port)
 		local low = dpdkc.read_reg32(port, RXSTMPL)
 		local high = dpdkc.read_reg32(port, RXSTMPH)
 		return low
+	end
+end
+
+local function cleanTimestamp(dev, rxQueue)
+	local id = device.get(dev.id):getPciId()
+	if id == device.PCI_ID_X710 or id == device.PCI_ID_XL710 then
+		local stats = dpdkc.read_reg32(dev.id, PRTTSYN_STAT_1)
+		if bit.band(stats, PRTTSYN_STAT_1_RXT_ALL) ~= 0 then
+			for i = 0, 3 do
+				rxQueue:getTimestamp(nil, i)
+			end
+		end
+	elseif devTimeStamp then
+		-- clear any "leftover" timestamps
+		if dev:hasTimestamp() then
+			self.rxQueue:getTimestamp()
+		end
+	end
+end
+
+
+local function startTimerI40e(port, id)
+	-- start system timer
+	if id == device.PCI_ID_X710 or id == device.PCI_ID_XL710 then
+		dpdkc.write_reg32(port, PRTTSYN_INC_L, bit.band(I40E_PTP_10GB_INCVAL, 0xFFFFFFFF))
+		dpdkc.write_reg32(port, PRTTSYN_INC_H, bit.rshift(I40E_PTP_10GB_INCVAL, 32))
+	else -- should not happen
+		log:fatal("Unsupported i40e device %s", device.getDeviceName(port))
 	end
 end
 
@@ -180,6 +255,42 @@ local function startTimerIgb(port, id)
 		log:fatal("Unsupported igb device %s", device.getDeviceName(port))
 	end
 end
+
+local function enableRxTimestampsI40e(port, queue, udpPort, id)
+	-- clear timesync registers
+	dpdkc.read_reg32(port, PRTTSYN_STAT_0)
+	dpdkc.read_reg32(port, PRTTSYN_RXTIME_L[0])
+	dpdkc.read_reg32(port, PRTTSYN_RXTIME_L[1])
+	dpdkc.read_reg32(port, PRTTSYN_RXTIME_L[2])
+	dpdkc.read_reg32(port, PRTTSYN_RXTIME_L[3])
+	device.get(port):l2Filter(eth.TYPE_PTP, queue)
+	-- start the timer
+	startTimerI40e(port, id)
+	-- enable rx timestamping
+	local val0 = dpdkc.read_reg32(port, PRTTSYN_CTL0)
+	dpdkc.write_reg32(port, PRTTSYN_CTL0, bit.bor(val0, PRTTSYN_CTL0_TSYNENA))
+	local val1 = dpdkc.read_reg32(port, PRTTSYN_CTL1)
+	val1 = bit.bor(val1, PRTTSYN_CTL1_TSYNENA)
+	val1 = bit.band(val1, bit.bnot(PRTTSYN_CTL1_TSYNTYPE_MASK))
+	val1 = bit.bor(val1, bit.lshift(2, PRTTSYN_CTL1_TSYNTYPE_OFFS))
+	val1 = bit.band(val1, bit.bnot(PRTTSYN_CTL1_UDP_ENA_MASK))
+	val1 = bit.bor(val1, bit.lshift(3, PRTTSYN_CTL1_UDP_ENA_OFFS))
+	dpdkc.write_reg32(port, PRTTSYN_CTL1, val1)
+end
+
+local function enableTxTimestampsI40e(port, queue, udpPort, id)
+	-- clear timesync registers
+	dpdkc.read_reg32(port, PRTTSYN_STAT_0)
+	dpdkc.read_reg32(port, PRTTSYN_TXTIME_H)
+	-- start the timer
+	startTimerI40e(port, id)
+	-- enable tx timestamping
+	local val0 = dpdkc.read_reg32(port, PRTTSYN_CTL0)
+	dpdkc.write_reg32(port, PRTTSYN_CTL0, bit.bor(val0, PRTTSYN_CTL0_TSYNENA))
+	local val1 = dpdkc.read_reg32(port, PRTTSYN_CTL1)
+	dpdkc.write_reg32(port, PRTTSYN_CTL1, bit.bor(val1, PRTTSYN_CTL1_TSYNENA))
+end
+
 
 local function enableRxTimestampsIxgbe(port, queue, udpPort, id)
 	startTimerIxgbe(port, id)
@@ -243,6 +354,8 @@ end
 
 -- TODO: implement support for more hardware
 local enableFuncs = {
+	[device.PCI_ID_XL710]	= { enableRxTimestampsI40e, enableTxTimestampsI40e },
+	[device.PCI_ID_X710]	= { enableRxTimestampsI40e, enableTxTimestampsI40e },
 	[device.PCI_ID_X540]	= { enableRxTimestampsIxgbe, enableTxTimestampsIxgbe },
 	[device.PCI_ID_X520]	= { enableRxTimestampsIxgbe, enableTxTimestampsIxgbe },
 	[device.PCI_ID_X520_T2]	= { enableRxTimestampsIxgbe, enableTxTimestampsIxgbe },
@@ -305,15 +418,18 @@ function txQueue:getTimestamp(wait)
 end
 
 --- Read a RX timestamp from the device.
-function rxQueue:getTimestamp(wait)
-	return getTimestamp(wait, mod.tryReadRxTimestamp, self.id)
+function rxQueue:getTimestamp(wait, timesync)
+	return getTimestamp(wait, mod.tryReadRxTimestamp, self.id, timesync)
 end
 
 --- Check if the NIC saved a timestamp.
---- @return the PTP sequence number of the timestamped packet, nil otherwise
+--- @return the PTP sequence number of the timestamped packet, -1 if the NIC doesn't support capturing it, nil if no timestamp is available
 function dev:hasTimestamp()
-	local isIgb = device.get(self.id):getPciId() == device.PCI_ID_82580
-	if isIgb then
+	local id = device.get(self.id):getPciId()
+	if id == device.PCI_ID_X710 or id == device.PCI_ID_XL710 then
+		local stats = dpdkc.read_reg32(self.id, PRTTSYN_STAT_1)
+		return bit.band(stats, PRTTSYN_STAT_1_RXT_ALL) ~= 0 and -1 or nil
+	elseif id  == device.PCI_ID_82580 then
 		if bit.band(dpdkc.read_reg32(self.id, TSYNCRXCTL_82580), TSYNCRXCTL_RXTT) == 0 then
 			return nil
 		end
@@ -326,21 +442,31 @@ function dev:hasTimestamp()
 	end
 end
 
+function dev:supportsTimesync()
+	local id = self:getPciId()
+	return id == device.PCI_ID_X710 or id == device.PCI_ID_XL710
+end
+
 local timestampScales = {
+	[device.PCI_ID_XL710]	= 1,
+	[device.PCI_ID_X710]	= 1,
 	[device.PCI_ID_X540]	= 6.4,
 	[device.PCI_ID_X520]	= 6.4,
 	[device.PCI_ID_82599]	= 6.4,
-	[device.PCI_ID_82580]	= 1, } -- ???
+	[device.PCI_ID_82580]	= 1,
+}
 
 function dev:getTimestampScale()
 	return timestampScales[self:getPciId()] or 1
 end
 
 local timeRegisters = {
-	[device.PCI_ID_X540]	= { 1, SYSTIMEL, SYSTIMEH, TIMEADJL, TIMEADJH },
-	[device.PCI_ID_X520]    = { 1, SYSTIMEL, SYSTIMEH, TIMEADJL, TIMEADJH },
-	[device.PCI_ID_82599]	= { 1, SYSTIMEL, SYSTIMEH, TIMEADJL, TIMEADJH },
-	[device.PCI_ID_82580]	= { 2, SYSTIMEL_82580, SYSTIMEH_82580, TIMEADJL_82580, TIMEADJH_82580 }, }
+	[device.PCI_ID_XL710]	= { 1, PRTTSYN_TIME_L, PRTTSYN_TIME_H, PRTTSYN_ADJ, PRTTSYN_ADJ_DUMMY },
+	[device.PCI_ID_X710]	= { 1, PRTTSYN_TIME_L, PRTTSYN_TIME_H, PRTTSYN_ADJ, PRTTSYN_ADJ_DUMMY },
+	[device.PCI_ID_X540]	= { 2, SYSTIMEL, SYSTIMEH, TIMEADJL, TIMEADJH },
+	[device.PCI_ID_X520]    = { 2, SYSTIMEL, SYSTIMEH, TIMEADJL, TIMEADJH },
+	[device.PCI_ID_82599]	= { 2, SYSTIMEL, SYSTIMEH, TIMEADJL, TIMEADJH },
+	[device.PCI_ID_82580]	= { 3, SYSTIMEL_82580, SYSTIMEH_82580, TIMEADJL_82580, TIMEADJH_82580 }, }
 
 function mod.syncClocks(dev1, dev2)
 	local regs1 = timeRegisters[dev1:getPciId()]
@@ -358,7 +484,17 @@ function mod.syncClocks(dev1, dev2)
 end
 
 function mod.getClockDiff(dev1, dev2)
-	return dpdkc.get_clock_difference(dev1.id, dev2.id) * 6.4
+	local regs1 = timeRegisters[dev1:getPciId()]
+	local regs2 = timeRegisters[dev2:getPciId()]
+	if regs1[1] ~= regs2[1] then
+		log:fatal("NICs incompatible, cannot sync clocks")
+	end
+	if regs1[2] ~= regs2[2]
+		or regs1[3] ~= regs2[3] then
+		log:fatal("NYI: NICs use different timestamp registers")
+	end
+	local timestampScale = timestampScales[dev1:getPciId()]
+	return dpdkc.get_clock_difference(dev1.id, dev2.id, regs1[2], regs1[3]) * timestampScale
 end
 
 function mod.readTimestampsSoftware(queue, memory)
@@ -402,6 +538,7 @@ function mod:newTimestamper(txQueue, rxQueue, mem, udp)
 		rxDev = rxQueue.dev,
 		seq = 1,
 		udp = udp,
+		useTimesync = rxQueue.dev:supportsTimesync(),
 	}, timestamper)
 end
 
@@ -440,9 +577,7 @@ function timestamper:measureLatency(pktSize, packetModifier, maxWait)
 	end
 	mod.syncClocks(self.txDev, self.rxDev)
 	-- clear any "leftover" timestamps
-	if self.rxDev:hasTimestamp() then 
-		self.rxQueue:getTimestamp()
-	end
+	cleanTimestamp(self.rxDev, self.rxQueue)
 	self.txQueue:send(self.txBufs)
 	local tx = self.txQueue:getTimestamp(500)
 	if tx then
@@ -461,12 +596,11 @@ function timestamper:measureLatency(pktSize, packetModifier, maxWait)
 				-- running on a shared core and no filters are set), this case isn't handled here
 				for i = 1, rx do
 					local buf = self.rxBufs[i]
+					local timesync = self.useTimesync and buf:getTimesync() or 0
 					local seq = (self.udp and buf:getUdpPtpPacket() or buf:getPtpPacket()).ptp:getSequenceID()
-					-- not sure if checking :hasTimestamp is worth it
-					-- the flag seems to be quite pointless
-					if buf:hasTimestamp() and seq == expectedSeq and seq == timestampedPkt then
+					if buf:hasTimestamp() and seq == expectedSeq and (seq == timestampedPkt or timestampedPkt == -1) then
 						-- yay!
-						local rxTs = self.rxQueue:getTimestamp() 
+						local rxTs = self.rxQueue:getTimestamp(nil, timesync) 
 						if not rxTs then
 							-- can happen if you hotplug cables
 							return nil
@@ -474,11 +608,11 @@ function timestamper:measureLatency(pktSize, packetModifier, maxWait)
 						local delay = (rxTs - tx) * self.rxDev:getTimestampScale()
 						self.rxBufs:freeAll()
 						return delay
-					elseif buf:hasTimestamp() and seq == timestampedPkt then
+					elseif buf:hasTimestamp() and (seq == timestampedPkt or timestampedPkt == -1) then
 						-- we got a timestamp but the wrong sequence number. meh.
-						self.rxQueue:getTimestamp() -- clears the register
+						self.rxQueue:getTimestamp(nil, timesync) -- clears the register
 						-- continue, we may still get our packet :)
-					elseif seq == expectedSeq and seq ~= timestampedPkt then
+					elseif seq == expectedSeq and (seq ~= timestampedPkt and timestampedPkt ~= -1) then
 						-- we got our packet back but it wasn't timestamped
 						-- we likely ran into the previous case earlier and cleared the ts register too late
 						self.rxBufs:freeAll()

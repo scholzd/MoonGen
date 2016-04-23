@@ -14,7 +14,7 @@ function master(...)
 	end
 	local rxMempool = memory.createMemPool()
 	local txDev
-	txDev = device.config(txPort, rxMempool, 1, cores)
+	txDev = device.config({port=txPort, mempool=rxMempool, rxQueues=1, txQueues=cores})
 	txDev:wait()
 	for i = 0, cores - 1 do
 		txDev:getTxQueue(i):setRate(rate / cores)
@@ -27,7 +27,7 @@ function loadSlave(port, queue)
 	local core = queue
 	local queue = device.get(port):getTxQueue(queue)
 	local mem = memory.createMemPool(function(buf)
-		local data = ffi.cast("uint8_t*", buf.pkt.data)
+		local data = ffi.cast("uint8_t*", buf:getData())
 		-- src/dst mac
 		for i = 0, 11 do
 			data[i] = i

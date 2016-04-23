@@ -10,7 +10,7 @@ local ffi		= require "ffi"
 
 local PKT_SIZE = 60
 
-local NUM_PKTS = 10^5
+local NUM_PKTS = 10^6
 
 function master(txPort, rxPort, load)
 	if not txPort or not rxPort or type(load) ~= "number" then
@@ -32,7 +32,7 @@ function loadSlave(queue)
 		}
 	end)
 	local bufs = mem:bufArray()
-	local ctr = stats:newDevTxCounter(queue.dev, "plain")
+	local ctr = stats:newDevTxCounter("Load Traffic", queue.dev, "plain")
 	while mg.running() do
 		bufs:alloc(PKT_SIZE)
 		queue:send(bufs)
@@ -59,26 +59,28 @@ function txTimestamper(queue)
 		rateLimit:reset()
 		i = i + 1
 	end
+	mg.sleepMillis(500)
+	mg.stop()
 end
 
-
+-- FIXME: the API should be nicer
 function rxTimestamper(queue)
 	local tscFreq = mg.getCyclesFrequency()
-	local bufs = memory.bufArray(64)
 	local timestamps = ffi.new("uint64_t[64]")
+	local bufs = memory.bufArray(64)
 	-- use whatever filter appropriate for your packet type
 	queue.dev:filterTimestamps(queue)
 	local results = {}
-	local i = 0
-	while i < NUM_PKTS and mg.running() do
+	local rxts = {}
+	while mg.running() do
 		local numPkts = queue:recvWithTimestamps(bufs, timestamps)
 		for i = 1, numPkts do
 			local rxTs = timestamps[i - 1]
 			local txTs = bufs[i]:getSoftwareTxTimestamp()
 			results[#results + 1] = tonumber(rxTs - txTs) / tscFreq * 10^9 -- to nanoseconds
+			rxts[#rxts + 1] = tonumber(rxTs)
 		end
 		bufs:free(numPkts)
-		i = i + 1
 	end
 	local f = io.open("pings.txt", "w+")
 	for i, v in ipairs(results) do

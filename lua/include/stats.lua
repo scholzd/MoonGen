@@ -145,7 +145,7 @@ local function newCounter(ctrType, name, dev, format, file)
 	file = file or io.stdout
 	local closeFile = false
 	if type(file) == "string" then
-		file = io.open("w+")
+		file = io.open(file, "w+")
 		closeFile = true
 	end
 	if not formatters[format] then
@@ -311,7 +311,7 @@ end
 --- Packet-based counter
 function pktRxCounter:countPacket(buf)
 	self.current = self.current + 1
-	self.currentBytes = self.currentBytes + buf.pkt.pkt_len + 4 -- include CRC
+	self.currentBytes = self.currentBytes + buf.pkt_len + 4 -- include CRC
 end
 
 function pktRxCounter:getThroughput()
@@ -435,7 +435,7 @@ end
 --- Packet-based counter
 function pktTxCounter:countPacket(buf)
 	self.current = self.current + 1
-	self.currentBytes = self.currentBytes + buf.pkt.pkt_len + 4 -- include CRC
+	self.currentBytes = self.currentBytes + buf.pkt_len + 4 -- include CRC
 end
 
 function pktTxCounter:getThroughput()
