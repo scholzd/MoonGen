@@ -10,6 +10,16 @@ local bor, band, bnot, rshift, lshift, bswap = bit.bor, bit.band, bit.bnot, bit.
 local write = io.write
 local format = string.format
 local random, log, floor = math.random, math.log, math.floor
+local ffi = require "ffi"
+
+ffi.cdef[[
+void print_ptr(void* ptr);
+void srand (unsigned int seed);
+]]
+
+function printPtr(ptr)
+	ffi.C.print_ptr(ptr)
+end
 
 --- Print a formatted string.
 --- @todo docu
@@ -142,7 +152,7 @@ _G.bswap = bswap -- export bit.bswap to global namespace to be consistent with b
 hton = bswap
 ntoh = hton
 
-local ffi = require "ffi"
+--local ffi = require "ffi"
 
 ffi.cdef [[
 	typedef int clockid_t;
@@ -195,6 +205,7 @@ end
 
 
 --- Calculate a 16 bit checksum 
+--- TODO really slow, move to C and consider using SIMD (like Snabb)
 --- @param data cdata to calculate the checksum for.
 --- @param len Number of bytes to calculate the checksum for.
 --- @return 16 bit integer

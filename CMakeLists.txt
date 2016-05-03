@@ -17,6 +17,7 @@ SET(FILES
 	src/debug.c
 	src/bitmask.c
 	src/lpm_l.c
+	src/kni.c
 	src/distribute.c
 	src/barrier.cpp
 	src/task-results.cpp

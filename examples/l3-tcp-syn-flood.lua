@@ -37,6 +37,9 @@ function counterSlave(dev)
 	while mg.running(1000) do
 		local rx = dev:getRxQueue(0):recv(bufs)
 		if rx > 0 then
+			for buf in bufs do
+				buf:dump()
+			end
 			bufs:freeAll()
 		end
 		rxStats:update()
