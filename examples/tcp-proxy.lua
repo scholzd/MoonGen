@@ -3,22 +3,34 @@ local memory	= require "memory"
 local device	= require "device"
 local stats		= require "stats"
 local log		= require "log"
-local profile	= require("jit.profile")
-local kni 		= require("kni")
-local ffi		= require("ffi")
-local dpdkc 	= require("dpdkc")
+local profile	= require "jit.profile"
+local kni 		= require "kni"
+local ffi		= require "ffi"
+local dpdkc 	= require "dpdkc"
 
 local proto		= require "proto/proto"
+
+-- tcp
+require "tcp/cookie"
 
 -- utility
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
 
+
 ---------------------------------------------------
 -- Terminology
 ---------------------------------------------------
+
 -- left: outside, internet, clients, potential attackers, whatever
 -- right: "protected" side, connection to server(s), only filtered traffic comes here
 
+
+---------------------------------------------------
+-- Constants
+---------------------------------------------------
+
+LEFT_TO_RIGHT = true
+RIGHT_TO_LEFT = false
 
 
 ---------------------------------------------------
@@ -34,7 +46,7 @@ function master(rxPort, txPort)
 	txPort = tonumber(txPort)
 	rxPort = tonumber(rxPort)
 	
-	local rxDev = device.config{ port = rxPort }
+	local rxDev = device.config{ port = rxPort, txQueues=2 }
 	local txDev = device.config{ port = txPort }
 	rxDev:wait()
 	txDev:wait()
@@ -42,6 +54,7 @@ function master(rxPort, txPort)
 	
 	mg.waitForSlaves()
 end
+
 
 -----------------------------------------------------
 -- debug utility TODO move to util or delete
@@ -56,25 +69,6 @@ function sT(t)
 	return str
 end
 
--- serialize number binary
-function asBits(num, bits)
-	bits = bits or 32
-	local t = {}
-	local invert = false
-	if num < 0 then
-		num = math.abs(num) - 1
-		invert = true
-	end
-	local t={} -- will contain the bits        
-    for b=bits, 1, -1 do
-        t[b]=math.fmod(num,2)
-		if invert then
-			t[b] = t[b] + 1 % 2
-		end
-        num=(num-t[b])/2
-    end
-    return table.concat(t)
-end
 
 -----------------------------------------------------
 -- profiling TODO move to util or new profiling.lua
@@ -92,9 +86,11 @@ function profile_callback(thread, samples, vmstate)
 	end
 end
 
+
 ----------------------------------------------------
 -- check packet type TODO move to proto/...
 ----------------------------------------------------
+
 function isIP4(pkt)
 	return pkt.eth:getType() == proto.eth.TYPE_IP 
 end
@@ -118,123 +114,11 @@ function printChecks(pkt)
 	print('Is ACK ' .. tostring(isAck(pkt)))
 end
 
----------------------------------------------------
--- cookie related functions TODO move to tcp/cookie.lua
----------------------------------------------------
-
--- one cycle is 64 64 seconds (6 bit right shoft of timestamp)
-local timestampValidCycles = 1
-
--- MSS encodings
-local MSS = { 
-	mss1=50, 
-	mss2=55,
-}
-
-function calculateCookie(pkt)
-	local ts_orig = getTimestamp()
-	--log:debug('Time: ' .. ts .. ' ' .. asBits(ts))
-	ts = lshift(ts_orig, 27)
-	--log:debug('Time: ' .. ts .. ' ' .. asBits(ts))
-
-	local mss = encodeMss()
-	mss = lshift(mss, 24)
-
-	local hash = getHash(
-		pkt.ip4:getSrc(), 
-		pkt.ip4:getDst(), 
-		pkt.tcp:getSrc(),
-		pkt.tcp:getDst(),
-		ts_orig
-	)
-	--log:debug('Created TS:     ' .. asBits(ts))
-	--log:debug('Created MSS:    ' .. asBits(mss))
-	--log:debug('Created hash:   ' .. asBits(hash))
-	local cookie = ts + mss + hash
-	--log:debug('Created cookie: ' .. asBits(cookie))
-	return cookie, mss
-end
-
-function verifyCookie(pkt)
-	local cookie = pkt.tcp:getAckNumber()
-	--log:debug('Got ACK:        ' .. asBits(cookie))
-	cookie = cookie - 1
-	--log:debug('Cookie:         ' .. asBits(cookie))
-
-	-- check timestamp first
-	local ts = rshift(cookie, 27)
-	--log:debug('TS:           ' .. asBits(ts))
-	if not verifyTimestamp(ts) then
-		log:warn('Received cookie with invalid timestamp')
-		return false
-	end
-
-	-- check hash
-	local hash = band(cookie, 0x00ffffff)
-	-- log:debug('Hash:           ' .. asBits(hash))
-	if not verifyHash(hash, pkt.ip4:getSrc(), pkt.ip4:getDst(), pkt.tcp:getSrc(), pkt.tcp:getDst(), ts) then
-		log:warn('Received cookie with invalid hash')
-		return false
-	else
-		-- finally decode MSS and return it
-		--log:debug('Received legitimate cookie')
-		return decodeMss(band(rshift(cookie, 24), 0x3))
-	end
-end
-
-function getTimestamp()
-	local t = time()
-	--log:debug('Time: ' .. t .. ' ' .. asBits(t))
-	-- 64 seconds resolution
-	t = rshift(t, 6)
-	--log:debug('Time: ' .. t .. ' ' .. asBits(t))
-	-- 5 bits
-	t = t % 32
-	--log:debug('Time: ' .. t .. ' ' .. asBits(t))
-	return t
-end
-
-function verifyTimestamp(t)
-	return t + timestampValidCycles >= getTimestamp()
-end
-
-function encodeMss()
-	-- 3 bits, allows for 8 different MSS
-	mss = 1 -- encoding see MSS
-	-- log:debug('MSS: ' .. mss .. ' ' .. asBits(mss))
-	return mss
-end
-
-function decodeMss(idx)
-	return MSS['mss' .. tostring(idx)] or -1
-end
-
-function getHash(...)
-	local args = {...}
-	local sum = 0
-	for k, v in pairs(args) do
-		-- log:debug(k .. ':            ' .. asBits(tonumber(v)))
-		sum = sum + tonumber(v)
-	end
-	-- log:debug('sum:            ' .. asBits(sum))
-	return band(hash(sum), 0x00ffffff)
-end
-
-function verifyHash(oldHash, ...)
-	local newHash = getHash(...)
-	-- log:debug('Old hash:       ' .. asBits(oldHash))
-	-- log:debug('New hash:       ' .. asBits(newHash))
-	return oldHash == newHash
-end
-
-function hash(int)
-	-- TODO implement something with real crypto later on
-	return int
-end
 
 ---------------------------------------------------
 -- verified connections TODO also move to cookie.lua? export to C, for sure
 ---------------------------------------------------
+
 -- TODO add some form of timestamp and garbage collection on timeout
 -- eg if not refreshed, remove after 60 seconds(2bits, every 30 seconds unset one, if both unset remove)
 local verifiedConnections = {}
@@ -286,6 +170,7 @@ function printVerifiedConnections()
 	log:debug('********************')
 end
 
+
 ---------------------------------------------------
 -- sequence number translation
 ---------------------------------------------------
@@ -294,14 +179,17 @@ end
 function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	log:info('Performing Sequence Number Translation')
 	-- calculate packet size
-	local size = rxPkt.ip4:getLength() + 14
+	local size = rxPkt.ip4:getLength() + 14 + 6
 	
 	-- copy content
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
+	txBuf:setSize(size)
 
 	-- translate numbers, depends on direction
 	local diff = isVerified(rxPkt, leftToRight)
 	if leftToRight then
+		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber())
+		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff['diff'])
 	else
 		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff['diff'])
 		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber())
@@ -313,9 +201,11 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	txPkt:calculateChecksums(txBuf:getData(), size, true)
 end
 
+
 ---------------------------------------------------
 -- slave
 ---------------------------------------------------
+
 function tcpProxySlave(rxDev, txDev)
 	log:setLevel("DEBUG")
 	
@@ -368,6 +258,7 @@ function tcpProxySlave(rxDev, txDev)
 	txStats = stats:newDevTxCounter(txDev, "plain")
 
 	-- tx Dev 2 for right to left
+	local tx2Queue = txDev:getTxQueue(1)
 	local tx2Mem = memory.createMemPool()
 	local tx2Bufs = tx2Mem:bufArray(1)
 	
@@ -388,14 +279,14 @@ function tcpProxySlave(rxDev, txDev)
 			--log:debug('Pkt #' .. tostring(i))
 			local rxPkt = rxBufs[i]:getTcp4Packet()
 			if not isTcp(rxPkt) then
-				log:info('Ignoring packet that is not TCP')
+				log:info('Ignoring packet that is not TCP from left')
 			else
 				--log:info('RX pkt')
 				--rxBufs[i]:dump()
 				--printChecks(rxPkt)
 				------------------------------------------------------------ SYN -> defense mechanism
 				if isSyn(rxPkt) then
-					--log:info('Received SYN')
+					log:info('Received SYN from left')
 					-- strategy cookie
 					local cookie, mss = calculateCookie(rxPkt)
 				
@@ -430,19 +321,30 @@ function tcpProxySlave(rxDev, txDev)
 					--log:info('Received ACK')
 					-- check with existing cons
 					-- if already finished the handshake, immediately forward, otherwise check cookie
-					local diff = isVerified(rxPkt) 
+					local diff = isVerified(rxPkt, LEFT_TO_RIGHT) 
 					if diff then
 						log:debug(sT(diff))
-						log:error('Received packet of verified connection, forwarding')
-						-- KNI
+						if not diff['diff'] then
+							log:error('Received packet of only half verified connection from left, stalling')
+						else
+						log:warn('Received packet of verified connection from left, translating and forwarding')
+							
+						vTXBufs:alloc(70)
+						local vTXBuf = vTXBufs[1]
+
+						local vTXPkt = vTXBufs[1]:getTcp4Packet()
+						sequenceNumberTranslation(rxBufs[i], vTXBufs[1], rxPkt, vTXPkt, LEFT_TO_RIGHT)
+							log:debug('sending via KNI')
+							virtualDev:txSingle(vTXBuf)
+						end
 					else
 						local ack = rxPkt.tcp:getAckNumber()
 						--log:debug('Got ACK # ' .. ack)
 						local mss = verifyCookie(rxPkt)
 						if mss then
 							--log:debug('mss:            ' .. mss)
-							log:info('Valid cookie, starting handshake with server')
-							setVerified(rxPkt, true)
+							log:info('Received valid cookie from left, starting handshake with server')
+							setVerified(rxPkt, LEFT_TO_RIGHT)
 							
 							-- establish
 							--log:debug('alloc vTXBuf')
@@ -469,7 +371,7 @@ function tcpProxySlave(rxDev, txDev)
 							vTXPkt.ip4:calculateChecksum()
 							
 							-- done, sending
-							log:debug('Sending vTXBuf via KNI')
+							--log:debug('Sending vTXBuf via KNI')
 							virtualDev:txSingle(vTXBuf)
 						else
 							log:warn('Wrong cookie, dropping packet')
@@ -480,7 +382,7 @@ function tcpProxySlave(rxDev, txDev)
 					end
 						
 				else
-					log:info('Received other TCP packet')
+					log:info('Received other TCP packet from left. Should also be forwarded')
 					-- forward/sequencenumber translation to KNI
 					forwardLegitimateTraffic(rxPkt)
 				end
@@ -506,22 +408,22 @@ function tcpProxySlave(rxDev, txDev)
 		----------------------------- all actions by polling left interface done (also all buffers sent or cleared)
 
 		-- poll right interface
-		log:debug('Polling right (virtual) Dev')
+		--log:debug('Polling right (virtual) Dev')
 		rx = virtualDev:rxBurst(vRXBufs, 16)
-		log:debug('vRX: ' .. rx)
+		--log:debug('vRX: ' .. rx)
 		if rx > 0 then
 			for i = 1, rx do
 				--log:debug('Pkt #' .. tostring(i))
 				local vRXPkt = vRXBufs[i]:getTcp4Packet()
 				if not isTcp(vRXPkt) then
-					log:info('Ignoring vRX packet that is not TCP')
+					log:info('Ignoring vRX packet from server that is not TCP')
 				else
-					log:info('vRX Is TCP')
+					--log:debug('vRX Is TCP')
 					--vRXBufs[i]:dump()
 					-- servers response, finally establish connection
 					if isSyn(vRXPkt) and isAck(vRXPkt) then
-						log:info('Received SYN/ACK from server')
-						setVerified(vRXPkt)
+						log:info('Received SYN/ACK from server, sending ACK back')
+						setVerified(vRXPkt, RIGHT_TO_LEFT)
 						
 						-- send ACK to server
 						vTXBufs:alloc(70)
@@ -532,7 +434,7 @@ function tcpProxySlave(rxDev, txDev)
 						vTXBuf:setSize(size)
 						
 						-- copy data TODO directly use rx buffer
-						log:debug('copy data')
+						--log:debug('copy data')
 						ffi.copy(vTXBuf:getData(), vRXBufs[i]:getData(), size)
 						
 						-- send packet back with seq, ack + 1
@@ -554,12 +456,12 @@ function tcpProxySlave(rxDev, txDev)
 						vTXPkt.ip4:calculateChecksum()
 						
 						-- done, sending
-						log:debug('Sending vTXBuf via KNI')
+						--log:debug('Sending vTXBuf via KNI')
 						virtualDev:txSingle(vTXBuf)
 					else
 						-- anything else must be from a verified connection, translate and send via physical nic
-						log:info('Packet to be translated and forwarded')
-						local diff = isVerified(vRXPkt)
+						log:warn('Packet of verified connection from server, translate and forward')
+						local diff = isVerified(vRXPkt, RIGHT_TO_LEFT)
 						log:debug('DIFF: ' .. sT(diff))
 						--local seq = vRXPkt.tcp:getSeqNumber()
 						--local ack = vRXPkt.tcp:getAckNumber()
@@ -578,25 +480,25 @@ function tcpProxySlave(rxDev, txDev)
 						local txPkt = tx2Bufs[1]:getTcp4Packet()
 
 						vRXBufs[i]:dump()
-						txPkt = sequenceNumberTranslation(vRXBufs[i], txBuf, vRXPkt, txPkt, false)
+						sequenceNumberTranslation(vRXBufs[i], txBuf, vRXPkt, txPkt, RIGHT_TO_LEFT)
 						tx2Bufs[1]:dump()
 
-						--txBufs:offloadTcpChecksums()
+						--tx2Bufs:offloadTcpChecksums()
 			
 						log:debug('Sending')
-						txQueue:send(tx2Bufs)
-						log:debug('Sent')
+						tx2Queue:send(tx2Bufs)
+						--log:debug('Sent')
 						
 
-						log:debug('Freeing txBufs')
+						--log:debug('Freeing txBufs')
 						tx2Bufs:freeAll()
 
-						mg.stop()
+						--mg.stop()
 					end
 				end
 			end
 		end
-		log:debug('free vRX')
+		--log:debug('free vRX')
 		vRXBufs:freeAll()
 
 		--rxStats:update()

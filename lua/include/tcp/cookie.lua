@@ -6,6 +6,9 @@
 --- - functions to build and verify each part of the cookie
 ---------------------------------
 
+local log	= require "log"
+require "utils"
+
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
 
 
@@ -29,9 +32,9 @@ local MSS = {
 
 function calculateCookie(pkt)
 	local ts_orig = getTimestamp()
-	--log:debug('Time: ' .. ts .. ' ' .. asBits(ts))
+	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 	ts = lshift(ts_orig, 27)
-	--log:debug('Time: ' .. ts .. ' ' .. asBits(ts))
+	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 
 	local mss = encodeMss()
 	mss = lshift(mss, 24)
@@ -43,23 +46,23 @@ function calculateCookie(pkt)
 		pkt.tcp:getDst(),
 		ts_orig
 	)
-	--log:debug('Created TS:     ' .. asBits(ts))
-	--log:debug('Created MSS:    ' .. asBits(mss))
-	--log:debug('Created hash:   ' .. asBits(hash))
+	--log:debug('Created TS:     ' .. toBinary(ts))
+	--log:debug('Created MSS:    ' .. toBinary(mss))
+	--log:debug('Created hash:   ' .. toBinary(hash))
 	local cookie = ts + mss + hash
-	--log:debug('Created cookie: ' .. asBits(cookie))
+	--log:debug('Created cookie: ' .. toBinary(cookie))
 	return cookie, mss
 end
 
 function verifyCookie(pkt)
 	local cookie = pkt.tcp:getAckNumber()
-	--log:debug('Got ACK:        ' .. asBits(cookie))
+	--log:debug('Got ACK:        ' .. toBinary(cookie))
 	cookie = cookie - 1
-	--log:debug('Cookie:         ' .. asBits(cookie))
+	--log:debug('Cookie:         ' .. toBinary(cookie))
 
 	-- check timestamp first
 	local ts = rshift(cookie, 27)
-	--log:debug('TS:           ' .. asBits(ts))
+	--log:debug('TS:           ' .. toBinary(ts))
 	if not verifyTimestamp(ts) then
 		log:warn('Received cookie with invalid timestamp')
 		return false
@@ -67,7 +70,7 @@ function verifyCookie(pkt)
 
 	-- check hash
 	local hash = band(cookie, 0x00ffffff)
-	-- log:debug('Hash:           ' .. asBits(hash))
+	-- log:debug('Hash:           ' .. toBinary(hash))
 	if not verifyHash(hash, pkt.ip4:getSrc(), pkt.ip4:getDst(), pkt.tcp:getSrc(), pkt.tcp:getDst(), ts) then
 		log:warn('Received cookie with invalid hash')
 		return false
@@ -85,13 +88,13 @@ end
 
 function getTimestamp()
 	local t = time()
-	--log:debug('Time: ' .. t .. ' ' .. asBits(t))
+	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
 	-- 64 seconds resolution
 	t = rshift(t, 6)
-	--log:debug('Time: ' .. t .. ' ' .. asBits(t))
+	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
 	-- 5 bits
 	t = t % 32
-	--log:debug('Time: ' .. t .. ' ' .. asBits(t))
+	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
 	return t
 end
 
@@ -107,7 +110,7 @@ end
 function encodeMss()
 	-- 3 bits, allows for 8 different MSS
 	mss = 1 -- encoding see MSS
-	-- log:debug('MSS: ' .. mss .. ' ' .. asBits(mss))
+	-- log:debug('MSS: ' .. mss .. ' ' .. toBinary(mss))
 	return mss
 end
 
@@ -124,17 +127,17 @@ function getHash(...)
 	local args = {...}
 	local sum = 0
 	for k, v in pairs(args) do
-		-- log:debug(k .. ':            ' .. asBits(tonumber(v)))
+		-- log:debug(k .. ':            ' .. toBinary(tonumber(v)))
 		sum = sum + tonumber(v)
 	end
-	-- log:debug('sum:            ' .. asBits(sum))
+	-- log:debug('sum:            ' .. toBinary(sum))
 	return band(hash(sum), 0x00ffffff)
 end
 
 function verifyHash(oldHash, ...)
 	local newHash = getHash(...)
-	-- log:debug('Old hash:       ' .. asBits(oldHash))
-	-- log:debug('New hash:       ' .. asBits(newHash))
+	-- log:debug('Old hash:       ' .. toBinary(oldHash))
+	-- log:debug('New hash:       ' .. toBinary(newHash))
 	return oldHash == newHash
 end
 
