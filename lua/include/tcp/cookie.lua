@@ -64,7 +64,7 @@ function verifyCookie(pkt)
 	local ts = rshift(cookie, 27)
 	--log:debug('TS:           ' .. toBinary(ts))
 	if not verifyTimestamp(ts) then
-		log:warn('Received cookie with invalid timestamp')
+		--log:warn('Received cookie with invalid timestamp')
 		return false
 	end
 
@@ -72,7 +72,7 @@ function verifyCookie(pkt)
 	local hash = band(cookie, 0x00ffffff)
 	-- log:debug('Hash:           ' .. toBinary(hash))
 	if not verifyHash(hash, pkt.ip4:getSrc(), pkt.ip4:getDst(), pkt.tcp:getSrc(), pkt.tcp:getDst(), ts) then
-		log:warn('Received cookie with invalid hash')
+		--log:warn('Received cookie with invalid hash')
 		return false
 	else
 		-- finally decode MSS and return it

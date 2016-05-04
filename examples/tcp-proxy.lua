@@ -107,6 +107,14 @@ function isAck(pkt)
 	return pkt.tcp:getAck() == 1
 end
 
+function isRst(pkt)
+	return pkt.tcp:getRst() == 1
+end
+
+function isFin(pkt)
+	return pkt.tcp:getFin() == 1
+end
+
 function printChecks(pkt)
 	print('Is IP4 ' .. tostring(isIP4(pkt)))
 	print('Is TCP ' .. tostring(isTcp(pkt)))
@@ -124,6 +132,13 @@ end
 local verifiedConnections = {}
 
 function getIdx(pkt, leftToRight)
+--	-- not collision free but faster for now
+--	if leftToRight then
+--		return pkt.ip4:getSrc() + pkt.tcp:getSrc() + pkt.ip4:getDst() + pkt.tcp:getDst()
+--	else
+--		return pkt.ip4:getDst() + pkt.tcp:getDst() + pkt.ip4:getSrc() + pkt.tcp:getSrc()
+--	end
+	-- collision free but maximal slow
 	if leftToRight then
 		return pkt.ip4:getSrcString() .. ':' .. pkt.tcp:getSrc() .. '-' .. pkt.ip4:getDstString() .. ':' .. pkt.tcp:getDst()
 	else
@@ -177,7 +192,7 @@ end
 
 -- simply resend the complete packet, but adapt seq/ack number
 function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
-	log:info('Performing Sequence Number Translation')
+	--log:info('Performing Sequence Number Translation')
 	-- calculate packet size
 	local size = rxPkt.ip4:getLength() + 14 + 6
 	
@@ -187,6 +202,11 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 
 	-- translate numbers, depends on direction
 	local diff = isVerified(rxPkt, leftToRight)
+	if not diff or not diff['diff'] then
+		log:error('translation without diff, something is horribly wrong')
+		rxBuf:dump()
+		return
+	end
 	if leftToRight then
 		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber())
 		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff['diff'])
@@ -267,15 +287,111 @@ function tcpProxySlave(rxDev, txDev)
 
 	-- main event loop
 	log:info('Starting TCP Proxy')
-	while mg.running(1000) do
+	while mg.running() do
+		--------------------------------------------------------------- poll right interface
+		-- poll right interface
+		--log:debug('Polling right (virtual) Dev')
+		rx = virtualDev:rxBurst(vRXBufs, 16)
+		--log:debug('vRX: ' .. rx)
+		for i = 1, rx do
+			local translate = false
+			--log:debug('Pkt #' .. tostring(i))
+			local vRXPkt = vRXBufs[i]:getTcp4Packet()
+			if not isTcp(vRXPkt) then
+				--log:info('Ignoring vRX packet from server that is not TCP')
+			else
+				--log:debug('vRX Is TCP')
+				--vRXBufs[i]:dump()
+				local idx = getIdx(vRXPkt, RIGHT_TO_LEFT)
+				if isRst(vRXPkt) then
+					--log:info('Got RST packet from right ' .. idx)
+					translate = true
+				elseif isFin(vRXPkt) then
+					if isAck(vRXPkt) then
+						--log:info('Got FIN/ACK packet from right ' .. idx)
+					else
+						--log:info('Got FIN packet from right ' .. idx)
+					end
+					translate = true
+				-- servers response, finally establish connection
+				elseif isSyn(vRXPkt) and isAck(vRXPkt) then
+					--log:info('Received SYN/ACK from server, sending ACK back')
+					setVerified(vRXPkt, RIGHT_TO_LEFT)
+					
+					-- send ACK to server
+					vTXBufs:alloc(70)
+					local vTXBuf = vTXBufs[1]
+
+					-- set size of tx packet
+					local size = vRXPkt.ip4:getLength() + 14
+					vTXBuf:setSize(size)
+					
+					-- copy data TODO directly use rx buffer
+					--log:debug('copy data')
+					ffi.copy(vTXBuf:getData(), vRXBufs[i]:getData(), size)
+					
+					-- send packet back with seq, ack + 1
+					local vTXPkt = vTXBuf:getTcp4Packet()
+					local tmp = vRXPkt.ip4:getSrc()
+					vTXPkt.ip4:setSrc(vRXPkt.ip4:getDst())
+					vTXPkt.ip4:setDst(tmp)
+					tmp = vRXPkt.tcp:getSrc()
+					vTXPkt.tcp:setSrc(vRXPkt.tcp:getDst())
+					vTXPkt.tcp:setDst(tmp)
+					vTXPkt.tcp:setSeqNumber(vRXPkt.tcp:getAckNumber())
+					vTXPkt.tcp:setAckNumber(vRXPkt.tcp:getSeqNumber() + 1)
+					vTXPkt.tcp:unsetSyn()
+					vTXPkt.tcp:setAck()
+					vTXPkt:setLength(size)
+
+					-- calculate checksums
+					vTXPkt.tcp:calculateChecksum(vTXBuf:getData(), size, true)
+					vTXPkt.ip4:calculateChecksum()
+					
+					-- done, sending
+					--log:debug('Sending vTXBuf via KNI')
+					virtualDev:txSingle(vTXBuf)
+				else
+					-- anything else must be from a verified connection, translate and send via physical nic
+					--log:info('Packet of verified connection from server, translate and forward')
+					translate = true
+				end
+			end
+			if translate then
+				--log:info('Translating from right to left')
+				tx2Bufs:alloc(70)
+				local txBuf = tx2Bufs[1]
+				local txPkt = tx2Bufs[1]:getTcp4Packet()
+
+				--vRXBufs[i]:dump()
+				sequenceNumberTranslation(vRXBufs[i], txBuf, vRXPkt, txPkt, RIGHT_TO_LEFT)
+				--tx2Bufs[1]:dump()
+
+				--tx2Bufs:offloadTcpChecksums()
+			
+				--log:debug('Sending')
+				tx2Queue:send(tx2Bufs)
+				--log:debug('Sent')
+				
+				--log:debug('Freeing txBufs')
+				tx2Bufs:freeAll()
+			end
+		end
+		
+		--log:debug('free vRX')
+		vRXBufs:freeAll()
+
+		------------------------------------------------------------------- polling from virtual interface done
+
 		-- receive from physical interface
-		rx = rxQueue:tryRecv(rxBufs, 1000000)
+		rx = rxQueue:tryRecv(rxBufs, 1)
 
 		if rx > 0 then
 			txBufs:allocN(60, rx)
 			--log:debug('alloced tx bufs ')
 		end
 		for i = 1, rx do
+			local translate = false
 			--log:debug('Pkt #' .. tostring(i))
 			local rxPkt = rxBufs[i]:getTcp4Packet()
 			if not isTcp(rxPkt) then
@@ -284,9 +400,20 @@ function tcpProxySlave(rxDev, txDev)
 				--log:info('RX pkt')
 				--rxBufs[i]:dump()
 				--printChecks(rxPkt)
+				local idx = getIdx(rxPkt, LEFT_TO_RIGHT)
+				if isRst(rxPkt) then
+					--log:info('Got RST packet from left ' .. idx)
+					translate = true
+				elseif isFin(rxPkt) then
+					if isAck(rxPkt) then
+						--log:info('Got FIN/ACK packet from left ' .. idx)
+					else
+						--log:info('Got FIN packet from left ' .. idx)
+					end
+					translate = true
 				------------------------------------------------------------ SYN -> defense mechanism
-				if isSyn(rxPkt) then
-					log:info('Received SYN from left')
+				elseif isSyn(rxPkt) then
+					--log:info('Received SYN from left')
 					-- strategy cookie
 					local cookie, mss = calculateCookie(rxPkt)
 				
@@ -323,19 +450,14 @@ function tcpProxySlave(rxDev, txDev)
 					-- if already finished the handshake, immediately forward, otherwise check cookie
 					local diff = isVerified(rxPkt, LEFT_TO_RIGHT) 
 					if diff then
-						log:debug(sT(diff))
+						--log:debug(sT(diff))
 						if not diff['diff'] then
-							log:error('Received packet of only half verified connection from left, stalling')
+							-- this happens when left is faster than right
+							-- can't do much aside from discarding it
+							--log:warn('Received packet of only half verified connection from left, stalling')
 						else
-						log:warn('Received packet of verified connection from left, translating and forwarding')
-							
-						vTXBufs:alloc(70)
-						local vTXBuf = vTXBufs[1]
-
-						local vTXPkt = vTXBufs[1]:getTcp4Packet()
-						sequenceNumberTranslation(rxBufs[i], vTXBufs[1], rxPkt, vTXPkt, LEFT_TO_RIGHT)
-							log:debug('sending via KNI')
-							virtualDev:txSingle(vTXBuf)
+							--log:info('Received packet of verified connection from left, translating and forwarding')
+							translate = true
 						end
 					else
 						local ack = rxPkt.tcp:getAckNumber()
@@ -343,7 +465,7 @@ function tcpProxySlave(rxDev, txDev)
 						local mss = verifyCookie(rxPkt)
 						if mss then
 							--log:debug('mss:            ' .. mss)
-							log:info('Received valid cookie from left, starting handshake with server')
+							--log:info('Received valid cookie from left, starting handshake with server')
 							setVerified(rxPkt, LEFT_TO_RIGHT)
 							
 							-- establish
@@ -374,7 +496,7 @@ function tcpProxySlave(rxDev, txDev)
 							--log:debug('Sending vTXBuf via KNI')
 							virtualDev:txSingle(vTXBuf)
 						else
-							log:warn('Wrong cookie, dropping packet')
+							--log:warn('Wrong cookie, dropping packet')
 							-- drop, and done
 							-- most likely simply the timestamp timed out
 							-- but it might also be a DoS attack that tried to guess the cookie
@@ -383,9 +505,18 @@ function tcpProxySlave(rxDev, txDev)
 						
 				else
 					log:info('Received other TCP packet from left. Should also be forwarded')
-					-- forward/sequencenumber translation to KNI
-					forwardLegitimateTraffic(rxPkt)
+					translate = true
 				end
+			end
+			if translate then
+				--log:info('Translating from left to right')
+				vTXBufs:alloc(70)
+				local vTXBuf = vTXBufs[1]
+
+				local vTXPkt = vTXBufs[1]:getTcp4Packet()
+				sequenceNumberTranslation(rxBufs[i], vTXBufs[1], rxPkt, vTXPkt, LEFT_TO_RIGHT)
+				--log:debug('sending via KNI')
+				virtualDev:txSingle(vTXBuf)
 			end
 		end
 		if rx > 0 then	
@@ -406,100 +537,6 @@ function tcpProxySlave(rxDev, txDev)
 
 
 		----------------------------- all actions by polling left interface done (also all buffers sent or cleared)
-
-		-- poll right interface
-		--log:debug('Polling right (virtual) Dev')
-		rx = virtualDev:rxBurst(vRXBufs, 16)
-		--log:debug('vRX: ' .. rx)
-		if rx > 0 then
-			for i = 1, rx do
-				--log:debug('Pkt #' .. tostring(i))
-				local vRXPkt = vRXBufs[i]:getTcp4Packet()
-				if not isTcp(vRXPkt) then
-					log:info('Ignoring vRX packet from server that is not TCP')
-				else
-					--log:debug('vRX Is TCP')
-					--vRXBufs[i]:dump()
-					-- servers response, finally establish connection
-					if isSyn(vRXPkt) and isAck(vRXPkt) then
-						log:info('Received SYN/ACK from server, sending ACK back')
-						setVerified(vRXPkt, RIGHT_TO_LEFT)
-						
-						-- send ACK to server
-						vTXBufs:alloc(70)
-						local vTXBuf = vTXBufs[1]
-
-						-- set size of tx packet
-						local size = vRXPkt.ip4:getLength() + 14
-						vTXBuf:setSize(size)
-						
-						-- copy data TODO directly use rx buffer
-						--log:debug('copy data')
-						ffi.copy(vTXBuf:getData(), vRXBufs[i]:getData(), size)
-						
-						-- send packet back with seq, ack + 1
-						local vTXPkt = vTXBuf:getTcp4Packet()
-						local tmp = vRXPkt.ip4:getSrc()
-						vTXPkt.ip4:setSrc(vRXPkt.ip4:getDst())
-						vTXPkt.ip4:setDst(tmp)
-						tmp = vRXPkt.tcp:getSrc()
-						vTXPkt.tcp:setSrc(vRXPkt.tcp:getDst())
-						vTXPkt.tcp:setDst(tmp)
-						vTXPkt.tcp:setSeqNumber(vRXPkt.tcp:getAckNumber())
-						vTXPkt.tcp:setAckNumber(vRXPkt.tcp:getSeqNumber() + 1)
-						vTXPkt.tcp:unsetSyn()
-						vTXPkt.tcp:setAck()
-						vTXPkt:setLength(size)
-
-						-- calculate checksums
-						vTXPkt.tcp:calculateChecksum(vTXBuf:getData(), size, true)
-						vTXPkt.ip4:calculateChecksum()
-						
-						-- done, sending
-						--log:debug('Sending vTXBuf via KNI')
-						virtualDev:txSingle(vTXBuf)
-					else
-						-- anything else must be from a verified connection, translate and send via physical nic
-						log:warn('Packet of verified connection from server, translate and forward')
-						local diff = isVerified(vRXPkt, RIGHT_TO_LEFT)
-						log:debug('DIFF: ' .. sT(diff))
-						--local seq = vRXPkt.tcp:getSeqNumber()
-						--local ack = vRXPkt.tcp:getAckNumber()
-						--log:debug('seq: ' .. seq)
-						--log:debug('qck: ' .. ack)
-						--local d = diff['rSeq'] - diff['lAck'] + 1
-						--log:debug('diff: ' .. d)
-						--local newSeq = seq - d
-						--local newAck = ack
-						--log:debug('newSeq: ' .. newSeq)
-						--log:debug('newAck: ' .. newAck)
-
-
-						tx2Bufs:alloc(70)
-						local txBuf = tx2Bufs[1]
-						local txPkt = tx2Bufs[1]:getTcp4Packet()
-
-						vRXBufs[i]:dump()
-						sequenceNumberTranslation(vRXBufs[i], txBuf, vRXPkt, txPkt, RIGHT_TO_LEFT)
-						tx2Bufs[1]:dump()
-
-						--tx2Bufs:offloadTcpChecksums()
-			
-						log:debug('Sending')
-						tx2Queue:send(tx2Bufs)
-						--log:debug('Sent')
-						
-
-						--log:debug('Freeing txBufs')
-						tx2Bufs:freeAll()
-
-						--mg.stop()
-					end
-				end
-			end
-		end
-		--log:debug('free vRX')
-		vRXBufs:freeAll()
 
 		--rxStats:update()
 		--txStats:update()
