@@ -129,10 +129,10 @@ end
 
 -- TODO add some form of timestamp and garbage collection on timeout
 -- eg if not refreshed, remove after 60 seconds(2bits, every 30 seconds unset one, if both unset remove)
-local verifiedConnections = {}
+local verifiedConnections = { num = 0 }
 
 function getIdx(pkt, leftToRight)
---	-- not collision free but faster for now
+--	-- not collision free but might be faster for now; nope, it isn't
 --	if leftToRight then
 --		return pkt.ip4:getSrc() + pkt.tcp:getSrc() + pkt.ip4:getDst() + pkt.tcp:getDst()
 --	else
@@ -167,9 +167,105 @@ function setVerified(pkt, leftToRight)
 	end
 end
 
+function setLeftVerified(pkt)
+	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+	local con = verifiedConnections[idx]
+	if con then
+		--log:debug('Already left verified')
+		return false
+	end
+	con = {}
+	con['lAck'] = pkt.tcp:getAckNumber()
+	con['num'] = verifiedConnections['num']
+	verifiedConnections['num'] = verifiedConnections['num'] + 1
+	verifiedConnections[idx] = con
+	return true
+end
+
+function setRightVerified(pkt)
+	local idx = getIdx(pkt, RIGHT_TO_LEFT)
+	local con = verifiedConnections[idx]
+	if not con then
+		log:debug('Not left verified, something is wrong')
+		return false
+	end
+	con['rSeq'] = pkt.tcp:getSeqNumber()
+	con['diff'] = con['rSeq'] - con['lAck'] + 1
+	--verifiedConnections[idx] = con
+	return true
+end
+
+function getCount(con)
+	c = 0
+	if con['lFin'] then
+		c = c + 1
+	end
+	if con['rFin'] then
+		c = c + 1
+	end
+	if con['rRst'] then
+		c = c + 1
+	end
+	if con['lRst'] then
+		c = c + 1
+	end
+	return c
+end
+
+function setFin(pkt, leftToRight)
+	local idx = getIdx(pkt, leftToRight)
+	local con = verifiedConnections[idx]
+	if not con then
+		log:debug('FIN for not verified connection ' .. (leftToRight and 'from left' or 'from right'))
+		return false
+	end
+	log:debug('one way FIN')
+	if leftToRight then
+		con['lFin'] = getCount(con)
+	else
+		con['rFin'] = getCount(con)
+	end
+	
+	if con['lFin'] and con['rFin'] then
+		log:warn('FIN successful, deleting con')
+		--verifiedConnections[idx] = nil
+		return true
+	end
+	return false
+end
+
+function setRst(pkt, leftToRight)
+	local idx = getIdx(pkt, leftToRight)
+	local con = verifiedConnections[idx]
+	if not con then
+		log:debug('RST for not verified connection ' .. (leftToRight and 'from left' or 'from right'))
+		return
+	end
+	log:debug('one way RST')
+	if leftToRight then
+		con['lRst'] = getCount(con)
+	else
+		con['rRst'] = getCount(con)
+	end
+	
+	if con['lRst'] and con['rRst'] then
+		log:warn('Rst successful, deleting con')
+		--verifiedConnections[idx] = nil
+	end
+end
+
 -- TODO update timstamp
-function isVerified(pkt, leftToRight)
-	return verifiedConnections[getIdx(pkt, leftToRight)]
+function isVerified(pkt, leftToRight, isReset)
+	local idx = getIdx(pkt, leftToRight)
+	local con = verifiedConnections[idx]
+	if isReset then
+		verifiedConnections[idx] = nil
+		log:warn('RST successful, deleting con')
+	end
+	if con and con['diff'] then
+		return con
+	end
+	return false
 end
 
 function printVerifiedConnections()
@@ -177,8 +273,12 @@ function printVerifiedConnections()
 	log:debug('Verified Connections')
 	for k, v in pairs(verifiedConnections) do
 		local str = ''
+		if type(v) == 'table' then
 		for ik, iv in pairs(v) do
-			str = str .. ', ' .. ik .. '=' .. iv
+			str = str .. ', ' .. tostring(ik) .. '=' .. tostring(iv)
+		end
+		else
+		str = tostring(v)
 		end
 		log:debug(tostring(k) .. ' -> ' .. str)
 	end
@@ -191,7 +291,7 @@ end
 ---------------------------------------------------
 
 -- simply resend the complete packet, but adapt seq/ack number
-function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
+function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight, isReset)
 	--log:info('Performing Sequence Number Translation')
 	-- calculate packet size
 	local size = rxPkt.ip4:getLength() + 14 + 6
@@ -201,7 +301,7 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	txBuf:setSize(size)
 
 	-- translate numbers, depends on direction
-	local diff = isVerified(rxPkt, leftToRight)
+	local diff = isVerified(rxPkt, leftToRight, isReset)
 	if not diff or not diff['diff'] then
 		log:error('translation without diff, something is horribly wrong')
 		rxBuf:dump()
@@ -216,9 +316,9 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	end
 
 	-- calculate checksums
-	--txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
-	--txPkt.ip4:calculateChecksum()
-	txPkt:calculateChecksums(txBuf:getData(), size, true)
+	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	txPkt.ip4:calculateChecksum()
+	--txPkt:calculateChecksums(txBuf:getData(), size, true)
 end
 
 
@@ -295,6 +395,7 @@ function tcpProxySlave(rxDev, txDev)
 		--log:debug('vRX: ' .. rx)
 		for i = 1, rx do
 			local translate = false
+			local reset = false
 			--log:debug('Pkt #' .. tostring(i))
 			local vRXPkt = vRXBufs[i]:getTcp4Packet()
 			if not isTcp(vRXPkt) then
@@ -305,18 +406,19 @@ function tcpProxySlave(rxDev, txDev)
 				local idx = getIdx(vRXPkt, RIGHT_TO_LEFT)
 				if isRst(vRXPkt) then
 					--log:info('Got RST packet from right ' .. idx)
+					--reset = true
+					setRst(vRXPkt, RIGHT_TO_LEFT)
 					translate = true
 				elseif isFin(vRXPkt) then
-					if isAck(vRXPkt) then
-						--log:info('Got FIN/ACK packet from right ' .. idx)
-					else
-						--log:info('Got FIN packet from right ' .. idx)
+					if setFin(vRXPkt, RIGHT_TO_LEFT) then
+						reset = true
 					end
 					translate = true
 				-- servers response, finally establish connection
 				elseif isSyn(vRXPkt) and isAck(vRXPkt) then
 					--log:info('Received SYN/ACK from server, sending ACK back')
-					setVerified(vRXPkt, RIGHT_TO_LEFT)
+					--setVerified(vRXPkt, RIGHT_TO_LEFT)
+					setRightVerified(vRXPkt)
 					
 					-- send ACK to server
 					vTXBufs:alloc(70)
@@ -364,7 +466,7 @@ function tcpProxySlave(rxDev, txDev)
 				local txPkt = tx2Bufs[1]:getTcp4Packet()
 
 				--vRXBufs[i]:dump()
-				sequenceNumberTranslation(vRXBufs[i], txBuf, vRXPkt, txPkt, RIGHT_TO_LEFT)
+				sequenceNumberTranslation(vRXBufs[i], txBuf, vRXPkt, txPkt, RIGHT_TO_LEFT, reset)
 				--tx2Bufs[1]:dump()
 
 				--tx2Bufs:offloadTcpChecksums()
@@ -392,6 +494,7 @@ function tcpProxySlave(rxDev, txDev)
 		end
 		for i = 1, rx do
 			local translate = false
+			local reset = false
 			--log:debug('Pkt #' .. tostring(i))
 			local rxPkt = rxBufs[i]:getTcp4Packet()
 			if not isTcp(rxPkt) then
@@ -403,13 +506,14 @@ function tcpProxySlave(rxDev, txDev)
 				local idx = getIdx(rxPkt, LEFT_TO_RIGHT)
 				if isRst(rxPkt) then
 					--log:info('Got RST packet from left ' .. idx)
+					setRst(rxPkt, LEFT_TO_RIGHT)
+					--reset = true
 					translate = true
 				elseif isFin(rxPkt) then
-					if isAck(rxPkt) then
-						--log:info('Got FIN/ACK packet from left ' .. idx)
-					else
-						--log:info('Got FIN packet from left ' .. idx)
+					if setFin(rxPkt, LEFT_TO_RIGHT) then
+						reset = true
 					end
+					--log:info('Got FIN packet from left ' .. idx)
 					translate = true
 				------------------------------------------------------------ SYN -> defense mechanism
 				elseif isSyn(rxPkt) then
@@ -466,35 +570,39 @@ function tcpProxySlave(rxDev, txDev)
 						if mss then
 							--log:debug('mss:            ' .. mss)
 							--log:info('Received valid cookie from left, starting handshake with server')
-							setVerified(rxPkt, LEFT_TO_RIGHT)
+							--setVerified(rxPkt, LEFT_TO_RIGHT)
 							
-							-- establish
-							--log:debug('alloc vTXBuf')
-							vTXBufs:alloc(70)
-							local vTXBuf = vTXBufs[1]
+							if setLeftVerified(rxPkt) then
+								-- establish
+								--log:debug('alloc vTXBuf')
+								vTXBufs:alloc(70)
+								local vTXBuf = vTXBufs[1]
 
-							-- set size of tx packet
-							local size = rxPkt.ip4:getLength() + 14
-							vTXBuf:setSize(size)
-							
-							-- copy data TODO directly use rx buffer
-							--log:debug('copy data')
-							ffi.copy(vTXBuf:getData(), rxBufs[i]:getData(), size)
-							
-							-- adjust some stuff: sequency number, flags, checksum, length fields
-							local vTXPkt = vTXBuf:getTcp4Packet()
-							vTXPkt.tcp:setSeqNumber(vTXPkt.tcp:getSeqNumber() - 1) -- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
-							vTXPkt.tcp:setSyn()
-							vTXPkt.tcp:unsetAck()
-							vTXPkt:setLength(size)
+								-- set size of tx packet
+								local size = rxPkt.ip4:getLength() + 14
+								vTXBuf:setSize(size)
+								
+								-- copy data TODO directly use rx buffer
+								--log:debug('copy data')
+								ffi.copy(vTXBuf:getData(), rxBufs[i]:getData(), size)
+								
+								-- adjust some stuff: sequency number, flags, checksum, length fields
+								local vTXPkt = vTXBuf:getTcp4Packet()
+								vTXPkt.tcp:setSeqNumber(vTXPkt.tcp:getSeqNumber() - 1) -- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
+								vTXPkt.tcp:setSyn()
+								vTXPkt.tcp:unsetAck()
+								vTXPkt:setLength(size)
 
-							-- calculate checksums
-							vTXPkt.tcp:calculateChecksum(vTXBuf:getData(), size, true)
-							vTXPkt.ip4:calculateChecksum()
-							
-							-- done, sending
-							--log:debug('Sending vTXBuf via KNI')
-							virtualDev:txSingle(vTXBuf)
+								-- calculate checksums
+								vTXPkt.tcp:calculateChecksum(vTXBuf:getData(), size, true)
+								vTXPkt.ip4:calculateChecksum()
+								
+								-- done, sending
+								--log:debug('Sending vTXBuf via KNI')
+								virtualDev:txSingle(vTXBuf)
+							else
+								-- was already left verified -> stall
+							end
 						else
 							--log:warn('Wrong cookie, dropping packet')
 							-- drop, and done
@@ -514,7 +622,7 @@ function tcpProxySlave(rxDev, txDev)
 				local vTXBuf = vTXBufs[1]
 
 				local vTXPkt = vTXBufs[1]:getTcp4Packet()
-				sequenceNumberTranslation(rxBufs[i], vTXBufs[1], rxPkt, vTXPkt, LEFT_TO_RIGHT)
+				sequenceNumberTranslation(rxBufs[i], vTXBufs[1], rxPkt, vTXPkt, LEFT_TO_RIGHT, reset)
 				--log:debug('sending via KNI')
 				virtualDev:txSingle(vTXBuf)
 			end
@@ -538,8 +646,8 @@ function tcpProxySlave(rxDev, txDev)
 
 		----------------------------- all actions by polling left interface done (also all buffers sent or cleared)
 
-		--rxStats:update()
-		--txStats:update()
+		rxStats:update()
+		txStats:update()
 	end
 	printVerifiedConnections()
 
