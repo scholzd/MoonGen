@@ -146,37 +146,44 @@ function getIdx(pkt, leftToRight)
 	end
 end
 
-function setVerified(pkt, leftToRight)
-	local idx = getIdx(pkt, leftToRight)
-	if not verifiedConnections[idx] then
-		verifiedConnections[idx] = {}
-	end
-	if leftToRight then
-		verifiedConnections[idx]['lSeq'] = pkt.tcp:getSeqNumber()
-		verifiedConnections[idx]['lAck'] = pkt.tcp:getAckNumber()
-	else
-		verifiedConnections[idx]['rSeq'] = pkt.tcp:getSeqNumber()
-		verifiedConnections[idx]['rAck'] = pkt.tcp:getAckNumber()
-		-- response from server, hence, we must have the left values already and can calculate diff
-		-- check anyway :)
-		if not verifiedConnections[idx]['lSeq'] then
-			log:warn('Scumbag server sending random SYN/ACKs. Seriously.')
-			return
-		end
-		verifiedConnections[idx]['diff'] = verifiedConnections[idx]['rSeq'] - verifiedConnections[idx]['lAck'] + 1
-	end
-end
+--function setVerified(pkt, leftToRight)
+--	local idx = getIdx(pkt, leftToRight)
+--	if not verifiedConnections[idx] then
+--		verifiedConnections[idx] = {}
+--	end
+--	if leftToRight then
+--		verifiedConnections[idx]['lSeq'] = pkt.tcp:getSeqNumber()
+--		verifiedConnections[idx]['lAck'] = pkt.tcp:getAckNumber()
+--	else
+--		verifiedConnections[idx]['rSeq'] = pkt.tcp:getSeqNumber()
+--		verifiedConnections[idx]['rAck'] = pkt.tcp:getAckNumber()
+--		-- response from server, hence, we must have the left values already and can calculate diff
+--		-- check anyway :)
+--		if not verifiedConnections[idx]['lSeq'] then
+--			log:warn('Scumbag server sending random SYN/ACKs. Seriously.')
+--			return
+--		end
+--		verifiedConnections[idx]['diff'] = verifiedConnections[idx]['rSeq'] - verifiedConnections[idx]['lAck'] + 1
+--	end
+--end
 
 function setLeftVerified(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
 	local con = verifiedConnections[idx]
 	if con then
-		--log:debug('Already left verified')
+		log:debug('Already left verified')
 		return false
 	end
 	con = {}
 	con['lAck'] = pkt.tcp:getAckNumber()
 	con['num'] = verifiedConnections['num']
+	con['lPkts'] = 0
+	con['rPkts'] = 0
+	con['lFin'] = ''
+	con['rFin'] = ''
+	con['lRst'] = ''
+	con['rRst'] = ''
+	con['numPkts'] = 0
 	verifiedConnections['num'] = verifiedConnections['num'] + 1
 	verifiedConnections[idx] = con
 	return true
@@ -191,25 +198,15 @@ function setRightVerified(pkt)
 	end
 	con['rSeq'] = pkt.tcp:getSeqNumber()
 	con['diff'] = con['rSeq'] - con['lAck'] + 1
-	--verifiedConnections[idx] = con
 	return true
 end
 
-function getCount(con)
-	c = 0
-	if con['lFin'] then
-		c = c + 1
-	end
-	if con['rFin'] then
-		c = c + 1
-	end
-	if con['rRst'] then
-		c = c + 1
-	end
-	if con['lRst'] then
-		c = c + 1
-	end
-	return c
+function incPkts(con)
+	con['numPkts'] = con['numPkts'] + 1
+end
+
+function getPkts(con)
+	return con['numPkts']
 end
 
 function setFin(pkt, leftToRight)
@@ -219,15 +216,15 @@ function setFin(pkt, leftToRight)
 		log:debug('FIN for not verified connection ' .. (leftToRight and 'from left' or 'from right'))
 		return false
 	end
-	log:debug('one way FIN')
+	log:debug('one way FIN ' .. (leftToRight and 'from left' or 'from right'))
 	if leftToRight then
-		con['lFin'] = getCount(con)
+		con['lFin'] = getPkts(con)
 	else
-		con['rFin'] = getCount(con)
+		con['rFin'] = getPkts(con)
 	end
 	
 	if con['lFin'] and con['rFin'] then
-		log:warn('FIN successful, deleting con')
+		log:warn('FIN in both directions')
 		--verifiedConnections[idx] = nil
 		return true
 	end
@@ -241,11 +238,11 @@ function setRst(pkt, leftToRight)
 		log:debug('RST for not verified connection ' .. (leftToRight and 'from left' or 'from right'))
 		return
 	end
-	log:debug('one way RST')
+	log:debug('one way RST ' .. (leftToRight and 'from left' or 'from right'))
 	if leftToRight then
-		con['lRst'] = getCount(con)
+		con['lRst'] = getPkts(con)
 	else
-		con['rRst'] = getCount(con)
+		con['rRst'] = getPkts(con)
 	end
 	
 	if con['lRst'] and con['rRst'] then
@@ -254,15 +251,28 @@ function setRst(pkt, leftToRight)
 	end
 end
 
+function unsetVerified(pkt, leftToRight)
+	local idx = getIdx(pkt, leftToRight)
+	log:warn('Deleting conn')
+	verifiedConnections[idx] = nil
+end
+
 -- TODO update timstamp
 function isVerified(pkt, leftToRight, isReset)
 	local idx = getIdx(pkt, leftToRight)
 	local con = verifiedConnections[idx]
-	if isReset then
-		verifiedConnections[idx] = nil
+	if isReset then -- TODO why????
+		--verifiedConnections[idx] = nil
 		log:warn('RST successful, deleting con')
 	end
+
 	if con and con['diff'] then
+		if leftToRight then
+			con['lPkts'] = con['lPkts'] + 1
+		else
+			con['rPkts'] = con['rPkts'] + 1
+		end
+		incPkts(con)
 		return con
 	end
 	return false
@@ -405,8 +415,8 @@ function tcpProxySlave(rxDev, txDev)
 				--vRXBufs[i]:dump()
 				local idx = getIdx(vRXPkt, RIGHT_TO_LEFT)
 				if isRst(vRXPkt) then
-					--log:info('Got RST packet from right ' .. idx)
-					--reset = true
+					log:debug('Got RST packet from right ' .. idx)
+					reset = true
 					setRst(vRXPkt, RIGHT_TO_LEFT)
 					translate = true
 				elseif isFin(vRXPkt) then
@@ -416,7 +426,7 @@ function tcpProxySlave(rxDev, txDev)
 					translate = true
 				-- servers response, finally establish connection
 				elseif isSyn(vRXPkt) and isAck(vRXPkt) then
-					--log:info('Received SYN/ACK from server, sending ACK back')
+					log:info('Received SYN/ACK from server, sending ACK back')
 					--setVerified(vRXPkt, RIGHT_TO_LEFT)
 					setRightVerified(vRXPkt)
 					
@@ -455,12 +465,12 @@ function tcpProxySlave(rxDev, txDev)
 					virtualDev:txSingle(vTXBuf)
 				else
 					-- anything else must be from a verified connection, translate and send via physical nic
-					--log:info('Packet of verified connection from server, translate and forward')
+					log:info('Packet of verified connection from server, translate and forward')
 					translate = true
 				end
 			end
 			if translate then
-				--log:info('Translating from right to left')
+				log:info('Translating from right to left')
 				tx2Bufs:alloc(70)
 				local txBuf = tx2Bufs[1]
 				local txPkt = tx2Bufs[1]:getTcp4Packet()
@@ -471,12 +481,8 @@ function tcpProxySlave(rxDev, txDev)
 
 				--tx2Bufs:offloadTcpChecksums()
 			
-				--log:debug('Sending')
 				tx2Queue:send(tx2Bufs)
-				--log:debug('Sent')
-				
-				--log:debug('Freeing txBufs')
-				tx2Bufs:freeAll()
+				--tx2Bufs:freeAll()
 			end
 		end
 		
@@ -509,6 +515,7 @@ function tcpProxySlave(rxDev, txDev)
 					setRst(rxPkt, LEFT_TO_RIGHT)
 					--reset = true
 					translate = true
+					reset = true
 				elseif isFin(rxPkt) then
 					if setFin(rxPkt, LEFT_TO_RIGHT) then
 						reset = true
@@ -519,6 +526,7 @@ function tcpProxySlave(rxDev, txDev)
 				elseif isSyn(rxPkt) then
 					--log:info('Received SYN from left')
 					-- strategy cookie
+
 					local cookie, mss = calculateCookie(rxPkt)
 				
 					-- build tx pkt
@@ -546,10 +554,9 @@ function tcpProxySlave(rxDev, txDev)
 
 					--log:info('TX pkt')
 					--txBufs[i]:dump()
-
 				------------------------------------------------------------ ACK -> create connection/translate
 				elseif isAck(rxPkt) then
-					--log:info('Received ACK')
+					log:info('Received ACK')
 					-- check with existing cons
 					-- if already finished the handshake, immediately forward, otherwise check cookie
 					local diff = isVerified(rxPkt, LEFT_TO_RIGHT) 
@@ -558,9 +565,9 @@ function tcpProxySlave(rxDev, txDev)
 						if not diff['diff'] then
 							-- this happens when left is faster than right
 							-- can't do much aside from discarding it
-							--log:warn('Received packet of only half verified connection from left, stalling')
+							log:warn('Received packet of only half verified connection from left, stalling')
 						else
-							--log:info('Received packet of verified connection from left, translating and forwarding')
+							log:info('Received packet of verified connection from left, translating and forwarding')
 							translate = true
 						end
 					else
@@ -569,7 +576,7 @@ function tcpProxySlave(rxDev, txDev)
 						local mss = verifyCookie(rxPkt)
 						if mss then
 							--log:debug('mss:            ' .. mss)
-							--log:info('Received valid cookie from left, starting handshake with server')
+							log:info('Received valid cookie from left, starting handshake with server')
 							--setVerified(rxPkt, LEFT_TO_RIGHT)
 							
 							if setLeftVerified(rxPkt) then
@@ -602,9 +609,10 @@ function tcpProxySlave(rxDev, txDev)
 								virtualDev:txSingle(vTXBuf)
 							else
 								-- was already left verified -> stall
+								log:warn('Already left verified, stalling')
 							end
 						else
-							--log:warn('Wrong cookie, dropping packet')
+							log:warn('Wrong cookie, dropping packet')
 							-- drop, and done
 							-- most likely simply the timestamp timed out
 							-- but it might also be a DoS attack that tried to guess the cookie

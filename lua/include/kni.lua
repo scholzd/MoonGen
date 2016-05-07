@@ -53,6 +53,10 @@ function mg_kni:rxBurst(bufs, nmax)
   return ffi.C.rte_kni_rx_burst(self.kni, bufs.array, nmax)
 end
 
+function mg_kni:txBurst(bufs, nmax)
+  return ffi.C.rte_kni_tx_burst(self.kni, bufs.array, nmax)
+end
+
 function mg_kni:txSingle(mbuf)
   ffi.C.mg_kni_tx_single(self.kni, mbuf)
 end
