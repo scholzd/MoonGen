@@ -7,17 +7,12 @@ local profile	= require "jit.profile"
 local kni 		= require "kni"
 local ffi		= require "ffi"
 local dpdkc 	= require "dpdkc"
-
 local proto		= require "proto/proto"
-
--- utility
-local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
 
 
 ---------------------------------------------------
 -- Usage
 ---------------------------------------------------
--- TODO config for interfaces etc
 
 function master(rxPort, txPort)
 	if not txPort or not rxPort then
@@ -37,8 +32,16 @@ function master(rxPort, txPort)
 end
 
 
+---------------------------------------------------
+-- Terminology
+---------------------------------------------------
+
+-- left: outside, internet, clients, potential attackers, whatever
+-- right: "protected" side, connection to server(s), only filtered traffic comes here
+
+
 -----------------------------------------------------
--- profiling TODO move to util or new profiling.lua
+-- profiling
 -----------------------------------------------------
 
 local profile_stats = {}
@@ -53,6 +56,11 @@ function profile_callback(thread, samples, vmstate)
 	end
 end
 
+
+-----------------------------------------------------
+-- utility 
+-----------------------------------------------------
+
 function isIP4(pkt)
 	return pkt.eth:getType() == proto.eth.TYPE_IP 
 end
@@ -61,48 +69,47 @@ function isTcp(pkt)
 	return isIP4(pkt) and pkt.ip4:getProtocol() == proto.ip4.PROTO_TCP
 end
 
+
 ---------------------------------------------------
 -- slave
 ---------------------------------------------------
 
-function tcpProxySlave(rxDev, txDev)
-	log:setLevel("DEBUG")
+function tcpProxySlave(lRXDev, lTXDev)
+	--log:setLevel("DEBUG")
 	
-	-- virutal KNI
-	log:info('Init KNI')
+	-- Create KNI device
+	log:info('Initialize KNI')
 	kni.init(4)
-	log:info('Creating virtual Dev')
+	log:info('Creating virtual device')
 	local virtualDevMemPool = memory.createMemPool{n=8192}
-	local virtualDev = kni.createKNI(0, rxDev, virtualDevMemPool, "vEth1")
-	log:info('Ifconfig virtual Dev')
-	io.popen("/sbin/ifconfig " .. "vEth1" .. " " .. "192.168.1.1" .. "/" .. "24")
-	for i = 0, 100 do
-    	virtualDev:handleRequest()	
-		mg.sleepMillisIdle(1)
-	end
-	log:info('ARP virtual Dev')
+	local virtualDev = kni.createKNI(0, lRXDev, virtualDevMemPool, "vEth0")
+	log:info('Ifconfig virtual device')
+	virtualDev:setIP("192.168.1.1", 24)
+
+	log:info('ARP entry for client') -- TODO use ARP task
 	io.popen("/usr/sbin/arp -s 192.168.1.101 90:e2:ba:98:58:78")
 
+	-- not sure but without this it doesn't work
 	for i = 0, 100 do
     	virtualDev:handleRequest()	
 		mg.sleepMillisIdle(1)
 	end
 
-	-- v rx
-	local vRXMem = memory.createMemPool()	
-	local vRXBufs = vRXMem:bufArray()
+	-- right side (virtual device) buffers
+	local rRXMem = memory.createMemPool()	
+	local rRXBufs = rRXMem:bufArray()
 
 
 	-- physical interfaces
 	-- rx Dev
-	local rxQueue = rxDev:getRxQueue(0)
-	local rxMem = memory.createMemPool()	
-	local rxBufs = rxMem:bufArray()
-	rxStats = stats:newDevRxCounter(rxDev, "plain")
+	local lRXQueue = lRXDev:getRxQueue(0)
+	local lRXMem = memory.createMemPool()	
+	local lRXBufs = lRXMem:bufArray()
+	lRXStats = stats:newDevRxCounter(lRXDev, "plain")
 	
 	-- tx queue
-	local txQueue = txDev:getTxQueue(0)
-	txStats = stats:newDevTxCounter(txDev, "plain")
+	local lTXQueue = lTXDev:getTxQueue(0)
+	lTXStats = stats:newDevTxCounter(lTXDev, "plain")
 
 	-- profiling
 	profile.start("l", profile_callback)
@@ -110,53 +117,32 @@ function tcpProxySlave(rxDev, txDev)
 	-- main event loop
 	log:info('Starting TCP Proxy')
 	while mg.running() do		
-		local rx = rxQueue:tryRecv(rxBufs, 1)
+		-- poll left interface
+		local rx = lRXQueue:tryRecv(lRXBufs, 1)
 		for i = 1, rx do
-			local pkt = rxBufs[i]:getTcp4Packet()
+			local pkt = lRXBufs[i]:getTcp4Packet()
 			if isTcp(pkt) then
-				pkt.tcp:setChecksum()
-				pkt.ip4:setChecksum()
-				pkt.tcp:calculateChecksum(rxBufs[i]:getData(), pkt.ip4:getLength() + 14, true)
+				pkt.tcp:calculateChecksum(lRXBufs[i]:getData(), pkt.ip4:getLength() + 14, true)
 				pkt.ip4:calculateChecksum()
 			end
 		end
-		virtualDev:txBurst(rxBufs, rx)
+		virtualDev:txBurst(lRXBufs, rx)
 		
-		local rx = virtualDev:rxBurst(vRXBufs, 63)
+		-- poll right interface
+		local rx = virtualDev:rxBurst(rRXBufs, 63)
+		rRXBufs:resize(rx)
 		for i = 1, rx do
-			local pkt = vRXBufs[i]:getTcp4Packet()
+			local pkt = rRXBufs[i]:getTcp4Packet()
 			if isTcp(pkt) then
-				--log:info('Before')
-				--pkt.tcp:setChecksum()
-				--pkt.ip4:setChecksum()
-				--vRXBufs[i]:dump()
-				local b = pkt.tcp:getChecksum()
-				pkt.tcp:calculateChecksum(vRXBufs[i]:getData(), pkt.ip4:getLength() + 14, true)
-				--pkt.ip4:calculateChecksum()
-				local a = pkt.tcp:getChecksum()
-				if not (a == b) then
-					log:debug('Not equal checksums ' .. string.format('%x', a) .. ' ' .. string.format('%x', b))
-					vRXBufs[i]:dump()
-				end
-				if pkt.tcp:getRst() == 1 then
-					log:debug('Is RST')
-				end
-				if pkt.tcp:getFin() == 1 then
-					--log:debug('Is FIN')
-				end
-				--vRXBufs[i]:offloadTcpChecksum(true, nil, nil)
-				--log:info('After')
-
-				--vRXBufs[i]:dump()
-
+				pkt.tcp:calculateChecksum(rRXBufs[i]:getData(), pkt.ip4:getLength() + 14, true)
+				pkt.ip4:calculateChecksum()
 			end
-		end
-		--vRXBufs:offloadTcpChecksums(true, nil, nil, rx)
-		txQueue:sendN(vRXBufs, rx)
-		--vRXBufs:freeAll()
 
-		rxStats:update()
-		txStats:update()
+		end
+		lTXQueue:send(rRXBufs)
+
+		lRXStats:update()
+		lTXStats:update()
 	end
 	log:info('Releasing KNI device')
 	virtualDev:release()
@@ -164,8 +150,8 @@ function tcpProxySlave(rxDev, txDev)
 	log:info('Closing KNI')
 	kni.close()
 	
-	rxStats:finalize()
-	txStats:finalize()
+	lRXStats:finalize()
+	lTXStats:finalize()
 
 	profile.stop()
 
@@ -175,7 +161,5 @@ function tcpProxySlave(rxDev, txDev)
 		print( v .. " ::: " .. i)
 	end
 
-	---- this is just for testing garbage collection
-	--collectgarbage("collect")
 	log:info('Slave done')
 end
