@@ -397,20 +397,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 			if not isTcp(rRXPkt) then
 				--log:info('Ignoring rRX packet from server that is not TCP')
 			else
-				--------------------------------------------------------------------- process TCP
-				--rRXBufs[i]:dump()
-				local idx = getIdx(rRXPkt, RIGHT_TO_LEFT)
-				if isRst(rRXPkt) then -- TODO move to bottom
-					log:debug('Got RST packet from right ' .. idx)
-					setRst(rRXPkt, RIGHT_TO_LEFT)
-					translate = true
-				elseif isFin(rRXPkt) then
-					log:debug('Got FIN packet from right ' .. idx)
-					setFin(rRXPkt, RIGHT_TO_LEFT)
-					translate = true
+				---------------------------------------------------------------------- process TCP
 				---------------------------------------------------------------------- SYN/ACK from server, finally establish connection
-				elseif isSyn(rRXPkt) and isAck(rRXPkt) then
-					--log:info('Received SYN/ACK from server, sending ACK back')
+				if isSyn(rRXPkt) and isAck(rRXPkt) then
+					log:info('Received SYN/ACK from server, sending ACK back')
 					setRightVerified(rRXPkt)
 					
 					-- send ACK to server
@@ -446,10 +436,22 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- done, sending
 					--log:debug('Sending rTXBuf via KNI')
 					virtualDev:txSingle(rTXBuf)
-				else
+				----------------------------------------------------------------------- any verified packet from server
+				elseif isVerified(rRXPkt, RIGHT_TO_LEFT) then
 					-- anything else must be from a verified connection, translate and send via physical nic
 					--log:info('Packet of verified connection from server, translate and forward')
+					local idx = getIdx(rRXPkt, RIGHT_TO_LEFT)
+					if isRst(rRXPkt) then -- TODO move to bottom
+						log:debug('Got RST packet from right ' .. idx)
+						setRst(rRXPkt, RIGHT_TO_LEFT)
+					elseif isFin(rRXPkt) then
+						log:debug('Got FIN packet from right ' .. idx)
+						setFin(rRXPkt, RIGHT_TO_LEFT)
+					end
 					translate = true
+				------------------------------------------------------------------------ not verified connection from server
+				else
+					log:debug('Packet of not verified connection from right')
 				end
 			end
 			if translate then
@@ -483,17 +485,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 				log:info('Ignoring packet that is not TCP from left')
 			--------------------------------------------------------------- processing TCP
 			else
-				local idx = getIdx(lRXPkt, LEFT_TO_RIGHT)
-				if isRst(lRXPkt) then -- TODO move to bottom
-					log:debug('Got RST packet from left ' .. idx)
-					setRst(lRXPkt, LEFT_TO_RIGHT)
-					translate = true
-				elseif isFin(lRXPkt) then
-					log:debug('Got FIN packet from left ' .. idx)
-					setFin(lRXPkt, LEFT_TO_RIGHT)
-					translate = true
 				------------------------------------------------------------ SYN -> defense mechanism
-				elseif isSyn(lRXPkt) then
+				if isSyn(lRXPkt) then
 					--log:info('Received SYN from left')
 					-- strategy cookie
 
@@ -521,73 +514,72 @@ function tcpProxySlave(lRXDev, lTXDev)
 
 					-- length
 					lTXBufs[i]:setSize(lRXBufs[i]:getSize())
-				----------------------------------------------------------------------------------------------------------- ACK -> left verified, start handshake with right
-				elseif isAck(lRXPkt) then
-					--log:info('Received ACK')
-					-- check with verified connections
-					-- if already verified in both directions, immediately forward, otherwise check cookie
-					local diff = isVerified(lRXPkt, LEFT_TO_RIGHT) 
-					if diff then
-						if not diff['diff'] then
-							-- this happens when left is faster than the handshake with right
-							-- can't do much aside from discarding it (can't translate it yet)
-							-- left simply needs to resend the packet
-							log:warn('Received packet of only half verified connection from left, discarding')
-						else
-							--log:info('Received packet of verified connection from left, translating and forwarding')
-							translate = true
-						end
-					------------------------------------------------------------------------------------------------------- verify cookie
-					else
-						local ack = lRXPkt.tcp:getAckNumber()
-						local mss = verifyCookie(lRXPkt)
-						if mss then
-							--log:info('Received valid cookie from left, starting handshake with server')
-							
-							if setLeftVerified(lRXPkt) then
-								-- connection is left verified, start handshake with right
-								rTXBufs:alloc(70)
-								local rTXBuf = rTXBufs[1]
-
-								-- set size of tx packet
-								local size = lRXPkt.ip4:getLength() + 14
-								rTXBuf:setSize(size)
-								
-								-- copy data TODO directly use rx buffer
-								ffi.copy(rTXBuf:getData(), lRXBufs[i]:getData(), size)
-								
-								-- adjust some members: sequency number, flags, checksum, length fields
-								local rTXPkt = rTXBuf:getTcp4Packet()
-								-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
-								-- this way, it does not have to be translated at all
-								rTXPkt.tcp:setSeqNumber(rTXPkt.tcp:getSeqNumber() - 1)
-								rTXPkt.tcp:setSyn()
-								rTXPkt.tcp:unsetAck()
-								rTXPkt:setLength(size)
-
-								-- calculate checksums
-								rTXPkt.tcp:calculateChecksum(rTXBuf:getData(), size, true)
-								rTXPkt.ip4:calculateChecksum()
-								
-								-- done, sending
-								--log:debug('Sending vTXBuf via KNI')
-								virtualDev:txSingle(rTXBuf)
-							else
-								-- was already left verified -> stall
-								-- should not happen as it is checked above already
-								log:warn('Already left verified, discarding')
-							end
-						else
-							log:warn('Wrong cookie, dropping packet ' .. getIdx(lRXPkt, LEFT_TO_RIGHT))
-							-- drop, and done
-							-- most likely simply the timestamp timed out
-							-- but it might also be a DoS attack that tried to guess the cookie
-						end
+				-------------------------------------------------------------------------------------------------------- verified -> translate and forward
+				-- check with verified connections
+				-- if already verified in both directions, immediately forward, otherwise check cookie
+				elseif isVerified(lRXPkt, LEFT_TO_RIGHT) then 
+					--log:info('Received packet of verified connection from left, translating and forwarding')
+					local idx = getIdx(lRXPkt, LEFT_TO_RIGHT)
+					if isRst(lRXPkt) then -- TODO move to bottom
+						log:debug('Got RST packet from left ' .. idx)
+						setRst(lRXPkt, LEFT_TO_RIGHT)
+						translate = true
+					elseif isFin(lRXPkt) then
+						log:debug('Got FIN packet from left ' .. idx)
+						setFin(lRXPkt, LEFT_TO_RIGHT)
+						translate = true
 					end
-						
-				else
-					log:info('Received other TCP packet from left. Should also be forwarded')
 					translate = true
+				------------------------------------------------------------------------------------------------------- not verified, but is ack -> verify cookie
+				elseif isAck(lRXPkt) then
+					local ack = lRXPkt.tcp:getAckNumber()
+					local mss = verifyCookie(lRXPkt)
+					if mss then
+						--log:info('Received valid cookie from left, starting handshake with server')
+						
+						if setLeftVerified(lRXPkt) then
+							-- connection is left verified, start handshake with right
+							rTXBufs:alloc(70)
+							local rTXBuf = rTXBufs[1]
+
+							-- set size of tx packet
+							local size = lRXPkt.ip4:getLength() + 14
+							rTXBuf:setSize(size)
+							
+							-- copy data TODO directly use rx buffer
+							ffi.copy(rTXBuf:getData(), lRXBufs[i]:getData(), size)
+							
+							-- adjust some members: sequency number, flags, checksum, length fields
+							local rTXPkt = rTXBuf:getTcp4Packet()
+							-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
+							-- this way, it does not have to be translated at all
+							rTXPkt.tcp:setSeqNumber(rTXPkt.tcp:getSeqNumber() - 1)
+							rTXPkt.tcp:setSyn()
+							rTXPkt.tcp:unsetAck()
+							rTXPkt:setLength(size)
+
+							-- calculate checksums
+							rTXPkt.tcp:calculateChecksum(rTXBuf:getData(), size, true)
+							rTXPkt.ip4:calculateChecksum()
+							
+							-- done, sending
+							--log:debug('Sending vTXBuf via KNI')
+							virtualDev:txSingle(rTXBuf)
+						else
+							-- was already left verified -> stall
+							-- should not happen as it is checked above already
+							log:warn('Already left verified, discarding')
+						end
+					else
+						log:warn('Wrong cookie, dropping packet ' .. getIdx(lRXPkt, LEFT_TO_RIGHT))
+						-- drop, and done
+						-- most likely simply the timestamp timed out
+						-- but it might also be a DoS attack that tried to guess the cookie
+					end
+				----------------------------------------------------------------------------------------------- unverified, but not syn/ack -> ignore
+				else
+					-- not syn, unverified packets -> belongs to already deleted connection -> drop
+					--log:error('unhandled packet ' .. tostring(isVerified(lRXPkt, LEFT_TO_RIGHT)))
 				end
 			end
 			if translate then
