@@ -142,7 +142,9 @@ function setLeftVerified(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
 	local con = verifiedConnections[idx]
 	if con then
-		log:debug('Already left verified')
+		-- connection is left verified, 
+		-- hence, this syn is duplicated and can be dropped
+		--log:debug('Already left verified')
 		return false
 	end
 	con = {}
@@ -164,7 +166,10 @@ function setRightVerified(pkt)
 	local idx = getIdx(pkt, RIGHT_TO_LEFT)
 	local con = verifiedConnections[idx]
 	if not con then
-		log:debug('Not left verified, something is wrong')
+		-- not left verified,
+		-- happens if a connection is deleted 
+		-- but right still has some packets in flight
+		--log:debug('Not left verified, something is wrong')
 		return false
 	end
 	con['rSeq'] = pkt.tcp:getSeqNumber()
@@ -184,7 +189,10 @@ function setFin(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
 	local con = verifiedConnections[idx]
 	if not con then
-		log:debug('FIN for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
+		-- FIN for not verified connection
+		-- means conenction was already deleted
+		-- and this packet can be ignored
+		--log:debug('FIN for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
 		return
 	end
 	--log:debug('one way FIN ' .. (leftToRight and 'from left' or 'from right'))
@@ -193,6 +201,7 @@ function setFin(pkt, leftToRight)
 	else
 		con['rFin'] = con['rFin'] .. '-' .. getPkts(con)
 	end
+	-- to identify the final ACK of the connection store the Sequence number
 	if con['lFin'] and con['rFin'] then 
 		con['FinSeqNumber'] = pkt.tcp:getSeqNumber()
 	end
@@ -202,7 +211,10 @@ function setRst(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
 	local con = verifiedConnections[idx]
 	if not con then
-		log:debug('RST for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
+		-- RST for not verified connection
+		-- means conenction was already deleted
+		-- and this packet can be ignored
+		--log:debug('RST for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
 		return
 	end
 	--log:debug('one way RST ' .. (leftToRight and 'from left' or 'from right'))
@@ -215,28 +227,28 @@ end
 
 function checkUnsetVerified(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
-	if verifiedConnections[idx]['lRst'] ~= '' then 
+	local con = verifiedConnections[idx]
+	-- RST: in any case, delete connection
+	if con['lRst'] ~= '' then 
 		unsetVerified(pkt, leftToRight)
-	elseif verifiedConnections[idx]['rRst'] ~= '' then 
+	elseif con['rRst'] ~= '' then 
 		unsetVerified(pkt, leftToRight)
-	elseif verifiedConnections[idx]['lFin'] ~= '' and verifiedConnections[idx]['rFin'] ~= '' then 
-		-- check for ack
-		if isAck(pkt) then
-			-- check ack num matches
-			if verifiedConnections[idx]['FinSeqNumber'] + 1 == pkt.tcp:getAckNumber() then
+	-- FIN: only if both parties sent a FIN
+	-- 		+ it has to be an ACK for the last sequence number
+	elseif con['lFin'] ~= '' and con['rFin'] ~= '' then 
+		-- check for ack and the number matches
+		if isAck(pkt) and con['FinSeqNumber'] + 1 == pkt.tcp:getAckNumber() then
 				unsetVerified(pkt, leftToRight)
-			else
-				log:debug('nope')
-			end
-		else
-			log:debug('not ack')
-		end		
+		end
+		-- otherwise it was an old packet or wrong direction
+		-- no action in that case
 	end
 end
 
 function unsetVerified(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
-	log:warn('Deleting connection ' .. idx)
+	--log:warn('Deleting connection ' .. idx)
+	-- disabled as it has huge performance impact :( (3k reqs/s)
 	--verifiedConnections[idx] = nil
 end
 
@@ -245,6 +257,8 @@ function isVerified(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
 	local con = verifiedConnections[idx]
 
+	-- a connection is verified if it is in both directions
+	-- in that case, the diff is calculated
 	if con and con['diff'] then
 		if leftToRight then
 			con['lPkts'] = con['lPkts'] + 1
@@ -281,20 +295,28 @@ end
 
 -- simply resend the complete packet, but adapt seq/ack number
 function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
-	--log:info('Performing Sequence Number Translation ' .. (leftToRight and 'from left ' or 'from right '))
-	-- calculate packet size                WTF WHY??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
-	local size = rxPkt.ip4:getLength() + 14 + 6
+	--log:debug('Performing Sequence Number Translation ' .. (leftToRight and 'from left ' or 'from right '))
+	
+	-- calculate packet size
+	-- must not be smaller than 60
+	--local size = rxPkt.ip4:getLength() + 14
+	--size = size < 60 and 60 or size
+	
+	-- I recall this delivered the wrong size once
+	-- however, it is significantly faster (4-5k reqs/s!!)
+	local size = rxBuf:getSize() 	
 	
 	-- copy content
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
 	txBuf:setSize(size)
-	size = size - 6
 
 	-- translate numbers, depends on direction
 	local diff = isVerified(rxPkt, leftToRight)
-	if not diff or not diff['diff'] then
-		log:error('translation without diff, something is horribly wrong ' .. getIdx(rxPkt, leftToRight))
-		rxBuf:dump()
+	if not diff then
+		-- packet is not verified, hence, we can't translate it
+		-- happens after deleting connections or before second handshake is finished
+		--log:error('translation without diff, something is horribly wrong ' .. getIdx(rxPkt, leftToRight))
+		--rxBuf:dump()
 		return
 	end
 	if leftToRight then
@@ -305,10 +327,9 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber())
 	end
 
-	-- calculate checksums
+	-- calculate TCP checksum
 	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
-	txPkt.ip4:calculateChecksum()
-	--txPkt:calculateChecksums(txBuf:getData(), size, true)
+	-- IP header does not change, hence, do not recalculate IP checksum
 
 	-- check whether connection should be deleted
 	checkUnsetVerified(rxPkt, leftToRight)
@@ -408,7 +429,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					local rTXBuf = rTXBufs[1]
 
 					-- set size of tx packet
-					local size = rRXPkt.ip4:getLength() + 14
+					local size = rRXBufs[i]:getSize()
 					rTXBuf:setSize(size)
 					
 					-- copy data TODO directly use rx buffer
@@ -543,7 +564,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							local rTXBuf = rTXBufs[1]
 
 							-- set size of tx packet
-							local size = lRXPkt.ip4:getLength() + 14
+							local size = lRXBufs[i]:getSize()
 							rTXBuf:setSize(size)
 							
 							-- copy data TODO directly use rx buffer
