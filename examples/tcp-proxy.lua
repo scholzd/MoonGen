@@ -39,6 +39,93 @@ function master(rxPort, txPort)
 end
 
 
+---------------------------------------------------
+-- Terminology
+---------------------------------------------------
+
+-- left: outside, internet, clients, potential attackers, whatever
+-- right: "protected" side, connection to server(s), only filtered traffic comes here
+
+
+---------------------------------------------------
+-- Constants
+---------------------------------------------------
+
+LEFT_TO_RIGHT = true
+RIGHT_TO_LEFT = false
+
+
+-----------------------------------------------------
+-- debug utility 
+-----------------------------------------------------
+
+-- print table of string -> string
+function sT(t)
+	local str = ''
+	for k, v in pairs(t) do
+		str = str .. ', ' .. k .. ' -> ' .. v
+	end
+	return str
+end
+
+
+-----------------------------------------------------
+-- profiling
+-----------------------------------------------------
+
+local profile_stats = {}
+
+function profile_callback(thread, samples, vmstate)
+	local dump = profile.dumpstack(thread, "l (f) << ", 1)
+	--printf("profile cb: " .. dump)
+	if(profile_stats[dump]) then
+		profile_stats[dump] = profile_stats[dump] + 1
+	else
+		profile_stats[dump] = 1
+	end
+end
+
+
+----------------------------------------------------
+-- check packet type
+----------------------------------------------------
+
+function isIP4(pkt)
+	return pkt.eth:getType() == proto.eth.TYPE_IP 
+end
+
+function isTcp4(pkt)
+	return isIP4(pkt) and pkt.ip4:getProtocol() == proto.ip4.PROTO_TCP
+end
+
+function isSyn(pkt)
+	return pkt.tcp:getSyn() == 1
+end
+
+function isAck(pkt)
+	return pkt.tcp:getAck() == 1
+end
+
+function isRst(pkt)
+	return pkt.tcp:getRst() == 1
+end
+
+function isFin(pkt)
+	return pkt.tcp:getFin() == 1
+end
+
+function printChecks(pkt)
+	print('Is IP4 ' .. tostring(isIP4(pkt)))
+	print('Is TCP ' .. tostring(isTcp4(pkt)))
+	print('Is SYN ' .. tostring(isSyn(pkt)))
+	print('Is ACK ' .. tostring(isAck(pkt)))
+end
+
+
+-------------------------------------------------------------------------------------------
+---- Cookie
+-------------------------------------------------------------------------------------------
+
 -- one cycle is 64 64 seconds (6 bit right shoft of timestamp)
 local timestampValidCycles = 1
 
@@ -47,11 +134,6 @@ local MSS = {
 	mss1=50, 
 	mss2=55,
 }
-
-
--------------------------------------------------------------------------------------------
----- Cookie
--------------------------------------------------------------------------------------------
 
 function calculateCookie(pkt)
 	local tsOrig = getTimestamp()
@@ -381,87 +463,6 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 
 	-- check whether connection should be deleted
 	checkUnsetVerified(rxPkt, leftToRight)
-end
----------------------------------------------------
--- Terminology
----------------------------------------------------
-
--- left: outside, internet, clients, potential attackers, whatever
--- right: "protected" side, connection to server(s), only filtered traffic comes here
-
-
----------------------------------------------------
--- Constants
----------------------------------------------------
-
-LEFT_TO_RIGHT = true
-RIGHT_TO_LEFT = false
-
-
------------------------------------------------------
--- debug utility 
------------------------------------------------------
-
--- print table of string -> string
-function sT(t)
-	local str = ''
-	for k, v in pairs(t) do
-		str = str .. ', ' .. k .. ' -> ' .. v
-	end
-	return str
-end
-
-
------------------------------------------------------
--- profiling
------------------------------------------------------
-
-local profile_stats = {}
-
-function profile_callback(thread, samples, vmstate)
-	local dump = profile.dumpstack(thread, "l (f) << ", 1)
-	--printf("profile cb: " .. dump)
-	if(profile_stats[dump]) then
-		profile_stats[dump] = profile_stats[dump] + 1
-	else
-		profile_stats[dump] = 1
-	end
-end
-
-
-----------------------------------------------------
--- check packet type
-----------------------------------------------------
-
-function isIP4(pkt)
-	return pkt.eth:getType() == proto.eth.TYPE_IP 
-end
-
-function isTcp4(pkt)
-	return isIP4(pkt) and pkt.ip4:getProtocol() == proto.ip4.PROTO_TCP
-end
-
-function isSyn(pkt)
-	return pkt.tcp:getSyn() == 1
-end
-
-function isAck(pkt)
-	return pkt.tcp:getAck() == 1
-end
-
-function isRst(pkt)
-	return pkt.tcp:getRst() == 1
-end
-
-function isFin(pkt)
-	return pkt.tcp:getFin() == 1
-end
-
-function printChecks(pkt)
-	print('Is IP4 ' .. tostring(isIP4(pkt)))
-	print('Is TCP ' .. tostring(isTcp4(pkt)))
-	print('Is SYN ' .. tostring(isSyn(pkt)))
-	print('Is ACK ' .. tostring(isAck(pkt)))
 end
 
 
