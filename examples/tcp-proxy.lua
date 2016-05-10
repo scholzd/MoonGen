@@ -258,7 +258,7 @@ end
 
 -- TODO add some form of timestamp and garbage collection on timeout
 -- eg if not refreshed, remove after 60 seconds(2bits, every 30 seconds unset one, if both unset remove)
-local verifiedConnections = { num = 0 }
+local verifiedConnections = {}
 
 function getIdx(pkt, leftToRight)
 	if leftToRight then
@@ -279,15 +279,6 @@ function setLeftVerified(pkt)
 	end
 	con = {}
 	con['lAck'] = pkt.tcp:getAckNumber()
-	con['num'] = verifiedConnections['num']
-	con['lPkts'] = 0
-	con['rPkts'] = 0
-	con['lFin'] = ''
-	con['rFin'] = ''
-	con['lRst'] = ''
-	con['rRst'] = ''
-	con['numPkts'] = 0
-	verifiedConnections['num'] = verifiedConnections['num'] + 1
 	verifiedConnections[idx] = con
 	return true
 end
@@ -302,17 +293,9 @@ function setRightVerified(pkt)
 		--log:debug('Not left verified, something is wrong')
 		return false
 	end
-	con['rSeq'] = pkt.tcp:getSeqNumber()
-	con['diff'] = con['rSeq'] - con['lAck'] + 1
+	con['diff'] = pkt.tcp:getSeqNumber() - con['lAck'] + 1
+	con['lAck'] = nil
 	return true
-end
-
-function incPkts(con)
-	con['numPkts'] = con['numPkts'] + 1
-end
-
-function getPkts(con)
-	return con['numPkts']
 end
 
 function setFin(pkt, leftToRight)
@@ -327,9 +310,9 @@ function setFin(pkt, leftToRight)
 	end
 	--log:debug('one way FIN ' .. (leftToRight and 'from left' or 'from right'))
 	if leftToRight then
-		con['lFin'] = con['lFin'] .. '-' .. getPkts(con)
+		con['lFin'] = true --con['lFin'] .. '-' .. getPkts(con)
 	else
-		con['rFin'] = con['rFin'] .. '-' .. getPkts(con)
+		con['rFin'] = true -- con['rFin'] .. '-' .. getPkts(con)
 	end
 	-- to identify the final ACK of the connection store the Sequence number
 	if con['lFin'] and con['rFin'] then 
@@ -349,9 +332,9 @@ function setRst(pkt, leftToRight)
 	end
 	--log:debug('one way RST ' .. (leftToRight and 'from left' or 'from right'))
 	if leftToRight then
-		con['lRst'] = con['lRst'] .. '-' .. getPkts(con)
+		con['lRst'] = true --con['lRst'] .. '-' .. getPkts(con)
 	else
-		con['rRst'] = con['rRst'] .. '-' .. getPkts(con)
+		con['rRst'] = true --con['rRst'] .. '-' .. getPkts(con)
 	end
 end
 
@@ -359,13 +342,11 @@ function checkUnsetVerified(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
 	local con = verifiedConnections[idx]
 	-- RST: in any case, delete connection
-	if con['lRst'] ~= '' then 
-		unsetVerified(pkt, leftToRight)
-	elseif con['rRst'] ~= '' then 
+	if con['lRst'] or con['rRst'] then 
 		unsetVerified(pkt, leftToRight)
 	-- FIN: only if both parties sent a FIN
 	-- 		+ it has to be an ACK for the last sequence number
-	elseif con['lFin'] ~= '' and con['rFin'] ~= '' then 
+	elseif con['lFin'] and con['rFin'] then 
 		-- check for ack and the number matches
 		if isAck(pkt) and con['FinSeqNumber'] + 1 == pkt.tcp:getAckNumber() then
 				unsetVerified(pkt, leftToRight)
@@ -390,12 +371,6 @@ function isVerified(pkt, leftToRight)
 	-- a connection is verified if it is in both directions
 	-- in that case, the diff is calculated
 	if con and con['diff'] then
-		if leftToRight then
-			con['lPkts'] = con['lPkts'] + 1
-		else
-			con['rPkts'] = con['rPkts'] + 1
-		end
-		incPkts(con)
 		return con
 	end
 	return false
