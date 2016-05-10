@@ -286,7 +286,7 @@ end
 function setRightVerified(pkt)
 	local idx = getIdx(pkt, RIGHT_TO_LEFT)
 	local con = verifiedConnections[idx]
-	if not con then
+	if not con or not con['lAck'] then
 		-- not left verified,
 		-- happens if a connection is deleted 
 		-- but right still has some packets in flight
@@ -432,9 +432,14 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber())
 	end
 
+	
 	-- calculate TCP checksum
-	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	-- IP header does not change, hence, do not recalculate IP checksum
+	if leftToRight then
+		txBuf:offloadTcpChecksum()
+	else
+		txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	end
 
 	-- check whether connection should be deleted
 	checkUnsetVerified(rxPkt, leftToRight)
