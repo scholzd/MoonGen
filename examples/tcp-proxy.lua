@@ -421,7 +421,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 				---------------------------------------------------------------------- process TCP
 				---------------------------------------------------------------------- SYN/ACK from server, finally establish connection
 				if isSyn(rRXPkt) and isAck(rRXPkt) then
-					log:info('Received SYN/ACK from server, sending ACK back')
+					--log:debug('Received SYN/ACK from server, sending ACK back')
 					setRightVerified(rRXPkt)
 					
 					-- send ACK to server
@@ -463,16 +463,16 @@ function tcpProxySlave(lRXDev, lTXDev)
 					--log:info('Packet of verified connection from server, translate and forward')
 					local idx = getIdx(rRXPkt, RIGHT_TO_LEFT)
 					if isRst(rRXPkt) then -- TODO move to bottom
-						log:debug('Got RST packet from right ' .. idx)
+						--log:debug('Got RST packet from right ' .. idx)
 						setRst(rRXPkt, RIGHT_TO_LEFT)
 					elseif isFin(rRXPkt) then
-						log:debug('Got FIN packet from right ' .. idx)
+						--log:debug('Got FIN packet from right ' .. idx)
 						setFin(rRXPkt, RIGHT_TO_LEFT)
 					end
 					translate = true
 				------------------------------------------------------------------------ not verified connection from server
 				else
-					log:debug('Packet of not verified connection from right')
+					--log:debug('Packet of not verified connection from right')
 				end
 			end
 			if translate then
@@ -503,7 +503,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			
 			local lRXPkt = lRXBufs[i]:getTcp4Packet()
 			if not isTcp(lRXPkt) then
-				log:info('Ignoring packet that is not TCP from left')
+				--log:info('Ignoring packet that is not TCP from left')
 			--------------------------------------------------------------- processing TCP
 			else
 				------------------------------------------------------------ SYN -> defense mechanism
@@ -542,11 +542,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 					--log:info('Received packet of verified connection from left, translating and forwarding')
 					local idx = getIdx(lRXPkt, LEFT_TO_RIGHT)
 					if isRst(lRXPkt) then -- TODO move to bottom
-						log:debug('Got RST packet from left ' .. idx)
+						--log:debug('Got RST packet from left ' .. idx)
 						setRst(lRXPkt, LEFT_TO_RIGHT)
 						translate = true
 					elseif isFin(lRXPkt) then
-						log:debug('Got FIN packet from left ' .. idx)
+						--log:debug('Got FIN packet from left ' .. idx)
 						setFin(lRXPkt, LEFT_TO_RIGHT)
 						translate = true
 					end
@@ -589,7 +589,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						else
 							-- was already left verified -> stall
 							-- should not happen as it is checked above already
-							log:warn('Already left verified, discarding')
+							--log:debug('Already left verified, discarding')
 						end
 					else
 						log:warn('Wrong cookie, dropping packet ' .. getIdx(lRXPkt, LEFT_TO_RIGHT))
