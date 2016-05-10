@@ -10,7 +10,7 @@ local dpdkc 	= require "dpdkc"
 local proto		= require "proto/proto"
 
 -- tcp SYN defense strategies
-require "tcp/cookie"
+--require "tcp/cookie"
 
 -- utility
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
@@ -39,92 +39,140 @@ function master(rxPort, txPort)
 end
 
 
----------------------------------------------------
--- Terminology
----------------------------------------------------
+-- one cycle is 64 64 seconds (6 bit right shoft of timestamp)
+local timestampValidCycles = 1
 
--- left: outside, internet, clients, potential attackers, whatever
--- right: "protected" side, connection to server(s), only filtered traffic comes here
-
-
----------------------------------------------------
--- Constants
----------------------------------------------------
-
-LEFT_TO_RIGHT = true
-RIGHT_TO_LEFT = false
+-- MSS encodings
+local MSS = { 
+	mss1=50, 
+	mss2=55,
+}
 
 
------------------------------------------------------
--- debug utility 
------------------------------------------------------
+-------------------------------------------------------------------------------------------
+---- Cookie
+-------------------------------------------------------------------------------------------
 
--- print table of string -> string
-function sT(t)
-	local str = ''
-	for k, v in pairs(t) do
-		str = str .. ', ' .. k .. ' -> ' .. v
-	end
-	return str
+function calculateCookie(pkt)
+	local tsOrig = getTimestamp()
+	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
+	ts = lshift(tsOrig, 27)
+	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
+
+	local mss = encodeMss()
+	mss = lshift(mss, 24)
+
+	local hash = getHash(
+		pkt.ip4:getSrc(), 
+		pkt.ip4:getDst(), 
+		pkt.tcp:getSrc(),
+		pkt.tcp:getDst(),
+		tsOrig
+	)
+	--log:debug('Created TS:     ' .. toBinary(ts))
+	--log:debug('Created MSS:    ' .. toBinary(mss))
+	--log:debug('Created hash:   ' .. toBinary(hash))
+	local cookie = ts + mss + hash
+	--log:debug('Created cookie: ' .. toBinary(cookie))
+	return cookie, mss
 end
 
+function verifyCookie(pkt)
+	local cookie = pkt.tcp:getAckNumber()
+	--log:debug('Got ACK:        ' .. toBinary(cookie))
+	cookie = cookie - 1
+	--log:debug('Cookie:         ' .. toBinary(cookie))
 
------------------------------------------------------
--- profiling
------------------------------------------------------
+	-- check timestamp first
+	local ts = rshift(cookie, 27)
+	--log:debug('TS:           ' .. toBinary(ts))
+	if not verifyTimestamp(ts) then
+		--log:warn('Received cookie with invalid timestamp')
+		return false
+	end
 
-local profile_stats = {}
-
-function profile_callback(thread, samples, vmstate)
-	local dump = profile.dumpstack(thread, "l (f) << ", 1)
-	--printf("profile cb: " .. dump)
-	if(profile_stats[dump]) then
-		profile_stats[dump] = profile_stats[dump] + 1
+	-- check hash
+	local hash = band(cookie, 0x00ffffff)
+	-- log:debug('Hash:           ' .. toBinary(hash))
+	if not verifyHash(hash, pkt.ip4:getSrc(), pkt.ip4:getDst(), pkt.tcp:getSrc(), pkt.tcp:getDst(), ts) then
+		--log:warn('Received cookie with invalid hash')
+		return false
 	else
-		profile_stats[dump] = 1
+		-- finally decode MSS and return it
+		--log:debug('Received legitimate cookie')
+		return decodeMss(band(rshift(cookie, 24), 0x3))
 	end
 end
 
 
-----------------------------------------------------
--- check packet type
-----------------------------------------------------
+-------------------------------------------------------------------------------------------
+---- Timestamp
+-------------------------------------------------------------------------------------------
 
-function isIP4(pkt)
-	return pkt.eth:getType() == proto.eth.TYPE_IP 
+function getTimestamp()
+	local t = time()
+	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
+	-- 64 seconds resolution
+	t = rshift(t, 6)
+	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
+	-- 5 bits
+	t = t % 32
+	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
+	return t
 end
 
-function isTcp(pkt)
-	return isIP4(pkt) and pkt.ip4:getProtocol() == proto.ip4.PROTO_TCP
-end
-
-function isSyn(pkt)
-	return pkt.tcp:getSyn() == 1
-end
-
-function isAck(pkt)
-	return pkt.tcp:getAck() == 1
-end
-
-function isRst(pkt)
-	return pkt.tcp:getRst() == 1
-end
-
-function isFin(pkt)
-	return pkt.tcp:getFin() == 1
-end
-
-function printChecks(pkt)
-	print('Is IP4 ' .. tostring(isIP4(pkt)))
-	print('Is TCP ' .. tostring(isTcp(pkt)))
-	print('Is SYN ' .. tostring(isSyn(pkt)))
-	print('Is ACK ' .. tostring(isAck(pkt)))
+function verifyTimestamp(t)
+	return t + timestampValidCycles >= getTimestamp()
 end
 
 
----------------------------------------------------
--- verified connections TODO also move to cookie.lua? export to C, for sure
----------------------------------------------------
+-------------------------------------------------------------------------------------------
+---- MSS
+-------------------------------------------------------------------------------------------
+
+function encodeMss()
+	-- 3 bits, allows for 8 different MSS
+	mss = 1 -- encoding see MSS
+	-- log:debug('MSS: ' .. mss .. ' ' .. toBinary(mss))
+	return mss
+end
+
+function decodeMss(idx)
+	return MSS['mss' .. tostring(idx)] or -1
+end
+
+
+-------------------------------------------------------------------------------------------
+---- Hash
+-------------------------------------------------------------------------------------------
+
+function getHash(...)
+	local args = {...}
+	local sum = 0
+	for k, v in pairs(args) do
+		-- log:debug(k .. ':            ' .. toBinary(tonumber(v)))
+		sum = sum + tonumber(v)
+	end
+	-- log:debug('sum:            ' .. toBinary(sum))
+	return band(hash(sum), 0x00ffffff)
+end
+
+function verifyHash(oldHash, ...)
+	local newHash = getHash(...)
+	-- log:debug('Old hash:       ' .. toBinary(oldHash))
+	-- log:debug('New hash:       ' .. toBinary(newHash))
+	return oldHash == newHash
+end
+
+function hash(int)
+	-- TODO implement something with real crypto later on
+	return int
+end
+
+
+-------------------------------------------------------------------------------------------
+---- State keeping
+-------------------------------------------------------------------------------------------
 
 -- TODO add some form of timestamp and garbage collection on timeout
 -- eg if not refreshed, remove after 60 seconds(2bits, every 30 seconds unset one, if both unset remove)
@@ -289,9 +337,9 @@ function printVerifiedConnections()
 end
 
 
----------------------------------------------------
--- sequence number translation
----------------------------------------------------
+-------------------------------------------------------------------------------------------
+---- Sequence Number Translation
+-------------------------------------------------------------------------------------------
 
 -- simply resend the complete packet, but adapt seq/ack number
 function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
@@ -333,6 +381,87 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 
 	-- check whether connection should be deleted
 	checkUnsetVerified(rxPkt, leftToRight)
+end
+---------------------------------------------------
+-- Terminology
+---------------------------------------------------
+
+-- left: outside, internet, clients, potential attackers, whatever
+-- right: "protected" side, connection to server(s), only filtered traffic comes here
+
+
+---------------------------------------------------
+-- Constants
+---------------------------------------------------
+
+LEFT_TO_RIGHT = true
+RIGHT_TO_LEFT = false
+
+
+-----------------------------------------------------
+-- debug utility 
+-----------------------------------------------------
+
+-- print table of string -> string
+function sT(t)
+	local str = ''
+	for k, v in pairs(t) do
+		str = str .. ', ' .. k .. ' -> ' .. v
+	end
+	return str
+end
+
+
+-----------------------------------------------------
+-- profiling
+-----------------------------------------------------
+
+local profile_stats = {}
+
+function profile_callback(thread, samples, vmstate)
+	local dump = profile.dumpstack(thread, "l (f) << ", 1)
+	--printf("profile cb: " .. dump)
+	if(profile_stats[dump]) then
+		profile_stats[dump] = profile_stats[dump] + 1
+	else
+		profile_stats[dump] = 1
+	end
+end
+
+
+----------------------------------------------------
+-- check packet type
+----------------------------------------------------
+
+function isIP4(pkt)
+	return pkt.eth:getType() == proto.eth.TYPE_IP 
+end
+
+function isTcp4(pkt)
+	return isIP4(pkt) and pkt.ip4:getProtocol() == proto.ip4.PROTO_TCP
+end
+
+function isSyn(pkt)
+	return pkt.tcp:getSyn() == 1
+end
+
+function isAck(pkt)
+	return pkt.tcp:getAck() == 1
+end
+
+function isRst(pkt)
+	return pkt.tcp:getRst() == 1
+end
+
+function isFin(pkt)
+	return pkt.tcp:getFin() == 1
+end
+
+function printChecks(pkt)
+	print('Is IP4 ' .. tostring(isIP4(pkt)))
+	print('Is TCP ' .. tostring(isTcp4(pkt)))
+	print('Is SYN ' .. tostring(isSyn(pkt)))
+	print('Is ACK ' .. tostring(isAck(pkt)))
 end
 
 
@@ -415,7 +544,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			local translate = false
 			
 			local rRXPkt = rRXBufs[i]:getTcp4Packet()
-			if not isTcp(rRXPkt) then
+			if not isTcp4(rRXPkt) then
 				--log:info('Ignoring rRX packet from server that is not TCP')
 			else
 				---------------------------------------------------------------------- process TCP
@@ -502,7 +631,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			local translate = false
 			
 			local lRXPkt = lRXBufs[i]:getTcp4Packet()
-			if not isTcp(lRXPkt) then
+			if not isTcp4(lRXPkt) then
 				--log:info('Ignoring packet that is not TCP from left')
 			--------------------------------------------------------------- processing TCP
 			else
