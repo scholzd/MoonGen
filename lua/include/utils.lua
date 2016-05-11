@@ -250,6 +250,35 @@ function checksum(data, len)
 	return band(bnot(cs), 0xFFFF)
 end
 
+function updateChecksum()
+	--local cs = txPkt.tcp:getChecksum()
+	--local d = diff['diff']
+	--local r = band(bnot(d), 0xffff)
+	--print(string.format('r    %x', r))
+	--local l = rshift(bnot(d), 16)
+	--print(string.format('l    %x', l))
+	--print(string.format('cs   %x', cs))
+	--cs = cs - r
+	--print(string.format('cs   %x', cs))
+	--	if cs < 0 then
+	--		print('y')
+	--		cs = band(cs - 1, 0xFFFF)
+	--	end
+	--print(string.format('cs   %x', cs))
+	--cs = cs - l
+	--print(string.format('cs   %x', cs))
+	--	if cs < 0 then
+	--		print('yy')
+	--		cs = band(cs - 1, 0xFFFF) 
+	--	end
+	--print(string.format('cs   %x', cs))
+	--cs = band(cs, 0xFFFF)
+	--print(string.format('cs   %x', cs))
+	--txPkt.tcp:setChecksum(cs)
+	--log:debug('' .. diff['diff'])
+	--txBuf:dump()
+end
+
 --- Parse a string to a MAC address
 --- @param mac address in string format
 --  @param number return as number

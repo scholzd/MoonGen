@@ -325,8 +325,10 @@ function printVerifiedConnections()
 	for k, v in pairs(verifiedConnections) do
 		local str = ''
 		if type(v) == 'table' then
+		if v['lRst'] ~= '' then
 		for ik, iv in pairs(v) do
 			str = str .. ', ' .. tostring(ik) .. '=' .. tostring(iv)
+		end
 		end
 		else
 		str = tostring(v)
@@ -344,11 +346,6 @@ end
 -- simply resend the complete packet, but adapt seq/ack number
 function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	--log:debug('Performing Sequence Number Translation ' .. (leftToRight and 'from left ' or 'from right '))
-	
-	-- calculate packet size
-	-- must not be smaller than 60
-	--local size = rxPkt.ip4:getLength() + 14
-	--size = size < 60 and 60 or size
 	
 	-- I recall this delivered the wrong size once
 	-- however, it is significantly faster (4-5k reqs/s!!)
@@ -368,17 +365,15 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 		return
 	end
 	if leftToRight then
-		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber())
 		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff['diff'])
 	else
 		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff['diff'])
-		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber())
 	end
 
 	-- calculate TCP checksum
 	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	-- IP header does not change, hence, do not recalculate IP checksum
-
+	
 	-- check whether connection should be deleted
 	checkUnsetVerified(rxPkt, leftToRight)
 end
