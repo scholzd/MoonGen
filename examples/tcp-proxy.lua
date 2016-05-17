@@ -395,7 +395,7 @@ end
 
 
 -------------------------------------------------------------------------------------------
----- Sequence Number Translation
+---- Packet modification and crafting
 -------------------------------------------------------------------------------------------
 
 -- simply resend the complete packet, but adapt seq/ack number
@@ -438,6 +438,55 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	checkUnsetVerified(rxPkt, leftToRight)
 end
 
+function createAckToServer(txBuf, rxBuf, rxPkt)
+	-- set size of tx packet
+	local size = rxBuf:getSize()
+	txBuf:setSize(size)
+	
+	-- copy data TODO directly use rx buffer
+	--log:debug('copy data')
+	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
+	
+	-- send packet back with seq, ack + 1
+	local txPkt = txBuf:getTcp4Packet()
+	local tmp = rxPkt.ip4:getSrc()
+	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
+	txPkt.ip4:setDst(tmp)
+	tmp = rxPkt.tcp:getSrc()
+	txPkt.tcp:setSrc(rxPkt.tcp:getDst())
+	txPkt.tcp:setDst(tmp)
+	txPkt.tcp:setSeqNumber(rxPkt.tcp:getAckNumber())
+	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
+	txPkt.tcp:unsetSyn()
+	txPkt.tcp:setAck()
+	txPkt:setLength(size)
+
+	-- calculate checksums
+	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	txPkt.ip4:calculateChecksum()
+end
+
+function createSynAckToClient(txPkt, rxPkt)
+	local cookie, mss = calculateCookie(rxPkt)
+	
+	-- MAC addresses
+	txPkt.eth:setDst(rxPkt.eth:getSrc())
+	txPkt.eth:setSrc(rxPkt.eth:getDst())
+
+	-- IP addresses
+	txPkt.ip4:setDst(rxPkt.ip4:getSrc())
+	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
+	
+	-- TCP
+	txPkt.tcp:setDst(rxPkt.tcp:getSrc())
+	txPkt.tcp:setSrc(rxPkt.tcp:getDst())
+	
+	txPkt.tcp:setAck() -- TODO move to mempool init
+	txPkt.tcp:setSyn() --
+	txPkt.tcp:setSeqNumber(cookie)
+	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
+	txPkt.tcp:setWindow(mss)
+end
 
 ---------------------------------------------------
 -- slave
@@ -453,7 +502,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	log:info('Initialize KNI')
 	kni.init(4)
 	log:info('Creating virtual device')
-	local virtualDevMemPool = memory.createMemPool{n=8192}
+	local virtualDevMemPool = memory.createMemPool{ n=8192 }
 	local virtualDev = kni.createKNI(0, lRXDev, virtualDevMemPool, "vEth0")
 	log:info('Ifconfig virtual device')
 	virtualDev:setIP("192.168.1.1", 24)
@@ -530,32 +579,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- send ACK to server
 					rTXBufs:alloc(70)
 					local rTXBuf = rTXBufs[1]
-
-					-- set size of tx packet
-					local size = rRXBufs[i]:getSize()
-					rTXBuf:setSize(size)
-					
-					-- copy data TODO directly use rx buffer
-					--log:debug('copy data')
-					ffi.copy(rTXBuf:getData(), rRXBufs[i]:getData(), size)
-					
-					-- send packet back with seq, ack + 1
-					local rTXPkt = rTXBuf:getTcp4Packet()
-					local tmp = rRXPkt.ip4:getSrc()
-					rTXPkt.ip4:setSrc(rRXPkt.ip4:getDst())
-					rTXPkt.ip4:setDst(tmp)
-					tmp = rRXPkt.tcp:getSrc()
-					rTXPkt.tcp:setSrc(rRXPkt.tcp:getDst())
-					rTXPkt.tcp:setDst(tmp)
-					rTXPkt.tcp:setSeqNumber(rRXPkt.tcp:getAckNumber())
-					rTXPkt.tcp:setAckNumber(rRXPkt.tcp:getSeqNumber() + 1)
-					rTXPkt.tcp:unsetSyn()
-					rTXPkt.tcp:setAck()
-					rTXPkt:setLength(size)
-
-					-- calculate checksums
-					rTXPkt.tcp:calculateChecksum(rTXBuf:getData(), size, true)
-					rTXPkt.ip4:calculateChecksum()
+					createAckToServer(rTXBuf, rRXBufs[i], rRXPkt)
 					
 					-- done, sending
 					--log:debug('Sending rTXBuf via KNI')
@@ -613,31 +637,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 				if isSyn(lRXPkt) then
 					--log:info('Received SYN from left')
 					-- strategy cookie
-
-					local cookie, mss = calculateCookie(lRXPkt)
-				
-					-- build tx pkt
 					local lTXPkt = lTXBufs[i]:getTcp4Packet()
-					-- MAC addresses
-					lTXPkt.eth:setDst(lRXPkt.eth:getSrc())
-					lTXPkt.eth:setSrc(lRXPkt.eth:getDst())
-
-					-- IP addresses
-					lTXPkt.ip4:setDst(lRXPkt.ip4:getSrc())
-					lTXPkt.ip4:setSrc(lRXPkt.ip4:getDst())
-					
-					-- TCP
-					lTXPkt.tcp:setDst(lRXPkt.tcp:getSrc())
-					lTXPkt.tcp:setSrc(lRXPkt.tcp:getDst())
-					
-					lTXPkt.tcp:setAck()
-					lTXPkt.tcp:setSyn()
-					lTXPkt.tcp:setSeqNumber(cookie)
-					lTXPkt.tcp:setAckNumber(lRXPkt.tcp:getSeqNumber() + 1)
-					lTXPkt.tcp:setWindow(mss)
-
+					createSynAckToClient(lTXPkt, lRxPkt)
 					-- length
+					-- TODO do this via alloc, precrafted packet!
 					lTXBufs[i]:setSize(lRXBufs[i]:getSize())
+					log:debug(''..lRXBufs[i]:getSize())
 				-------------------------------------------------------------------------------------------------------- verified -> translate and forward
 				-- check with verified connections
 				-- if already verified in both directions, immediately forward, otherwise check cookie
@@ -663,7 +668,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						
 						if setLeftVerified(lRXPkt) then
 							-- connection is left verified, start handshake with right
-							rTXBufs:alloc(70)
+							rTXBufs:alloc(60)
 							local rTXBuf = rTXBufs[1]
 
 							-- set size of tx packet
