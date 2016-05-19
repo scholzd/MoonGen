@@ -225,31 +225,6 @@ function timevalSpan(x, y)
 	return (x.tv_sec - y.tv_sec) * 1000000 + (x.tv_usec - y.tv_usec)
 end
 
-
---- Calculate a 16 bit checksum 
---- @param data cdata to calculate the checksum for.
---- @param len Number of bytes to calculate the checksum for.
---- @return 16 bit integer
-function checksum(data, len)
-	data = ffi.cast("uint16_t*", data)
-	local cs = 0
-	for i = 0, len / 2 - 1 do
-		cs = cs + data[i]
-		if cs >= 2^16 then
-			cs = band(cs, 0xFFFF) + 1
-		end
-	end
-	-- missing the very last uint_8 for odd sized packets
-	if (len % 2) == 1 then
-		-- simply null the byte outside of our packet
-		cs = cs + band(data[len / 2], 0xFF)
-		if cs >= 2^16 then
-			cs = band(cs, 0xFFFF) + 1
-		end
-	end
-	return band(bnot(cs), 0xFFFF)
-end
-
 --- Parse a string to a MAC address
 --- @param mac address in string format
 --  @param number return as number

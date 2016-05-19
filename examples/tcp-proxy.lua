@@ -8,6 +8,7 @@ local kni 		= require "kni"
 local ffi		= require "ffi"
 local dpdkc 	= require "dpdkc"
 local proto		= require "proto/proto"
+local checksum	= require "checksum"
 
 -- tcp SYN defense strategies
 --require "tcp/cookie"
@@ -419,10 +420,18 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 		--rxBuf:dump()
 		return
 	end
+
+	local oldValue
+	local newValue
+
 	if leftToRight then
-		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff['diff'])
+		oldValue = rxPkt.tcp:getAckNumber()
+		newValue = oldValue + diff['diff']
+		txPkt.tcp:setAckNumber(newValue)
 	else
-		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff['diff'])
+		oldValue = rxPkt.tcp:getSeqNumber()
+		newValue = oldValue - diff['diff']
+		txPkt.tcp:setSeqNumber(newValue)
 	end
 
 	
@@ -431,7 +440,18 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	--if leftToRight then
 	--	txBuf:offloadTcpChecksum()
 	--else
-		txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	--	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	--end
+	local cs = checksum.checksumUpdateIncremental32(txPkt.tcp:getChecksum(), oldValue, newValue)
+	txPkt.tcp:setChecksum(cs)
+	
+	--txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	--local cs2 = txPkt.tcp:getChecksum()
+
+	--if cs ~= cs2 then
+	--	log:debug(string.format('%x %x %x', cs, cs2, cs-cs2))
+	--else
+	--	--log:info(string.format('%x %x', cs, cs2))
 	--end
 
 	-- check whether connection should be deleted
