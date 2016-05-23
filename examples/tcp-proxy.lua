@@ -431,7 +431,10 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	--if leftToRight then
 	--	txBuf:offloadTcpChecksum()
 	--else
+	--if not leftToRight then
+	--	log:debug('Calc checksum ' .. (leftToRight and 'from left ' or 'from right '))
 		txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	--end
 	--end
 
 	-- check whether connection should be deleted
@@ -541,6 +544,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local lTXQueue = lTXDev:getTxQueue(0)
 	local lTXMem = memory.createMemPool(function(buf)
 		buf:getTcp4Packet():fill{
+			-- TODO precraft syn/ack
 		}
 	end)
 	local lTXBufs = lTXMem:bufArray()
@@ -549,7 +553,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- TX buffers for right to left
 	local lTX2Queue = lTXDev:getTxQueue(1)
 	local lTX2Mem = memory.createMemPool()
-	local lTX2Bufs = lTX2Mem:bufArray(1)
+	local lTX2Bufs = lTX2Mem:bufArray()
 	
 
 	-------------------------------------------------------------
@@ -563,6 +567,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 		------------------------------------------------------------------------------ poll right interface
 		--log:debug('Polling right (virtual) Dev')
 		rx = virtualDev:rxBurst(rRXBufs, 63)
+		if rx > 0 then
+			lTX2Bufs:allocN(30, rx)
+		end
 		for i = 1, rx do
 			local translate = false
 			
@@ -605,14 +612,25 @@ function tcpProxySlave(lRXDev, lTXDev)
 			if translate then
 				--log:info('Translating from right to left')
 			
-				lTX2Bufs:alloc(70)
-				local lTXBuf = lTX2Bufs[1]
-				local lTXPkt = lTXBuf:getTcp4Packet()
+				--lTX2Bufs:alloc(70)
+				local lTX2Buf = lTX2Bufs[i]
+				local lTXPkt = lTX2Buf:getTcp4Packet()
 
-				sequenceNumberTranslation(rRXBufs[i], lTXBuf, rRXPkt, lTXPkt, RIGHT_TO_LEFT)
-				lTX2Queue:send(lTX2Bufs)
+				sequenceNumberTranslation(rRXBufs[i], lTX2Buf, rRXPkt, lTXPkt, RIGHT_TO_LEFT)
+			else
+				--lTX2Bufs[i]:getTcp4Packet().eth:setType(0)
+				--lTX2Bufs[i]:dump()
 			end
 		end
+		if rx > 0 then	
+			--offload checksums to NIC
+			--log:debug('Offloading ' .. rx)
+			--lTX2Bufs:offloadTcpChecksums()
+	
+			lTX2Queue:send(lTX2Bufs)
+		end
+		
+		--lTX2Queue:send(lTX2Bufs)
 		
 		--log:debug('free rRX')
 		rRXBufs:freeAll()
