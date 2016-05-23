@@ -399,6 +399,20 @@ function isVerifiedIgnore(pkt)
 	end
 end
 
+function setVerifiedSequence(pkt)
+	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+	verifiedConnections[idx] = true
+end
+
+function isVerifiedSequence(pkt)
+	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+	if verifiedConnections[idx] then
+		return true
+	else
+		return false
+	end
+end
+
 function printVerifiedConnections()
 	log:debug('********************')
 	log:debug('Verified Connections')
@@ -528,7 +542,7 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 
-	local currentStrat = STRAT['ignore']
+	local currentStrat = STRAT['sequence']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------
@@ -595,9 +609,28 @@ function tcpProxySlave(lRXDev, lTXDev)
 			tcpSeqNumber=0,
 			tcpAckNumber=0,
 			tcpRst=1,
+			pktLength=60,
 		}
 	end)
 	local lTXRstBufs = lTXRstMem:bufArray()
+	
+	-- buffer for sequence
+	local lTXSeqMem = memory.createMemPool(function(buf)
+		local pkt = buf:getTcp4Packet():fill{
+			ethSrc='00:00:00:00:00:00',
+			ethDst='00:00:00:00:00:00',
+			ip4Src='0.0.0.0',
+			ip4Dst='0.0.0.0',
+			tcpSrc=0,
+			tcpDst=0,
+			tcpSeqNumber=42, -- randomly chosen
+			tcpAckNumber=0,  -- set depending on RX
+			tcpSyn=1,
+			tcpAck=1,
+			pktLength=60,
+		}
+	end)
+	local lTXSeqBufs = lTXSeqMem:bufArray()
 
 	-- TX buffers for right to left
 	local lTX2Queue = lTXDev:getTxQueue(1)
@@ -709,6 +742,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 				-- nothing
 			elseif currentStrat == STRAT['reset'] then
 				lTXRstBufs:allocN(60, rx)
+			elseif currentStrat == STRAT['sequence'] then
+				lTXSeqBufs:allocN(60, rx)
 			end
 		end
 		for i = 1, rx do
@@ -721,6 +756,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			else
 				-- here the reaction always depends on the strategy
 				if currentStrat == STRAT['ignore'] then
+					-- do nothing ion unverified SYN
 					if isSyn(lRXPkt) and not isVerifiedIgnore(lRXPkt) then
 						-- do nothing
 					else
@@ -741,7 +777,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						lRXBufs[i]:setSize(50)
 					end
 				elseif currentStrat == STRAT['reset'] then
-					-- send RST on SYN
+					-- send RST on unverified SYN
 					if isSyn(lRXPkt) and not isVerifiedReset(lRXPkt) then
 						-- create and send RST packet
 						--log:debug('Crafting rst')
@@ -793,6 +829,64 @@ function tcpProxySlave(lRXDev, lTXDev)
 						lRXBufs[i]:setSize(50)
 					end
 				elseif currentStrat == STRAT['sequence'] then
+					-- send wrong sequence number on unverified SYN
+					if isSyn(lRXPkt) and not isVerifiedSequence(lRXPkt) then
+						-- create and send RST packet
+						--log:debug('crafting seq vio')
+						local lTXSeqPkt = lTXSeqBufs[i]:getTcp4Packet()
+						
+						lTXSeqPkt.eth:setSrc(lRXPkt.eth:getDst())
+						lTXSeqPkt.eth:setDst(lRXPkt.eth:getSrc())
+
+						-- IP addresses
+						lTXSeqPkt.ip4:setSrc(lRXPkt.ip4:getDst())
+						lTXSeqPkt.ip4:setDst(lRXPkt.ip4:getSrc())
+						
+						-- TCP
+						lTXSeqPkt.tcp:setSrc(lRXPkt.tcp:getDst())
+						lTXSeqPkt.tcp:setDst(lRXPkt.tcp:getSrc())
+
+						-- set violating ack number
+						lTXSeqPkt.tcp:setAckNumber(lRXPkt.tcp:getSeqNumber() - 1) -- violation => AckNumber != SeqNumber + 1
+
+						-- reuse RX buffer
+						-- MAC addresses
+						--local tmp = lRXPkt.eth:getSrc()
+						--lRXPkt.eth:setSrc(lRXPkt.eth:getDst())
+						--lRXPkt.eth:setDst(tmp)
+
+						---- IP addresses
+						--tmp = lRXPkt.ip4:getSrc()
+						--lRXPkt.ip4:setSrc(lRXPkt.ip4:getDst())
+						--lRXPkt.ip4:setDst(tmp)
+						--
+						---- TCP
+						--tmp = lRXPkt.tcp:getSrc()
+						--lRXPkt.tcp:setSrc(lRXPkt.tcp:getDst())
+						--lRXPkt.tcp:setDst(tmp)
+						--
+						--lRXPkt.tcp:setAckNumber(lRXPkt.tcp:getSeqNumber() - 1) -- violation => AckNumber != SeqNumber + 1
+						--lRXPkt.tcp:setSeqNumber(42)
+						--lRXPkt.tcp:setAck()
+					elseif isRst(lRXPkt) and not isVerifiedSequence(lRXPkt) then
+						setVerifiedSequence(lRXPkt)
+						-- drop RX packet
+					else
+						-- everything else simply forward
+						rTXBufs:alloc(60)
+						local rTXBuf = rTXBufs[1]
+						
+						-- set size of tx packet
+						local size = lRXBufs[i]:getSize()
+						rTXBuf:setSize(size)
+						
+						-- copy data TODO directly use rx buffer
+						ffi.copy(rTXBuf:getData(), lRXBufs[i]:getData(), size)
+						virtualDev:txSingle(rTXBuf)
+						
+						-- invalidate rx packet
+						lRXBufs[i]:setSize(1)
+					end
 				elseif currentStrat == STRAT['cookie'] then
 					------------------------------------------------------------ SYN -> defense mechanism
 					if isSyn(lRXPkt) then
@@ -898,6 +992,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 				-- send rst packets
 				lTXRstBufs:offloadTcpChecksums(nil, nil, nil, rx)
 				lTXQueue:sendN(lTXRstBufs, rx)
+
+				lRXBufs:free(rx)
+			elseif currentStrat == STRAT['sequence'] then	
+				-- send rst packets
+				lTXSeqBufs:offloadTcpChecksums(nil, nil, nil, rx)
+				lTXQueue:sendN(lTXSeqBufs, rx)
 
 				lRXBufs:free(rx)
 			end
