@@ -262,9 +262,9 @@ local verifiedConnections = {}
 
 function getIdx(pkt, leftToRight)
 	if leftToRight then
-		return pkt.ip4:getSrcString() .. ':' .. pkt.tcp:getSrc() .. '-' .. pkt.ip4:getDstString() .. ':' .. pkt.tcp:getDst()
+		return pkt.ip4:getSrc() .. ':' .. pkt.tcp:getSrc() .. '-' .. pkt.ip4:getDst() .. ':' .. pkt.tcp:getDst()
 	else
-		return pkt.ip4:getDstString() .. ':' .. pkt.tcp:getDst() .. '-' .. pkt.ip4:getSrcString() .. ':' .. pkt.tcp:getSrc()
+		return pkt.ip4:getDst() .. ':' .. pkt.tcp:getDst() .. '-' .. pkt.ip4:getSrc() .. ':' .. pkt.tcp:getSrc()
 	end
 end
 
@@ -384,6 +384,17 @@ function isVerifiedReset(pkt)
 		return true
 	else
 		verifiedConnections[idx] = 1
+		return false
+	end
+end
+
+-- same as reset
+function isVerifiedIgnore(pkt)
+	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+	if verifiedConnections[idx] then
+		return true
+	else
+		verifiedConnections[idx] = true
 		return false
 	end
 end
@@ -514,7 +525,7 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 
-	local currentStrat = STRAT['reset']
+	local currentStrat = STRAT['ignore']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------
@@ -676,6 +687,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 		if rx > 0 then
 			if currentStrat == STRAT['cookie'] then
 				lTXBufs:allocN(60, rx)
+			elseif currentStrat == STRAT['ignore'] then
+				-- nothing
 			elseif currentStrat == STRAT['reset'] then
 				lTXRstBufs:allocN(60, rx)
 			end
@@ -690,6 +703,25 @@ function tcpProxySlave(lRXDev, lTXDev)
 			else
 				-- here the reaction always depends on the strategy
 				if currentStrat == STRAT['ignore'] then
+					if isSyn(lRXPkt) and not isVerifiedIgnore(lRXPkt) then
+						-- do nothing
+					else
+						-- everything else simply forward
+						--log:debug('alloc rTXB')
+						rTXBufs:alloc(60)
+						local rTXBuf = rTXBufs[1]
+						
+						-- set size of tx packet
+						local size = lRXBufs[i]:getSize()
+						rTXBuf:setSize(size)
+						
+						-- copy data TODO directly use rx buffer
+						ffi.copy(rTXBuf:getData(), lRXBufs[i]:getData(), size)
+						virtualDev:txSingle(rTXBuf)
+						
+						-- invalidate rx packet
+						lRXBufs[i]:setSize(50)
+					end
 				elseif currentStrat == STRAT['reset'] then
 					-- send RST on SYN
 					if isSyn(lRXPkt) and not isVerifiedReset(lRXPkt) then
@@ -841,7 +873,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 				lTXQueue:send(lTXBufs)
 			
 				lRXBufs:free(rx)
-			else
+			elseif currentStrat == STRAT['ignore'] then	
+				-- we dont send packets in reply to syn, so only free rx
+				lRXBufs:free(rx)
+			elseif currentStrat == STRAT['reset'] then	
 				-- send rst packets
 				lTXRstBufs:offloadTcpChecksums(nil, nil, nil, rx)
 				lTXQueue:sendN(lTXRstBufs, rx)
