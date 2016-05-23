@@ -19,4 +19,8 @@ void mg_bitmask_and(struct mg_bitmask * mask1, struct mg_bitmask * mask2, struct
 void mg_bitmask_xor(struct mg_bitmask * mask1, struct mg_bitmask * mask2, struct mg_bitmask * result);
 void mg_bitmask_or(struct mg_bitmask * mask1, struct mg_bitmask * mask2, struct mg_bitmask * result);
 void mg_bitmask_not(struct mg_bitmask * mask1, struct mg_bitmask * result);
+
+inline uint8_t mg_bitmask_get_bit_inline(struct mg_bitmask * mask, uint16_t n){
+	return ( (mask->mask[n/64] & (1ULL<< (n&0x3f))) != 0);
+}
 #endif

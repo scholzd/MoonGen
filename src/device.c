@@ -9,6 +9,7 @@
 #include <rte_eth_ctrl.h>
 
 #include "rdtsc.h"
+#include "bitmask.h"
 
 // required for i40e_type.h
 #define X722_SUPPORT
@@ -346,6 +347,17 @@ void send_all_packets(uint8_t port_id, uint16_t queue_id, struct rte_mbuf** pkts
 	while (1) {
 		sent += rte_eth_tx_burst(port_id, queue_id, pkts + sent, num_pkts - sent);
 		if (sent >= num_pkts) {
+			return;
+		}
+	}
+	return;
+}
+
+void send_all_packets_masked(uint8_t port_id, uint16_t queue_id, struct rte_mbuf** pkts, struct mg_bitmask* mask) {
+	uint32_t sent = 0;
+	while (1) {
+		sent += rte_eth_tx_burst(port_id, queue_id, pkts + sent, 0); //TODO
+		if (sent >= 0) {
 			return;
 		}
 	}
