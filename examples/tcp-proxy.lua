@@ -378,10 +378,12 @@ end
 
 function isVerifiedReset(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	if verifiedConnections[idx] then
+	local num = verifiedConnections[idx] 
+	if num then
+		verifiedConnections[idx] = num + 1
 		return true
 	else
-		verifiedConnections[idx] = true
+		verifiedConnections[idx] = 1
 		return false
 	end
 end
@@ -565,15 +567,28 @@ function tcpProxySlave(lRXDev, lTXDev)
 	end)
 	local lTXBufs = lTXMem:bufArray()
 	lTXStats = stats:newDevTxCounter(lTXDev, "plain")
+	
+	-- buffer for resets
+	local lTXRstMem = memory.createMemPool(function(buf)
+		local pkt = buf:getTcp4Packet():fill{
+			ethSrc='00:00:00:00:00:00',
+			ethDst='00:00:00:00:00:00',
+			ip4Src='0.0.0.0',
+			ip4Dst='0.0.0.0',
+			tcpSrc=0,
+			tcpDst=0,
+			tcpSeqNumber=0,
+			tcpAckNumber=0,
+			tcpRst=1,
+		}
+	end)
+	local lTXRstBufs = lTXRstMem:bufArray()
 
 	-- TX buffers for right to left
 	local lTX2Queue = lTXDev:getTxQueue(1)
 	local lTX2Mem = memory.createMemPool()
 	local lTX2Bufs = lTX2Mem:bufArray(1)
-	
 
-	-- bitmasks
-	local forwardMask = bitmask.createBitMask(maxBurstSize)
 
 	-------------------------------------------------------------
 	-- profiling
@@ -597,6 +612,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 				-- handle protocol infiringement strategies
 				if not (currentStrat == STRAT['cookie']) then
 					-- in all cases, we simply forward whatever we get from right
+					--log:debug('doing nothing')
 				-- strategie cookie
 				else
 					---------------------------------------------------------------------- SYN/ACK from server, finally establish connection
@@ -647,21 +663,21 @@ function tcpProxySlave(lRXDev, lTXDev)
 			--log:debug('free rRX')
 			rRXBufs:freeAll()
 		-- protocol infringements: simply send every received packet
-		else
+		elseif rx > 0 then
 			-- send all buffers, untouched
-			lTXQueue:send(rRXBufs)
+			lTXQueue:sendN(rRXBufs, rx)
 		end
 
 		------------------------------------------------------------------- polling from right interface done
 
 		------------------------------------------------------------------- polling from left interface
 		rx = lRXQueue:tryRecv(lRXBufs, 1)
-
+		--log:debug('rx ' .. rx)
 		if rx > 0 then
-			lTXBufs:allocN(60, rx)
-
-			if not (currentStrat == STRAT['cookie']) then
-				forwardMask:clearAll()
+			if currentStrat == STRAT['cookie'] then
+				lTXBufs:allocN(60, rx)
+			elseif currentStrat == STRAT['reset'] then
+				lTXRstBufs:allocN(60, rx)
 			end
 		end
 		for i = 1, rx do
@@ -678,9 +694,53 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- send RST on SYN
 					if isSyn(lRXPkt) and not isVerifiedReset(lRXPkt) then
 						-- create and send RST packet
+						--log:debug('Crafting rst')
+						local lTXRstPkt = lTXRstBufs[i]:getTcp4Packet()
+						
+						lTXRstPkt.eth:setSrc(lRXPkt.eth:getDst())
+						lTXRstPkt.eth:setDst(lRXPkt.eth:getSrc())
+
+						-- IP addresses
+						lTXRstPkt.ip4:setSrc(lRXPkt.ip4:getDst())
+						lTXRstPkt.ip4:setDst(lRXPkt.ip4:getSrc())
+						
+						-- TCP
+						lTXRstPkt.tcp:setSrc(lRXPkt.tcp:getDst())
+						lTXRstPkt.tcp:setDst(lRXPkt.tcp:getSrc())
+
+						-- MAC addresses
+						--local tmp = lRXPkt.eth:getSrc()
+						--lRXPkt.eth:setSrc(lRXPkt.eth:getDst())
+						--lRXPkt.eth:setDst(tmp)
+
+						---- IP addresses
+						--tmp = lRXPkt.ip4:getSrc()
+						--lRXPkt.ip4:setSrc(lRXPkt.ip4:getDst())
+						--lRXPkt.ip4:setDst(tmp)
+						--
+						---- TCP
+						--tmp = lRXPkt.tcp:getSrc()
+						--lRXPkt.tcp:setSrc(lRXPkt.tcp:getDst())
+						--lRXPkt.tcp:setDst(tmp)
+						--
+						--lRXPkt.tcp:unsetSyn()
+						--lRXPkt.tcp:setRst()
 					else
 						-- everything else simply forward
-						forwardMask:set(i)
+						--log:debug('alloc rTXB')
+						rTXBufs:alloc(60)
+						local rTXBuf = rTXBufs[1]
+						
+						-- set size of tx packet
+						local size = lRXBufs[i]:getSize()
+						rTXBuf:setSize(size)
+						
+						-- copy data TODO directly use rx buffer
+						ffi.copy(rTXBuf:getData(), lRXBufs[i]:getData(), size)
+						virtualDev:txSingle(rTXBuf)
+						
+						-- invalidate rx packet
+						lRXBufs[i]:setSize(50)
 					end
 				elseif currentStrat == STRAT['sequence'] then
 				elseif currentStrat == STRAT['cookie'] then
@@ -782,20 +842,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 			
 				lRXBufs:free(rx)
 			else
-				-- send masked buffers
-				virtualDev:sendMasked(lTXBufs, forwardMask)
+				-- send rst packets
+				lTXRstBufs:offloadTcpChecksums(nil, nil, nil, rx)
+				lTXQueue:sendN(lTXRstBufs, rx)
 
-				-- invert mask
-				bitmask.bnot(forwardMask, forwardMask)
-
-				if currentStrat == STRAT['reset'] then
-					-- send answer to syn for unmasked packets
-					lTXQueue:sendMasked(lTXBufs, forwardMask)
-				end
-
-				-- only free remaning buffers (unmasked)
-				lRXBufs:freeMasked(forwardMask)
-
+				lRXBufs:free(rx)
 			end
 		end
 
