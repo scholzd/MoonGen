@@ -378,12 +378,10 @@ end
 
 function isVerifiedReset(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	local num = verifiedConnections[idx] 
-	if num then
-		verifiedConnections[idx] = num + 1
+	if verifiedConnections[idx] then
 		return true
 	else
-		verifiedConnections[idx] = 1
+		verifiedConnections[idx] = true
 		return false
 	end
 end
