@@ -39,8 +39,11 @@ eth.TYPE_IP6 = 0x86dd
 --- EtherType for Ptp
 eth.TYPE_PTP = 0x88f7
 
+--- Special addresses
 --- Ethernet broadcast address
-eth.BROADCAST = "ff:ff:ff:ff:ff:ff"
+eth.BROADCAST	= "ff:ff:ff:ff:ff:ff"
+--- Invalid null address
+eth.NULL		= "00:00:00:00:00:00"
 
 
 ------------------------------------------------------------------------
