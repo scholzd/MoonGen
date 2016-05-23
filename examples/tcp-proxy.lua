@@ -644,7 +644,7 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 
-	local currentStrat = STRAT['ignore']
+	local currentStrat = STRAT['cookie']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------
@@ -893,11 +893,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 						--log:info('Received SYN from left')
 						-- strategy cookie
 						local lTXPkt = lTXBufs[i]:getTcp4Packet()
-						createSynAckToClient(lTXPkt, lRxPkt)
+						createSynAckToClient(lTXPkt, lRXPkt)
 						-- length
 						-- TODO do this via alloc, precrafted packet!
 						lTXBufs[i]:setSize(lRXBufs[i]:getSize())
-						log:debug(''..lRXBufs[i]:getSize())
+						--log:debug(''..lRXBufs[i]:getSize())
 					-------------------------------------------------------------------------------------------------------- verified -> translate and forward
 					-- check with verified connections
 					-- if already verified in both directions, immediately forward, otherwise check cookie
