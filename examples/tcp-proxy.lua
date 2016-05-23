@@ -464,12 +464,8 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	-- calculate TCP checksum
 	-- IP header does not change, hence, do not recalculate IP checksum
 	--if leftToRight then
-	--	txBuf:offloadTcpChecksum()
-	--else
-	--if not leftToRight then
-	--	log:debug('Calc checksum ' .. (leftToRight and 'from left ' or 'from right '))
+		--log:debug('Calc checksum ' .. (leftToRight and 'from left ' or 'from right '))
 		txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
-	--end
 	--end
 
 	-- check whether connection should be deleted
@@ -745,13 +741,18 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	profile.start("l", profile_callback)
 
+
+	-------------------------------------------------------------
 	-- main event loop
+	-------------------------------------------------------------
 	log:info('Starting TCP Proxy')
 	while mg.running() do
 		------------------------------------------------------------------------------ poll right interface
 		--log:debug('Polling right (virtual) Dev')
 		rx = virtualDev:rxBurst(rRXBufs, 63)
-		if rx > 0 then
+		--log:debug(''..rx)
+		if currentStrat == STRAT['cookie'] and rx > 0 then
+			-- buffer for translated packets
 			lTX2Bufs:allocN(30, rx)
 		end
 		for i = 1, rx do
@@ -813,17 +814,15 @@ function tcpProxySlave(lRXDev, lTXDev)
 				--lTX2Bufs[i]:dump()
 			end
 		end
-		if rx > 0 then	
-			--offload checksums to NIC
-			--log:debug('Offloading ' .. rx)
-			--lTX2Bufs:offloadTcpChecksums()
-	
-			lTX2Queue:send(lTX2Bufs)
-		end
-		
-		--lTX2Queue:send(lTX2Bufs)
 		
 		if currentStrat == STRAT['cookie'] then
+			if rx > 0 then	
+				--offload checksums to NIC
+				--log:debug('Offloading ' .. rx)
+				lTX2Bufs:offloadTcpChecksums(nil, nil, nil, rx)
+		
+				lTX2Queue:sendN(lTX2Bufs, rx)
+			end
 			--log:debug('free rRX')
 			rRXBufs:freeAll()
 		-- protocol infringements: simply send every received packet
