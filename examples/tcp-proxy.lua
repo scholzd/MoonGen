@@ -472,6 +472,30 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	checkUnsetVerified(rxPkt, leftToRight)
 end
 
+function createSynToServer(txBuf, rxBuf)
+	-- set size of tx packet
+	local size = rxBuf:getSize()
+	txBuf:setSize(size)
+	
+	-- copy data TODO directly use rx buffer
+	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
+	
+	-- adjust some members: sequency number, flags, checksum, length fields
+	local txPkt = txBuf:getTcp4Packet()
+	-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
+	-- this way, it does not have to be translated at all
+	txPkt.tcp:setSeqNumber(txPkt.tcp:getSeqNumber() - 1)
+	txPkt.tcp:setSyn()
+	txPkt.tcp:unsetAck()
+
+	txPkt:setLength(size)
+
+	-- calculate checksums
+	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	txPkt.ip4:calculateChecksum()
+
+end
+
 function createAckToServer(txBuf, rxBuf, rxPkt)
 	-- set size of tx packet
 	local size = rxBuf:getSize()
@@ -483,16 +507,30 @@ function createAckToServer(txBuf, rxBuf, rxPkt)
 	
 	-- send packet back with seq, ack + 1
 	local txPkt = txBuf:getTcp4Packet()
+
+	-- mac addresses (FIXME does not work with KNI)
+	-- I can put any addresses in here (NULL, BROADCASTR, ...), 
+	-- but as soon as I use the right ones it doesn't work any longer
+	--local tmp = rxPkt.eth:getSrc()
+	--txPkt.eth:setSrc(rxPkt.eth:getDst())
+	--txPkt.eth:setDst(tmp)
+
+	
+	-- ip addresses
 	local tmp = rxPkt.ip4:getSrc()
 	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
 	txPkt.ip4:setDst(tmp)
+
+	-- tcp ports
 	tmp = rxPkt.tcp:getSrc()
 	txPkt.tcp:setSrc(rxPkt.tcp:getDst())
 	txPkt.tcp:setDst(tmp)
+
 	txPkt.tcp:setSeqNumber(rxPkt.tcp:getAckNumber())
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
 	txPkt.tcp:unsetSyn()
 	txPkt.tcp:setAck()
+	
 	txPkt:setLength(size)
 
 	-- calculate checksums
@@ -936,25 +974,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 								rTXBufs:alloc(60)
 								local rTXBuf = rTXBufs[1]
 
-								-- set size of tx packet
-								local size = lRXBufs[i]:getSize()
-								rTXBuf:setSize(size)
-								
-								-- copy data TODO directly use rx buffer
-								ffi.copy(rTXBuf:getData(), lRXBufs[i]:getData(), size)
-								
-								-- adjust some members: sequency number, flags, checksum, length fields
-								local rTXPkt = rTXBuf:getTcp4Packet()
-								-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
-								-- this way, it does not have to be translated at all
-								rTXPkt.tcp:setSeqNumber(rTXPkt.tcp:getSeqNumber() - 1)
-								rTXPkt.tcp:setSyn()
-								rTXPkt.tcp:unsetAck()
-								rTXPkt:setLength(size)
-
-								-- calculate checksums
-								rTXPkt.tcp:calculateChecksum(rTXBuf:getData(), size, true)
-								rTXPkt.ip4:calculateChecksum()
+								createSynToServer(rTXBuf, lRXBufs[i])
 								
 								-- done, sending
 								--log:debug('Sending vTXBuf via KNI')
