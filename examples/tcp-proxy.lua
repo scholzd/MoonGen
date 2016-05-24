@@ -788,6 +788,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local lTX2Queue = lTXDev:getTxQueue(1)
 	local lTX2Mem = memory.createMemPool()
 	local lTX2Bufs = lTX2Mem:bufArray()
+	local numTX2 = 0
 	
 
 	-------------------------------------------------------------
@@ -808,6 +809,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 		if currentStrat == STRAT['cookie'] and rx > 0 then
 			-- buffer for translated packets
 			lTX2Bufs:allocN(60, rx)
+			numTX2 = 0
 		end
 		for i = 1, rx do
 			local translate = false
@@ -859,7 +861,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 				--log:info('Translating from right to left')
 			
 				--lTX2Bufs:alloc(70)
-				local lTX2Buf = lTX2Bufs[i]
+				numTX2 = numTX2 + 1
+				local lTX2Buf = lTX2Bufs[numTX2]
 				local lTXPkt = lTX2Buf:getTcp4Packet()
 
 				sequenceNumberTranslation(rRXBufs[i], lTX2Buf, rRXPkt, lTXPkt, RIGHT_TO_LEFT)
@@ -874,8 +877,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 				--offload checksums to NIC
 				--log:debug('Offloading ' .. rx)
 				--lTX2Bufs:offloadTcpChecksums(nil, nil, nil, rx)
+				--log:debug('rx ' .. rx .. ' numTX2 ' .. numTX2)
 		
-				lTX2Queue:sendN(lTX2Bufs, rx)
+				lTX2Queue:sendN(lTX2Bufs, numTX2)
+				lTX2Bufs:freeAfter(numTX2)
 			end
 			--log:debug('free rRX')
 			rRXBufs:freeAll()
