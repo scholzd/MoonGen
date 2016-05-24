@@ -259,7 +259,7 @@ function tcpHeader:getUrgString()
 	if self:getUrg() == 1 then
 		return "URG"
 	else
-		return "X"
+		return "-"
 	end
 end
 
@@ -285,7 +285,7 @@ function tcpHeader:getAckString()
 	if self:getAck() == 1 then
 		return "ACK"
 	else
-		return "X"
+		return "-"
 	end
 end
 
@@ -311,7 +311,7 @@ function tcpHeader:getPshString()
 	if self:getPsh() == 1 then
 		return "PSH"
 	else
-		return "X"
+		return "-"
 	end
 end
 
@@ -337,7 +337,7 @@ function tcpHeader:getRstString()
 	if self:getRst() == 1 then
 		return "RST"
 	else
-		return "X"
+		return "-"
 	end
 end
 
@@ -363,7 +363,7 @@ function tcpHeader:getSynString()
 	if self:getSyn() == 1 then
 		return "SYN"
 	else
-		return "X"
+		return "-"
 	end
 end
 
@@ -389,7 +389,7 @@ function tcpHeader:getFinString()
 	if self:getFin() == 1 then
 		return "FIN"
 	else
-		return "X"
+		return "-"
 	end
 end
 
