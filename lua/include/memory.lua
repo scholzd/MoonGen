@@ -354,6 +354,15 @@ function bufArray:free(n)
 	end
 end
 
+--- Free the all buffers after index n.
+function bufArray:freeAfter(n)
+	for i = n, self.size - 1 do
+		if self.array[i] ~= nil then
+			dpdkc.rte_pktmbuf_free_export(self.array[i])
+		end
+	end
+end
+
 --- Free all buffers in the array, where the bitmask is 1
 --- @param bitmask Bitmask, which selects buffers to be freed
 function bufArray:freeMasked(bitmask)

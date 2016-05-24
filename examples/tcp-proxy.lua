@@ -729,6 +729,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local lTXQueue = lTXDev:getTxQueue(0)
 
 	-- buffer for cookie syn/ack
+	local numSynAck = 0
 	local lTXMem = memory.createMemPool(function(buf)
 		buf:getTcp4Packet():fill{
 			ethSrc=proto.eth.NULL,
@@ -892,6 +893,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 		if rx > 0 then
 			if currentStrat == STRAT['cookie'] then
 				lTXSynAckBufs:allocN(60, rx)
+				numSynAck = 0
 			elseif currentStrat == STRAT['ignore'] then
 				-- nothing
 			elseif currentStrat == STRAT['reset'] then
@@ -944,11 +946,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 					if isSyn(lRXPkt) then
 						--log:info('Received SYN from left')
 						-- strategy cookie
-						local lTXPkt = lTXSynAckBufs[i]:getTcp4Packet()
+						numSynAck = numSynAck + 1
+						local lTXPkt = lTXSynAckBufs[numSynAck]:getTcp4Packet()
 						createSynAckToClient(lTXPkt, lRXPkt)
 						-- length
 						-- TODO do this via alloc, precrafted packet!
-						lTXSynAckBufs[i]:setSize(lRXBufs[i]:getSize())
+						lTXSynAckBufs[numSynAck]:setSize(lRXBufs[i]:getSize())
 						--log:debug(''..lRXBufs[i]:getSize())
 					-------------------------------------------------------------------------------------------------------- verified -> translate and forward
 					-- check with verified connections
@@ -1014,9 +1017,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 		if rx > 0 then
 			if currentStrat == STRAT['cookie'] then	
 				--offload checksums to NIC
-				lTXSynAckBufs:offloadTcpChecksums()
+				--log:debug('rx ' .. rx .. ' numSynAck ' .. numSynAck)
+				lTXSynAckBufs:offloadTcpChecksums(nil, nil, nil, numSynAck)
 		
-				lTXQueue:send(lTXSynAckBufs)
+				lTXQueue:sendN(lTXSynAckBufs, numSynAck)
+
+				lTXSynAckBufs:freeAfter(numSynAck)
 			
 				lRXBufs:free(rx)
 			elseif currentStrat == STRAT['ignore'] then	
