@@ -51,8 +51,8 @@ end
 -- Constants
 ---------------------------------------------------
 
-LEFT_TO_RIGHT = true
-RIGHT_TO_LEFT = false
+local LEFT_TO_RIGHT = true
+local RIGHT_TO_LEFT = false
 
 
 -----------------------------------------------------
@@ -60,7 +60,7 @@ RIGHT_TO_LEFT = false
 -----------------------------------------------------
 
 -- print table of string -> string
-function sT(t)
+local function sT(t)
 	local str = ''
 	for k, v in pairs(t) do
 		str = str .. ', ' .. k .. ' -> ' .. v
@@ -75,7 +75,7 @@ end
 
 local profile_stats = {}
 
-function profile_callback(thread, samples, vmstate)
+local function profile_callback(thread, samples, vmstate)
 	local dump = profile.dumpstack(thread, "l (f) << ", 1)
 	--printf("profile cb: " .. dump)
 	if(profile_stats[dump]) then
@@ -90,30 +90,30 @@ end
 -- check packet type
 ----------------------------------------------------
 
-function isIP4(pkt)
+local function isIP4(pkt)
 	return pkt.eth:getType() == proto.eth.TYPE_IP 
 end
 
-function isTcp4(pkt)
+local function isTcp4(pkt)
 	return isIP4(pkt) and pkt.ip4:getProtocol() == proto.ip4.PROTO_TCP
 end
 
-function isSyn(pkt)
+local function isSyn(pkt)
 	return pkt.tcp:getSyn() == 1
 end
 
-function isAck(pkt)
+local function isAck(pkt)
 	return pkt.tcp:getAck() == 1
 end
 
-function isRst(pkt)
+local function isRst(pkt)
 	return pkt.tcp:getRst() == 1
 end
 
-function isFin(pkt)
+local function isFin(pkt)
 	return pkt.tcp:getFin() == 1
 end
-
+local 
 function printChecks(pkt)
 	print('Is IP4 ' .. tostring(isIP4(pkt)))
 	print('Is TCP ' .. tostring(isTcp4(pkt)))
@@ -135,7 +135,77 @@ local MSS = {
 	mss2=55,
 }
 
-function calculateCookie(pkt)
+
+-------------------------------------------------------------------------------------------
+---- Timestamp
+-------------------------------------------------------------------------------------------
+
+local function getTimestamp()
+	local t = time()
+	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
+	-- 64 seconds resolution
+	t = rshift(t, 6)
+	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
+	-- 5 bits
+	t = t % 32
+	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
+	return t
+end
+
+local function verifyTimestamp(t)
+	return t + timestampValidCycles >= getTimestamp()
+end
+
+
+-------------------------------------------------------------------------------------------
+---- MSS
+-------------------------------------------------------------------------------------------
+
+local function encodeMss()
+	-- 3 bits, allows for 8 different MSS
+	mss = 1 -- encoding see MSS
+	-- log:debug('MSS: ' .. mss .. ' ' .. toBinary(mss))
+	return mss
+end
+
+local function decodeMss(idx)
+	return MSS['mss' .. tostring(idx)] or -1
+end
+
+
+-------------------------------------------------------------------------------------------
+---- Hash
+-------------------------------------------------------------------------------------------
+
+local function hash(int)
+	-- TODO implement something with real crypto later on
+	return int
+end
+
+local function getHash(...)
+	local args = {...}
+	local sum = 0
+	for k, v in pairs(args) do
+		-- log:debug(k .. ':            ' .. toBinary(tonumber(v)))
+		sum = sum + tonumber(v)
+	end
+	-- log:debug('sum:            ' .. toBinary(sum))
+	return band(hash(sum), 0x00ffffff)
+end
+
+local function verifyHash(oldHash, ...)
+	local newHash = getHash(...)
+	-- log:debug('Old hash:       ' .. toBinary(oldHash))
+	-- log:debug('New hash:       ' .. toBinary(newHash))
+	return oldHash == newHash
+end
+
+
+-------------------------------------------------------------------------------------------
+---- Cookie crafting
+-------------------------------------------------------------------------------------------
+
+local function calculateCookie(pkt)
 	local tsOrig = getTimestamp()
 	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 	ts = lshift(tsOrig, 27)
@@ -159,7 +229,7 @@ function calculateCookie(pkt)
 	return cookie, mss
 end
 
-function verifyCookie(pkt)
+local function verifyCookie(pkt)
 	local cookie = pkt.tcp:getAckNumber()
 	--log:debug('Got ACK:        ' .. toBinary(cookie))
 	cookie = cookie - 1
@@ -186,72 +256,6 @@ function verifyCookie(pkt)
 	end
 end
 
-
--------------------------------------------------------------------------------------------
----- Timestamp
--------------------------------------------------------------------------------------------
-
-function getTimestamp()
-	local t = time()
-	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
-	-- 64 seconds resolution
-	t = rshift(t, 6)
-	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
-	-- 5 bits
-	t = t % 32
-	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
-	return t
-end
-
-function verifyTimestamp(t)
-	return t + timestampValidCycles >= getTimestamp()
-end
-
-
--------------------------------------------------------------------------------------------
----- MSS
--------------------------------------------------------------------------------------------
-
-function encodeMss()
-	-- 3 bits, allows for 8 different MSS
-	mss = 1 -- encoding see MSS
-	-- log:debug('MSS: ' .. mss .. ' ' .. toBinary(mss))
-	return mss
-end
-
-function decodeMss(idx)
-	return MSS['mss' .. tostring(idx)] or -1
-end
-
-
--------------------------------------------------------------------------------------------
----- Hash
--------------------------------------------------------------------------------------------
-
-function getHash(...)
-	local args = {...}
-	local sum = 0
-	for k, v in pairs(args) do
-		-- log:debug(k .. ':            ' .. toBinary(tonumber(v)))
-		sum = sum + tonumber(v)
-	end
-	-- log:debug('sum:            ' .. toBinary(sum))
-	return band(hash(sum), 0x00ffffff)
-end
-
-function verifyHash(oldHash, ...)
-	local newHash = getHash(...)
-	-- log:debug('Old hash:       ' .. toBinary(oldHash))
-	-- log:debug('New hash:       ' .. toBinary(newHash))
-	return oldHash == newHash
-end
-
-function hash(int)
-	-- TODO implement something with real crypto later on
-	return int
-end
-
-
 -------------------------------------------------------------------------------------------
 ---- State keeping
 -------------------------------------------------------------------------------------------
@@ -260,7 +264,7 @@ end
 -- eg if not refreshed, remove after 60 seconds(2bits, every 30 seconds unset one, if both unset remove)
 local verifiedConnections = {}
 
-function getIdx(pkt, leftToRight)
+local function getIdx(pkt, leftToRight)
 	if leftToRight then
 		return pkt.ip4:getSrc() .. ':' .. pkt.tcp:getSrc() .. '-' .. pkt.ip4:getDst() .. ':' .. pkt.tcp:getDst()
 	else
@@ -268,7 +272,7 @@ function getIdx(pkt, leftToRight)
 	end
 end
 
-function setLeftVerified(pkt)
+local function setLeftVerified(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
 	local con = verifiedConnections[idx]
 	if con then
@@ -283,7 +287,7 @@ function setLeftVerified(pkt)
 	return true
 end
 
-function setRightVerified(pkt)
+local function setRightVerified(pkt)
 	local idx = getIdx(pkt, RIGHT_TO_LEFT)
 	local con = verifiedConnections[idx]
 	if not con or not con['lAck'] then
@@ -298,7 +302,7 @@ function setRightVerified(pkt)
 	return true
 end
 
-function setFin(pkt, leftToRight)
+local function setFin(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
 	local con = verifiedConnections[idx]
 	if not con then
@@ -320,7 +324,7 @@ function setFin(pkt, leftToRight)
 	end
 end
 
-function setRst(pkt, leftToRight)
+local function setRst(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
 	local con = verifiedConnections[idx]
 	if not con then
@@ -338,7 +342,14 @@ function setRst(pkt, leftToRight)
 	end
 end
 
-function checkUnsetVerified(pkt, leftToRight)
+local function unsetVerified(pkt, leftToRight)
+	local idx = getIdx(pkt, leftToRight)
+	--log:warn('Deleting connection ' .. idx)
+	-- disabled as it has huge performance impact :( (3k reqs/s)
+	--verifiedConnections[idx] = nil
+end
+
+local function checkUnsetVerified(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
 	local con = verifiedConnections[idx]
 	-- RST: in any case, delete connection
@@ -356,15 +367,8 @@ function checkUnsetVerified(pkt, leftToRight)
 	end
 end
 
-function unsetVerified(pkt, leftToRight)
-	local idx = getIdx(pkt, leftToRight)
-	--log:warn('Deleting connection ' .. idx)
-	-- disabled as it has huge performance impact :( (3k reqs/s)
-	--verifiedConnections[idx] = nil
-end
-
 -- TODO update timstamp
-function isVerified(pkt, leftToRight)
+local function isVerified(pkt, leftToRight)
 	local idx = getIdx(pkt, leftToRight)
 	local con = verifiedConnections[idx]
 
@@ -376,7 +380,7 @@ function isVerified(pkt, leftToRight)
 	return false
 end
 
-function isVerifiedReset(pkt)
+local function isVerifiedReset(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
 	if verifiedConnections[idx] then
 		return true
@@ -387,7 +391,7 @@ function isVerifiedReset(pkt)
 end
 
 -- same as reset
-function isVerifiedIgnore(pkt)
+local function isVerifiedIgnore(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
 	if verifiedConnections[idx] then
 		return true
@@ -397,12 +401,12 @@ function isVerifiedIgnore(pkt)
 	end
 end
 
-function setVerifiedSequence(pkt)
+local function setVerifiedSequence(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
 	verifiedConnections[idx] = true
 end
 
-function isVerifiedSequence(pkt)
+local function isVerifiedSequence(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
 	if verifiedConnections[idx] then
 		return true
@@ -411,7 +415,7 @@ function isVerifiedSequence(pkt)
 	end
 end
 
-function printVerifiedConnections()
+local function printVerifiedConnections()
 	log:debug('********************')
 	log:debug('Verified Connections')
 	for k, v in pairs(verifiedConnections) do
@@ -434,7 +438,7 @@ end
 -------------------------------------------------------------------------------------------
 
 -- simply resend the complete packet, but adapt seq/ack number
-function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
+local function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	--log:debug('Performing Sequence Number Translation ' .. (leftToRight and 'from left ' or 'from right '))
 	
 	-- I recall this delivered the wrong size once
@@ -472,7 +476,31 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	checkUnsetVerified(rxPkt, leftToRight)
 end
 
-function createAckToServer(txBuf, rxBuf, rxPkt)
+local function createSynToServer(txBuf, rxBuf)
+	-- set size of tx packet
+	local size = rxBuf:getSize()
+	txBuf:setSize(size)
+	
+	-- copy data TODO directly use rx buffer
+	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
+	
+	-- adjust some members: sequency number, flags, checksum, length fields
+	local txPkt = txBuf:getTcp4Packet()
+	-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
+	-- this way, it does not have to be translated at all
+	txPkt.tcp:setSeqNumber(txPkt.tcp:getSeqNumber() - 1)
+	txPkt.tcp:setSyn()
+	txPkt.tcp:unsetAck()
+
+	txPkt:setLength(size)
+
+	-- calculate checksums
+	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	txPkt.ip4:calculateChecksum()
+
+end
+
+local function createAckToServer(txBuf, rxBuf, rxPkt)
 	-- set size of tx packet
 	local size = rxBuf:getSize()
 	txBuf:setSize(size)
@@ -483,16 +511,30 @@ function createAckToServer(txBuf, rxBuf, rxPkt)
 	
 	-- send packet back with seq, ack + 1
 	local txPkt = txBuf:getTcp4Packet()
+
+	-- mac addresses (FIXME does not work with KNI)
+	-- I can put any addresses in here (NULL, BROADCASTR, ...), 
+	-- but as soon as I use the right ones it doesn't work any longer
+	--local tmp = rxPkt.eth:getSrc()
+	--txPkt.eth:setSrc(rxPkt.eth:getDst())
+	--txPkt.eth:setDst(tmp)
+
+	
+	-- ip addresses
 	local tmp = rxPkt.ip4:getSrc()
 	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
 	txPkt.ip4:setDst(tmp)
+
+	-- tcp ports
 	tmp = rxPkt.tcp:getSrc()
 	txPkt.tcp:setSrc(rxPkt.tcp:getDst())
 	txPkt.tcp:setDst(tmp)
+
 	txPkt.tcp:setSeqNumber(rxPkt.tcp:getAckNumber())
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
 	txPkt.tcp:unsetSyn()
 	txPkt.tcp:setAck()
+	
 	txPkt:setLength(size)
 
 	-- calculate checksums
@@ -500,7 +542,7 @@ function createAckToServer(txBuf, rxBuf, rxPkt)
 	txPkt.ip4:calculateChecksum()
 end
 
-function createSynAckToClient(txPkt, rxPkt)
+local function createSynAckToClient(txPkt, rxPkt)
 	local cookie, mss = calculateCookie(rxPkt)
 	
 	-- MAC addresses
@@ -524,7 +566,7 @@ end
 ---- Packet modification and crafting for protocol violation strategies
 -------------------------------------------------------------------------------------------
 
-function forwardTraffic(vDev, txBufs, rxBuf)
+local function forwardTraffic(vDev, txBufs, rxBuf)
 	--log:debug('alloc txBufs')
 	txBufs:alloc(60)
 	local txBuf = txBufs[1]
@@ -541,11 +583,11 @@ function forwardTraffic(vDev, txBufs, rxBuf)
 	rxBuf:setSize(1)
 end
 
-function createResponseIgnore(txBuf, rxPkt)
+local function createResponseIgnore(txBuf, rxPkt)
 	-- yep, nothing
 end
 
-function createResponseReset(txBuf, rxPkt)
+local function createResponseReset(txBuf, rxPkt)
 	--log:debug('Crafting rst')
 	local txPkt = txBuf:getTcp4Packet()
 	
@@ -582,7 +624,7 @@ function createResponseReset(txBuf, rxPkt)
 	--lRXPkt.tcp:setRst()
 end
 
-function createResponseSequence(txBuf, rxPkt)
+local function createResponseSequence(txBuf, rxPkt)
 	--log:debug('crafting seq vio')
 	local txPkt = txBuf:getTcp4Packet()
 	
@@ -764,7 +806,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 		--log:debug(''..rx)
 		if currentStrat == STRAT['cookie'] and rx > 0 then
 			-- buffer for translated packets
-			lTX2Bufs:allocN(30, rx)
+			lTX2Bufs:allocN(60, rx)
 		end
 		for i = 1, rx do
 			local translate = false
@@ -936,25 +978,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 								rTXBufs:alloc(60)
 								local rTXBuf = rTXBufs[1]
 
-								-- set size of tx packet
-								local size = lRXBufs[i]:getSize()
-								rTXBuf:setSize(size)
-								
-								-- copy data TODO directly use rx buffer
-								ffi.copy(rTXBuf:getData(), lRXBufs[i]:getData(), size)
-								
-								-- adjust some members: sequency number, flags, checksum, length fields
-								local rTXPkt = rTXBuf:getTcp4Packet()
-								-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
-								-- this way, it does not have to be translated at all
-								rTXPkt.tcp:setSeqNumber(rTXPkt.tcp:getSeqNumber() - 1)
-								rTXPkt.tcp:setSyn()
-								rTXPkt.tcp:unsetAck()
-								rTXPkt:setLength(size)
-
-								-- calculate checksums
-								rTXPkt.tcp:calculateChecksum(rTXBuf:getData(), size, true)
-								rTXPkt.ip4:calculateChecksum()
+								createSynToServer(rTXBuf, lRXBufs[i])
 								
 								-- done, sending
 								--log:debug('Sending vTXBuf via KNI')
