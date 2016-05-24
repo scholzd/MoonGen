@@ -34,7 +34,7 @@ end
 
 -- RFC1624 Eq. 4:
 -- HC' = HC - ~m - m'
-function mod.checksumUpdateIncremental32(checksum, oldValue, newValue)
+function checksumUpdateIncremental32(checksum, oldValue, newValue)
 	local sum;
 
 	oldValue = bnot(oldValue);

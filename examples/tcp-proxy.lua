@@ -442,7 +442,7 @@ function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	--else
 	--	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	--end
-	local cs = checksum.checksumUpdateIncremental32(txPkt.tcp:getChecksum(), oldValue, newValue)
+	local cs = checksumUpdateIncremental32(txPkt.tcp:getChecksum(), oldValue, newValue)
 	txPkt.tcp:setChecksum(cs)
 	
 	--txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
