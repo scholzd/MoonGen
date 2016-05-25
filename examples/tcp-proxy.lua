@@ -418,17 +418,24 @@ end
 local function printVerifiedConnections()
 	log:debug('********************')
 	log:debug('Verified Connections')
+	local numRst = 0
+	local num = 0
 	for k, v in pairs(verifiedConnections) do
+		num = num + 1
 		local str = ''
 		if type(v) == 'table' then
 		for ik, iv in pairs(v) do
 			str = str .. ', ' .. tostring(ik) .. '=' .. tostring(iv)
+			if ik == 'lRst' or ik == 'rRst' then
+				numRst = numRst + 1
+			end
 		end
 		else
 		str = tostring(v)
 		end
 		log:debug(tostring(k) .. ' -> ' .. str)
 	end
+	log:debug('Numer of resets: ' .. numRst .. '/' .. num)
 	log:debug('********************')
 end
 
@@ -703,17 +710,26 @@ function tcpProxySlave(lRXDev, lTXDev)
     	virtualDev:handleRequest()	
 		mg.sleepMillisIdle(1)
 	end
-
-	-- TX buffers for right to right
-	local rTXMem = memory.createMemPool(function(buf)
-		buf:getTcp4Packet():fill{
-		}
-	end)
-	local rTXBufs = rTXMem:bufArray(1)
 	
 	-- RX buffers for right
 	local rRXMem = memory.createMemPool()	
 	local rRXBufs = rRXMem:bufArray()
+	
+	-- TX buffers 
+	-- ack to right (on syn/ack from right)
+	local numAck = 0
+	local rTXAckMem = memory.createMemPool(function(buf)
+		buf:getTcp4Packet():fill{
+		}
+	end)
+	local rTXAckBufs = rTXAckMem:bufArray()
+	
+	-- right to left forward
+	local lTXForwardQueue = lTXDev:getTxQueue(1)
+	
+	local numForward = 0
+	local rTXForwardMem = memory.createMemPool()
+	local rTXForwardBufs = rTXForwardMem:bufArray()
 
 
 	-------------------------------------------------------------
@@ -803,13 +819,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 		}
 	end)
 	local lTXSeqBufs = lTXSeqMem:bufArray()
-
-
-	-- TX buffers for right to left
-	local lTX2Queue = lTXDev:getTxQueue(1)
-	local lTX2Mem = memory.createMemPool()
-	local lTX2Bufs = lTX2Mem:bufArray()
-	local numTX2 = 0
 	
 
 	-------------------------------------------------------------
@@ -829,8 +838,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 		--log:debug(''..rx)
 		if currentStrat == STRAT['cookie'] and rx > 0 then
 			-- buffer for translated packets
-			lTX2Bufs:allocN(60, rx)
-			numTX2 = 0
+			rTXForwardBufs:allocN(60, rx)
+			numForward = 0
+			
+			rTXAckBufs:allocN(60, rx)
+			numAck = 0
 		end
 		for i = 1, rx do
 			local translate = false
@@ -852,13 +864,16 @@ function tcpProxySlave(lRXDev, lTXDev)
 						setRightVerified(rRXPkt)
 						
 						-- send ACK to server
-						rTXBufs:alloc(70)
-						local rTXBuf = rTXBufs[1]
-						createAckToServer(rTXBuf, rRXBufs[i], rRXPkt)
-						
-						-- done, sending
-						--log:debug('Sending rTXBuf via KNI')
-						virtualDev:txSingle(rTXBuf)
+						--rTXBufs:alloc(70)
+						--local rTXBuf = rTXBufs[1]
+						--createAckToServer(rTXBuf, rRXBufs[i], rRXPkt)
+						--
+						---- done, sending
+						----log:debug('Sending rTXBuf via KNI')
+						--virtualDev:txSingle(rTXBuf)
+
+						numAck = numAck + 1
+						createAckToServer(rTXAckBufs[numAck], rRXBufs[i], rRXPkt)
 					----------------------------------------------------------------------- any verified packet from server
 					elseif isVerified(rRXPkt, RIGHT_TO_LEFT) then
 						-- anything else must be from a verified connection, translate and send via physical nic
@@ -882,11 +897,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 				--log:info('Translating from right to left')
 			
 				--lTX2Bufs:alloc(70)
-				numTX2 = numTX2 + 1
-				local lTX2Buf = lTX2Bufs[numTX2]
-				local lTXPkt = lTX2Buf:getTcp4Packet()
+				numForward = numForward + 1
+				local rTXForwardBuf = rTXForwardBufs[numForward]
+				local rTXPkt = rTXForwardBuf:getTcp4Packet()
 
-				sequenceNumberTranslation(rRXBufs[i], lTX2Buf, rRXPkt, lTXPkt, RIGHT_TO_LEFT)
+				sequenceNumberTranslation(rRXBufs[i], rTXForwardBuf, rRXPkt, rTXPkt, RIGHT_TO_LEFT)
 			else
 				--lTX2Bufs[i]:getTcp4Packet().eth:setType(0)
 				--lTX2Bufs[i]:dump()
@@ -900,8 +915,13 @@ function tcpProxySlave(lRXDev, lTXDev)
 				--lTX2Bufs:offloadTcpChecksums(nil, nil, nil, rx)
 				--log:debug('rx ' .. rx .. ' numTX2 ' .. numTX2)
 		
-				lTX2Queue:sendN(lTX2Bufs, numTX2)
-				lTX2Bufs:freeAfter(numTX2)
+				-- forwarded to left
+				lTXForwardQueue:sendN(rTXForwardBufs, numForward)
+				rTXForwardBufs:freeAfter(numForward)
+				
+				-- ack to right
+				virtualDev:txBurst(rTXAckBufs, numAck)
+				rTXAckBufs:freeAfter(numAck)
 			end
 			--log:debug('free rRX')
 			rRXBufs:freeAll()
