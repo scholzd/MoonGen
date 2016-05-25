@@ -476,40 +476,28 @@ local function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight
 	checkUnsetVerified(rxPkt, leftToRight)
 end
 
-local function createSynToServer(txBuf, rxBuf, rxPkt)
+local function createSynToServer(txBuf, rxBuf)
 	-- set size of tx packet
 	local size = rxBuf:getSize()
-	txBuf:setSize(60)
+	txBuf:setSize(size)
 	
-	-- copy data TODO directly use rx buffer
+	-- copy data
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
 	
 	-- adjust some members: sequency number, flags, checksum, length fields
 	local txPkt = txBuf:getTcp4Packet()
-	
-	-- MAC addresses
-	txPkt.eth:setSrc(rxPkt.eth:getSrc())
-	txPkt.eth:setDst(rxPkt.eth:getDst())
-
-	-- IP addresses
-	txPkt.ip4:setSrc(rxPkt.ip4:getSrc())
-	txPkt.ip4:setDst(rxPkt.ip4:getDst())
-	
-	-- TCP
-	txPkt.tcp:setSrc(rxPkt.tcp:getSrc())
-	txPkt.tcp:setDst(rxPkt.tcp:getDst())
-
 	-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
 	-- this way, it does not have to be translated at all
-	txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - 1)
+	txPkt.tcp:setSeqNumber(txPkt.tcp:getSeqNumber() - 1)
 	txPkt.tcp:setSyn()
 	txPkt.tcp:unsetAck()
 
-	txPkt:setLength(60)
+	txPkt:setLength(size)
 
 	-- calculate checksums
+	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	txPkt.ip4:calculateChecksum()
-	txPkt.tcp:calculateChecksum(txBuf:getData(), 60, true)
+
 end
 
 local function createAckToServer(txBuf, rxBuf, rxPkt)
@@ -774,7 +762,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			tcpSrc=0,
 			tcpDst=0,
 			tcpSeqNumber=0,
-			tcpAckNumber=42, -- not important, random
+			tcpAckNumber=0,
 			tcpSyn=1,
 			pktLength=60,
 		}
@@ -1027,7 +1015,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 								----log:debug('Sending vTXBuf via KNI')
 								--virtualDev:txSingle(rTXBuf)
 								numForward = numForward + 1
-								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i], lRXPkt)
+								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i])
 							else
 								-- was already left verified -> stall
 								-- should not happen as it is checked above already
