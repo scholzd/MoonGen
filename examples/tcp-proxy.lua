@@ -476,28 +476,40 @@ local function sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight
 	checkUnsetVerified(rxPkt, leftToRight)
 end
 
-local function createSynToServer(txBuf, rxBuf)
+local function createSynToServer(txBuf, rxBuf, rxPkt)
 	-- set size of tx packet
 	local size = rxBuf:getSize()
-	txBuf:setSize(size)
+	txBuf:setSize(60)
 	
 	-- copy data TODO directly use rx buffer
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
 	
 	-- adjust some members: sequency number, flags, checksum, length fields
 	local txPkt = txBuf:getTcp4Packet()
+	
+	-- MAC addresses
+	txPkt.eth:setSrc(rxPkt.eth:getSrc())
+	txPkt.eth:setDst(rxPkt.eth:getDst())
+
+	-- IP addresses
+	txPkt.ip4:setSrc(rxPkt.ip4:getSrc())
+	txPkt.ip4:setDst(rxPkt.ip4:getDst())
+	
+	-- TCP
+	txPkt.tcp:setSrc(rxPkt.tcp:getSrc())
+	txPkt.tcp:setDst(rxPkt.tcp:getDst())
+
 	-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
 	-- this way, it does not have to be translated at all
-	txPkt.tcp:setSeqNumber(txPkt.tcp:getSeqNumber() - 1)
+	txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - 1)
 	txPkt.tcp:setSyn()
 	txPkt.tcp:unsetAck()
 
-	txPkt:setLength(size)
+	txPkt:setLength(60)
 
 	-- calculate checksums
-	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	txPkt.ip4:calculateChecksum()
-
+	txPkt.tcp:calculateChecksum(txBuf:getData(), 60, true)
 end
 
 local function createAckToServer(txBuf, rxBuf, rxPkt)
@@ -719,16 +731,18 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	-- left/physical interface
 	-------------------------------------------------------------
+	lTXStats = stats:newDevTxCounter(lTXDev, "plain")
+	lRXStats = stats:newDevRxCounter(lRXDev, "plain")
+	
 	-- RX buffers for left
 	local lRXQueue = lRXDev:getRxQueue(0)
 	local lRXMem = memory.createMemPool()	
 	local lRXBufs = lRXMem:bufArray()
-	lRXStats = stats:newDevRxCounter(lRXDev, "plain")
 
-	-- TX buffers for left to left
+	-- TX buffers
 	local lTXQueue = lTXDev:getTxQueue(0)
 
-	-- buffer for cookie syn/ack
+	-- buffer for cookie syn/ack to left
 	local numSynAck = 0
 	local lTXMem = memory.createMemPool(function(buf)
 		buf:getTcp4Packet():fill{
@@ -747,9 +761,27 @@ function tcpProxySlave(lRXDev, lTXDev)
 		}
 	end)
 	local lTXSynAckBufs = lTXMem:bufArray()
-	lTXStats = stats:newDevTxCounter(lTXDev, "plain")
 	
-	-- buffer for resets
+	-- buffer for cookie forwarding to right
+	-- both for syn as well as all translated traffic
+	local numForward = 0 
+	local lTXForwardMem = memory.createMemPool(function(buf)
+		local pkt = buf:getTcp4Packet():fill{
+			ethSrc=proto.eth.NULL,
+			ethDst=proto.eth.NULL,
+			ip4Src=proto.ip4.NULL,
+			ip4Dst=proto.ip4.NULL,
+			tcpSrc=0,
+			tcpDst=0,
+			tcpSeqNumber=0,
+			tcpAckNumber=42, -- not important, random
+			tcpSyn=1,
+			pktLength=60,
+		}
+	end)
+	local lTXForwardBufs = lTXForwardMem:bufArray()
+	
+	-- buffer for resets to left
 	local lTXRstMem = memory.createMemPool(function(buf)
 		local pkt = buf:getTcp4Packet():fill{
 			ethSrc=proto.eth.NULL,
@@ -766,7 +798,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	end)
 	local lTXRstBufs = lTXRstMem:bufArray()
 	
-	-- buffer for sequence
+	-- buffer for sequence to left
 	local lTXSeqMem = memory.createMemPool(function(buf)
 		local pkt = buf:getTcp4Packet():fill{
 			ethSrc=proto.eth.NULL,
@@ -783,6 +815,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 		}
 	end)
 	local lTXSeqBufs = lTXSeqMem:bufArray()
+
 
 	-- TX buffers for right to left
 	local lTX2Queue = lTXDev:getTxQueue(1)
@@ -898,7 +931,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 		if rx > 0 then
 			if currentStrat == STRAT['cookie'] then
 				lTXSynAckBufs:allocN(60, rx)
+				lTXForwardBufs:allocN(60, rx)
 				numSynAck = 0
+				numForward = 0
 			elseif currentStrat == STRAT['ignore'] then
 				-- nothing
 			elseif currentStrat == STRAT['reset'] then
@@ -983,14 +1018,16 @@ function tcpProxySlave(lRXDev, lTXDev)
 							
 							if setLeftVerified(lRXPkt) then
 								-- connection is left verified, start handshake with right
-								rTXBufs:alloc(60)
-								local rTXBuf = rTXBufs[1]
+								--rTXBufs:alloc(60)
+								--local rTXBuf = rTXBufs[1]
 
-								createSynToServer(rTXBuf, lRXBufs[i])
-								
-								-- done, sending
-								--log:debug('Sending vTXBuf via KNI')
-								virtualDev:txSingle(rTXBuf)
+								--createSynToServer(rTXBuf, lRXBufs[i])
+								--
+								---- done, sending
+								----log:debug('Sending vTXBuf via KNI')
+								--virtualDev:txSingle(rTXBuf)
+								numForward = numForward + 1
+								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i], lRXPkt)
 							else
 								-- was already left verified -> stall
 								-- should not happen as it is checked above already
@@ -1011,24 +1048,36 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 			if translate then
 				--log:info('Translating from left to right')
-				rTXBufs:alloc(70)
-				local rTXBuf = rTXBufs[1]
+				--rTXBufs:alloc(70)
+				--local rTXBuf = rTXBufs[1]
 
-				local rTXPkt = rTXBufs[1]:getTcp4Packet()
-				sequenceNumberTranslation(lRXBufs[i], rTXBufs[1], lRXPkt, rTXPkt, LEFT_TO_RIGHT)
-				virtualDev:txSingle(rTXBuf)
+				--local rTXPkt = rTXBufs[1]:getTcp4Packet()
+				--sequenceNumberTranslation(lRXBufs[i], rTXBufs[1], lRXPkt, rTXPkt, LEFT_TO_RIGHT)
+				--virtualDev:txSingle(rTXBuf)
+				numForward = numForward + 1
+				sequenceNumberTranslation(lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
 			end
 		end
 		if rx > 0 then
 			if currentStrat == STRAT['cookie'] then	
 				--offload checksums to NIC
 				--log:debug('rx ' .. rx .. ' numSynAck ' .. numSynAck)
+
+				-- syn ack
 				lTXSynAckBufs:offloadTcpChecksums(nil, nil, nil, numSynAck)
 		
 				lTXQueue:sendN(lTXSynAckBufs, numSynAck)
 
 				lTXSynAckBufs:freeAfter(numSynAck)
 			
+				-- forwarded
+				lTXForwardBufs:offloadTcpChecksums(nil, nil, nil, numForward)
+		
+				virtualDev:txBurst(lTXForwardBufs, numForward)
+
+				lTXForwardBufs:freeAfter(numForward)
+
+				-- rx
 				lRXBufs:free(rx)
 			elseif currentStrat == STRAT['ignore'] then	
 				-- we dont send packets in reply to syn, so only free rx
