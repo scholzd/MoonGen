@@ -200,15 +200,19 @@ function mod.setLeftVerified(pkt)
 	local idx = getIdx(pkt, mod.LEFT_TO_RIGHT)
 	local con = verifiedConnections[idx]
 	if con then
-		-- connection is left verified, 
-		-- hence, this syn is duplicated and can be dropped
-		--log:debug('Already left verified')
-		return false
+		-- connection is already left verified, 
+		-- hence, this packet and the syn we send next is duplicated
+		-- option A: drop it
+		-- 		disadvantage: original syn might have gotten lost (server busy, ...)
+		-- option B (chosen): send again
+		-- 		we assume the Ack number has not changed (which it obviously shouldn't)
+		--		if it has changed, something is wrong
+		--		hence, we assume the first Ack number to be the correct one
+		return
 	end
 	con = {}
 	con['lAck'] = pkt.tcp:getAckNumber()
 	verifiedConnections[idx] = con
-	return true
 end
 
 function mod.setRightVerified(pkt)

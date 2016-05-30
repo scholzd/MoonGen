@@ -443,16 +443,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 						if mss then
 							--log:info('Received valid cookie from left, starting handshake with server')
 							
-							if setLeftVerified(lRXPkt) then
-								-- connection is left verified, start handshake with right
-								numForward = numForward + 1
-								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i])
-							else
-								-- was already left verified -> stall
-								-- should not happen as it is checked above already
-								--log:debug('Already left verified, discarding')
-								-- TODO dont just drop...
-							end
+							setLeftVerified(lRXPkt)
+							-- connection is left verified, start handshake with right
+							numForward = numForward + 1
+							createSynToServer(lTXForwardBufs[numForward], lRXBufs[i])
 						else
 							log:warn('Wrong cookie, dropping packet ' .. getIdx(lRXPkt, LEFT_TO_RIGHT))
 							-- drop, and done
@@ -461,7 +455,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						end
 					----------------------------------------------------------------------------------------------- unverified, but not syn/ack -> ignore
 					else
-						-- not syn, unverified packets -> belongs to already deleted connection -> drop
+						-- not syn, unverified tcp packets -> belongs to already deleted connection -> drop
 						--log:error('unhandled packet ' .. tostring(isVerified(lRXPkt, LEFT_TO_RIGHT)))
 					end
 				end
