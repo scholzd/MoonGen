@@ -233,10 +233,10 @@ function mod.setFin(pkt, leftToRight)
 		-- FIN for not verified connection
 		-- means conenction was already deleted
 		-- and this packet can be ignored
-		--log:debug('FIN for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
+		log:debug('FIN for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
 		return
 	end
-	--log:debug('one way FIN ' .. (leftToRight and 'from left' or 'from right'))
+	log:debug('one way FIN ' .. (leftToRight and 'from left' or 'from right'))
 	if leftToRight then
 		con['lFin'] = true --con['lFin'] .. '-' .. getPkts(con)
 	else
@@ -255,10 +255,10 @@ function mod.setRst(pkt, leftToRight)
 		-- RST for not verified connection
 		-- means conenction was already deleted
 		-- and this packet can be ignored
-		--log:debug('RST for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
+		log:debug('RST for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
 		return
 	end
-	--log:debug('one way RST ' .. (leftToRight and 'from left' or 'from right'))
+	log:debug('one way RST ' .. (leftToRight and 'from left' or 'from right'))
 	if leftToRight then
 		con['lRst'] = true --con['lRst'] .. '-' .. getPkts(con)
 	else
@@ -330,10 +330,11 @@ end
 -- infringement things (TODO move at some point)
 function mod.isVerifiedReset(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	if verifiedConnections[idx] then
+	if verifiedConnections[idx] and verifiedConnections[idx]['diff'] then
 		return true
 	else
-		verifiedConnections[idx] = true
+		verifiedConnections[idx] = {}
+		verifiedConnections[idx]['diff'] = true
 		return false
 	end
 end
@@ -341,22 +342,23 @@ end
 -- same as reset
 function mod.isVerifiedIgnore(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	if verifiedConnections[idx] then
+	if verifiedConnections[idx] and verifiedConnections[idx]['diff'] then
 		return true
 	else
-		verifiedConnections[idx] = true
+		verifiedConnections[idx]['diff'] = true
 		return false
 	end
 end
 
 function mod.setVerifiedSequence(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	verifiedConnections[idx] = true
+	verifiedConnections[idx] = {}
+	verifiedConnections[idx]['diff'] = true
 end
 
 function mod.isVerifiedSequence(pkt)
 	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	if verifiedConnections[idx] then
+	if verifiedConnections[idx] and verifiedConnections[idx]['diff'] then
 		return true
 	else
 		return false

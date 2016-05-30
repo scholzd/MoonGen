@@ -152,7 +152,7 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 
-	local currentStrat = STRAT['cookie']
+	local currentStrat = STRAT['reset']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------
@@ -264,6 +264,17 @@ function tcpProxySlave(lRXDev, lTXDev)
 				if not (currentStrat == STRAT['cookie']) then
 					-- in all cases, we simply forward whatever we get from right
 					--log:debug('doing nothing')
+
+					-- check for FIN/RST
+					if isVerifiedReset(rRXPkt, RIGHT_TO_LEFT) then
+						if isRst(rRXPkt) then
+							--log:debug('Got RST packet from right ' .. idx)
+							setRst(rRXPkt, RIGHT_TO_LEFT)
+						elseif isFin(rRXPkt) then
+							--log:debug('Got FIN packet from right ' .. idx)
+							setFin(rRXPkt, RIGHT_TO_LEFT)
+						end
+					end
 				-- strategie cookie
 				else
 					---------------------------------------------------------------------- SYN/ACK from server, finally establish connection
@@ -278,7 +289,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						-- anything else must be from a verified connection, translate and send via physical nic
 						--log:info('Packet of verified connection from server, translate and forward')
 						--local idx = getIdx(rRXPkt, RIGHT_TO_LEFT)
-						if isRst(rRXPkt) then -- TODO move to bottom
+						if isRst(rRXPkt) then
 							--log:debug('Got RST packet from right ' .. idx)
 							setRst(rRXPkt, RIGHT_TO_LEFT)
 						elseif isFin(rRXPkt) then
@@ -375,6 +386,15 @@ function tcpProxySlave(lRXDev, lTXDev)
 						numRst = numRst + 1
 						createResponseReset(lTXRstBufs[numRst], lRXPkt)
 					else
+						if isVerifiedReset(lRXPkt, LEFT_TO_RIGHT) then 
+							if isRst(lRXPkt) then
+								--log:debug('Got RST packet from left ' .. idx)
+								setRst(lRXPkt, LEFT_TO_RIGHT)
+							elseif isFin(lRXPkt) then
+								--log:debug('Got FIN packet from left ' .. idx)
+								setFin(lRXPkt, LEFT_TO_RIGHT)
+							end
+						end
 						-- everything else simply forward
 						numForward = numForward + 1
 						forwardTraffic(lTXForwardBufs[numForward], lRXBufs[i])
@@ -410,7 +430,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					elseif isVerified(lRXPkt, LEFT_TO_RIGHT) then 
 						--log:info('Received packet of verified connection from left, translating and forwarding')
 						--local idx = getIdx(lRXPkt, LEFT_TO_RIGHT)
-						if isRst(lRXPkt) then -- TODO move to bottom
+						if isRst(lRXPkt) then
 							--log:debug('Got RST packet from left ' .. idx)
 							setRst(lRXPkt, LEFT_TO_RIGHT)
 							translate = true
