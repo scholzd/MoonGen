@@ -410,11 +410,11 @@ function mod.sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	
 	-- calculate TCP checksum
 	-- IP header does not change, hence, do not recalculate IP checksum
-	local cs = checksum.checksumUpdateIncremental32(txPkt.tcp:getChecksum(), oldValue, newValue)
-	txPkt.tcp:updateChecksum(oldValue, newValue)
+	--local cs = checksum.checksumUpdateIncremental32(txPkt.tcp:getChecksum(), oldValue, newValue)
+	--txPkt.tcp:setChecksum(cs)
 	
 	-- completely in tcp.lua
-	--txPkt.tcp:setChecksum(cs)
+	txPkt.tcp:updateChecksum(oldValue, newValue)
 
 	-- check whether connection should be deleted
 	checkUnsetVerified(rxPkt, leftToRight)

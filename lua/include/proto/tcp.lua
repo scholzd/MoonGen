@@ -432,7 +432,7 @@ function tcpHeader:updateChecksum(oldValue, newValue)
 	
 	sum = rshift(sum, 16) + band(sum, 0xFFFF);
 	
-	self:setChecksum(sum, 0xFFFF);
+	self:setChecksum(band(sum, 0xFFFF));
 end
 
 --- Calculate and set the checksum.
