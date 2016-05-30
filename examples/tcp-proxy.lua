@@ -277,7 +277,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					elseif isVerified(rRXPkt, RIGHT_TO_LEFT) then
 						-- anything else must be from a verified connection, translate and send via physical nic
 						--log:info('Packet of verified connection from server, translate and forward')
-						local idx = getIdx(rRXPkt, RIGHT_TO_LEFT)
+						--local idx = getIdx(rRXPkt, RIGHT_TO_LEFT)
 						if isRst(rRXPkt) then -- TODO move to bottom
 							--log:debug('Got RST packet from right ' .. idx)
 							setRst(rRXPkt, RIGHT_TO_LEFT)
@@ -409,7 +409,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- if already verified in both directions, immediately forward, otherwise check cookie
 					elseif isVerified(lRXPkt, LEFT_TO_RIGHT) then 
 						--log:info('Received packet of verified connection from left, translating and forwarding')
-						local idx = getIdx(lRXPkt, LEFT_TO_RIGHT)
+						--local idx = getIdx(lRXPkt, LEFT_TO_RIGHT)
 						if isRst(lRXPkt) then -- TODO move to bottom
 							--log:debug('Got RST packet from left ' .. idx)
 							setRst(lRXPkt, LEFT_TO_RIGHT)
