@@ -9,6 +9,8 @@
 
 local ffi 	= require "ffi"
 local log	= require "log"
+local memory = require "memory"
+local proto = require "proto/proto"
 require "utils"
 
 local mod = {}
@@ -108,5 +110,44 @@ function mod.createResponseSequence(txBuf, rxPkt)
 	--lRXPkt.tcp:setAck()
 end
 
+
+--bufs
+
+function mod.getRstBufs()
+	local lTXRstMem = memory.createMemPool(function(buf)
+		local pkt = buf:getTcp4Packet():fill{
+			ethSrc=proto.eth.NULL,
+			ethDst=proto.eth.NULL,
+			ip4Src=proto.ip4.NULL,
+			ip4Dst=proto.ip4.NULL,
+			tcpSrc=0,
+			tcpDst=0,
+			tcpSeqNumber=0,
+			tcpAckNumber=0,
+			tcpRst=1,
+			pktLength=60,
+		}
+	end)
+	return lTXRstMem:bufArray()
+end
+	
+function mod.getSeqBufs()
+	local lTXSeqMem = memory.createMemPool(function(buf)
+		local pkt = buf:getTcp4Packet():fill{
+			ethSrc=proto.eth.NULL,
+			ethDst=proto.eth.NULL,
+			ip4Src=proto.ip4.NULL,
+			ip4Dst=proto.ip4.NULL,
+			tcpSrc=0,
+			tcpDst=0,
+			tcpSeqNumber=42, -- randomly chosen
+			tcpAckNumber=0,  -- set depending on RX
+			tcpSyn=1,
+			tcpAck=1,
+			pktLength=60,
+		}
+	end)
+	return lTXSeqMem:bufArray()
+end
 
 return mod
