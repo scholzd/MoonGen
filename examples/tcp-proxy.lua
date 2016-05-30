@@ -320,8 +320,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 			if rx > 0 then	
 				--offload checksums to NIC
 				--log:debug('Offloading ' .. rx)
-				--lTX2Bufs:offloadTcpChecksums(nil, nil, nil, rx)
-				--log:debug('rx ' .. rx .. ' numTX2 ' .. numTX2)
+				lTXForwardBufs:offloadTcpChecksums(nil, nil, nil, numForward)
+				if numForward > 0 then
+				local tmp = lTXForwardBufs[1].ol_flags
+				log:debug(tostring(tmp))
+				end
 		
 				-- forwarded to left
 				lTXForwardQueue:sendN(rTXForwardBufs, numForward)

@@ -401,10 +401,13 @@ function mod.sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	
 	-- calculate TCP checksum
 	-- IP header does not change, hence, do not recalculate IP checksum
-	--if leftToRight then
+	-- only for KNI we can't offload it
+	if leftToRight then
 		--log:debug('Calc checksum ' .. (leftToRight and 'from left ' or 'from right '))
 		txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
-	--end
+	else
+		--txPkt.tcp:setChecksum(0)
+	end
 
 	-- check whether connection should be deleted
 	checkUnsetVerified(rxPkt, leftToRight)
