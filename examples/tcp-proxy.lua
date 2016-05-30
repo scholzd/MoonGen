@@ -152,7 +152,7 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 
-	local currentStrat = STRAT['ignore']
+	local currentStrat = STRAT['sequence']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------
@@ -251,6 +251,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local lTXForwardBufs = lTXForwardMem:bufArray()
 	
 	-- buffer for resets to left
+	local numRst = 0
 	local lTXRstMem = memory.createMemPool(function(buf)
 		local pkt = buf:getTcp4Packet():fill{
 			ethSrc=proto.eth.NULL,
@@ -268,6 +269,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local lTXRstBufs = lTXRstMem:bufArray()
 	
 	-- buffer for sequence to left
+	numSeq = 0
 	local lTXSeqMem = memory.createMemPool(function(buf)
 		local pkt = buf:getTcp4Packet():fill{
 			ethSrc=proto.eth.NULL,
@@ -396,9 +398,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 				-- nothing
 			elseif currentStrat == STRAT['reset'] then
 				lTXRstBufs:allocN(60, rx)
+				numRst = 0
 			elseif currentStrat == STRAT['sequence'] then
 				lTXSeqBufs:allocN(60, rx)
+				numSeq = 0
 			end
+
 			-- every strategy needs buffers to simply forward packets left to right
 			lTXForwardBufs:allocN(60, rx)
 			numForward = 0
@@ -426,7 +431,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- send RST on unverified SYN
 					if isSyn(lRXPkt) and not isVerifiedReset(lRXPkt) then
 						-- create and send RST packet
-						createResponseReset(lTXRstBufs[i], lRXPkt)
+						numRst = numRst + 1
+						createResponseReset(lTXRstBufs[numRst], lRXPkt)
 					else
 						-- everything else simply forward
 						numForward = numForward + 1
@@ -436,7 +442,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- send wrong sequence number on unverified SYN
 					if isSyn(lRXPkt) and not isVerifiedSequence(lRXPkt) then
 						-- create and send packet with wrong sequence
-						createResponseSequence(lTXSeqBufs[i], lRXPkt)
+						numSeq = numSeq + 1
+						createResponseSequence(lTXSeqBufs[numSeq], lRXPkt)
 					elseif isRst(lRXPkt) and not isVerifiedSequence(lRXPkt) then
 						setVerifiedSequence(lRXPkt)
 						-- do nothing with RX packet
@@ -509,47 +516,32 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 		end
 		if rx > 0 then
+			-- strategy specific responses
 			if currentStrat == STRAT['cookie'] then	
-				--offload checksums to NIC
-				--log:debug('rx ' .. rx .. ' numSynAck ' .. numSynAck)
-
-				-- syn ack
+				-- send syn ack
 				lTXSynAckBufs:offloadTcpChecksums(nil, nil, nil, numSynAck)
 		
 				lTXQueue:sendN(lTXSynAckBufs, numSynAck)
 
 				lTXSynAckBufs:freeAfter(numSynAck)
-			
-				-- forwarded
-				lTXForwardBufs:offloadTcpChecksums(nil, nil, nil, numForward) -- FIXME wtf...
-		
-				virtualDev:txBurst(lTXForwardBufs, numForward)
-
-				lTXForwardBufs:freeAfter(numForward)
-
-				-- rx
-				lRXBufs:free(rx)
 			elseif currentStrat == STRAT['ignore'] then	
-				-- forwarded
-				virtualDev:txBurst(lTXForwardBufs, numForward)
-
-				lTXForwardBufs:freeAfter(numForward)
-				
-				-- we dont send packets in reply to syn, so only free rx
-				lRXBufs:free(rx)
+				-- send no response nothing
 			elseif currentStrat == STRAT['reset'] then	
 				-- send rst packets
-				lTXRstBufs:offloadTcpChecksums(nil, nil, nil, rx)
-				lTXQueue:sendN(lTXRstBufs, rx)
-
-				lRXBufs:free(rx)
+				lTXRstBufs:offloadTcpChecksums(nil, nil, nil, numRst)
+				lTXQueue:sendN(lTXRstBufs, numRst)
 			elseif currentStrat == STRAT['sequence'] then	
 				-- send packets with wrong ack number
-				lTXSeqBufs:offloadTcpChecksums(nil, nil, nil, rx)
-				lTXQueue:sendN(lTXSeqBufs, rx)
-
-				lRXBufs:free(rx)
+				lTXSeqBufs:offloadTcpChecksums(nil, nil, nil, numSeq)
+				lTXQueue:sendN(lTXSeqBufs, numSeq)
 			end
+			-- all strategies
+			-- send forwarded packets and free unused buffers
+			virtualDev:txBurst(lTXForwardBufs, numForward)
+			lTXForwardBufs:freeAfter(numForward)
+			
+			-- no rx packets reused --> free
+			lRXBufs:free(rx)
 		end
 
 		----------------------------- all actions by polling left interface done (also all buffers sent or cleared)
