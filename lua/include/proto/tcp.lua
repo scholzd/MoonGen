@@ -419,6 +419,22 @@ function tcpHeader:setChecksum(int)
 	self.cs = hton16(int)
 end
 
+function tcpHeader:updateChecksum(oldValue, newValue)
+	local checksum = self:getChecksum()
+	
+	local sum;
+
+	oldValue = bnot(oldValue);
+
+	sum = band(checksum, 0xFFFF);
+	sum = sum - (rshift(oldValue, 16) + band(oldValue, 0xFFFF));
+	sum = sum - (rshift(newValue, 16) + band(newValue, 0xFFFF));
+	
+	sum = rshift(sum, 16) + band(sum, 0xFFFF);
+	
+	self:setChecksum(sum, 0xFFFF);
+end
+
 --- Calculate and set the checksum.
 --- If possible use checksum offloading instead.
 --- @param data cdata object of the complete packet.

@@ -263,7 +263,7 @@ function mod.setRst(pkt, leftToRight)
 		--log:debug('RST for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
 		return
 	end
-	--log:debug('one way RST ' .. (leftToRight and 'from left' or 'from right'))
+	log:debug('one way RST ' .. (leftToRight and 'from left' or 'from right'))
 	if leftToRight then
 		con['lRst'] = true --con['lRst'] .. '-' .. getPkts(con)
 	else
@@ -411,7 +411,10 @@ function mod.sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	-- calculate TCP checksum
 	-- IP header does not change, hence, do not recalculate IP checksum
 	local cs = checksum.checksumUpdateIncremental32(txPkt.tcp:getChecksum(), oldValue, newValue)
-	txPkt.tcp:setChecksum(cs)
+	txPkt.tcp:updateChecksum(oldValue, newValue)
+	
+	-- completely in tcp.lua
+	--txPkt.tcp:setChecksum(cs)
 
 	-- check whether connection should be deleted
 	checkUnsetVerified(rxPkt, leftToRight)
