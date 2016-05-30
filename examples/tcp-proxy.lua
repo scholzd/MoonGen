@@ -213,79 +213,20 @@ function tcpProxySlave(lRXDev, lTXDev)
 
 	-- buffer for cookie syn/ack to left
 	local numSynAck = 0
-	local lTXMem = memory.createMemPool(function(buf)
-		buf:getTcp4Packet():fill{
-			ethSrc=proto.eth.NULL,
-			ethDst=proto.eth.NULL,
-			ip4Src=proto.ip4.NULL,
-			ip4Dst=proto.ip4.NULL,
-			tcpSrc=0,
-			tcpDst=0,
-			tcpSeqNumber=0,
-			tcpAckNumber=0,
-			tcpAck=1,
-			tcpSyn=1,
-			tcpWindow=50,
-			pktLength=60,
-		}
-	end)
-	local lTXSynAckBufs = lTXMem:bufArray()
+	local lTXSynAckBufs = cookie.getSynAckBufs()
 	
 	-- buffer for cookie forwarding to right
 	-- both for syn as well as all translated traffic
 	local numForward = 0 
-	local lTXForwardMem = memory.createMemPool(function(buf)
-		local pkt = buf:getTcp4Packet():fill{
-			ethSrc=proto.eth.NULL,
-			ethDst=proto.eth.NULL,
-			ip4Src=proto.ip4.NULL,
-			ip4Dst=proto.ip4.NULL,
-			tcpSrc=0,
-			tcpDst=0,
-			tcpSeqNumber=0,
-			tcpAckNumber=0,
-			tcpSyn=1,
-			pktLength=60,
-		}
-	end)
-	local lTXForwardBufs = lTXForwardMem:bufArray()
+	local lTXForwardBufs = cookie.getForwardBufs()
 	
 	-- buffer for resets to left
 	local numRst = 0
-	local lTXRstMem = memory.createMemPool(function(buf)
-		local pkt = buf:getTcp4Packet():fill{
-			ethSrc=proto.eth.NULL,
-			ethDst=proto.eth.NULL,
-			ip4Src=proto.ip4.NULL,
-			ip4Dst=proto.ip4.NULL,
-			tcpSrc=0,
-			tcpDst=0,
-			tcpSeqNumber=0,
-			tcpAckNumber=0,
-			tcpRst=1,
-			pktLength=60,
-		}
-	end)
-	local lTXRstBufs = lTXRstMem:bufArray()
+	local lTXRstBufs = infr.getRstBufs()
 	
 	-- buffer for sequence to left
-	numSeq = 0
-	local lTXSeqMem = memory.createMemPool(function(buf)
-		local pkt = buf:getTcp4Packet():fill{
-			ethSrc=proto.eth.NULL,
-			ethDst=proto.eth.NULL,
-			ip4Src=proto.ip4.NULL,
-			ip4Dst=proto.ip4.NULL,
-			tcpSrc=0,
-			tcpDst=0,
-			tcpSeqNumber=42, -- randomly chosen
-			tcpAckNumber=0,  -- set depending on RX
-			tcpSyn=1,
-			tcpAck=1,
-			pktLength=60,
-		}
-	end)
-	local lTXSeqBufs = lTXSeqMem:bufArray()
+	local numSeq = 0
+	local lTXSeqBufs = infr.getSeqBufs()
 	
 
 	-------------------------------------------------------------

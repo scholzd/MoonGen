@@ -8,6 +8,8 @@
 
 local ffi 	= require "ffi"
 local log	= require "log"
+local memory = require "memory"
+local proto = require "proto/proto"
 require "utils"
 
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
@@ -491,5 +493,43 @@ function mod.createSynAckToClient(txPkt, rxPkt)
 	txPkt.tcp:setWindow(mss)
 end
 
+-- bufs
+function mod.getSynAckBufs()
+	local lTXSynAckMem = memory.createMemPool(function(buf)
+		buf:getTcp4Packet():fill{
+			ethSrc=proto.eth.NULL,
+			ethDst=proto.eth.NULL,
+			ip4Src=proto.ip4.NULL,
+			ip4Dst=proto.ip4.NULL,
+			tcpSrc=0,
+			tcpDst=0,
+			tcpSeqNumber=0,
+			tcpAckNumber=0,
+			tcpAck=1,
+			tcpSyn=1,
+			tcpWindow=50,
+			pktLength=60,
+		}
+	end)
+	return lTXSynAckMem:bufArray()
+end
+	
+function mod.getForwardBufs()
+	local lTXForwardMem = memory.createMemPool(function(buf)
+		local pkt = buf:getTcp4Packet():fill{
+			ethSrc=proto.eth.NULL,
+			ethDst=proto.eth.NULL,
+			ip4Src=proto.ip4.NULL,
+			ip4Dst=proto.ip4.NULL,
+			tcpSrc=0,
+			tcpDst=0,
+			tcpSeqNumber=0,
+			tcpAckNumber=0,
+			tcpSyn=1,
+			pktLength=60,
+		}
+	end)
+	return lTXForwardMem:bufArray()
+end
 
 return mod
