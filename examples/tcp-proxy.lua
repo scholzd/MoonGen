@@ -30,6 +30,9 @@ function master(rxPort, txPort)
 	txPort = tonumber(txPort)
 	rxPort = tonumber(rxPort)
 	
+	log:info('Initialize KNI')
+	kni.init(4)
+	
 	local lRXDev = device.config{ port = rxPort, txQueues=2 }
 	local lTXDev = device.config{ port = txPort }
 	lRXDev:wait()
@@ -37,6 +40,9 @@ function master(rxPort, txPort)
 	mg.launchLua("tcpProxySlave", lRXDev, lTXDev)
 	
 	mg.waitForSlaves()
+	
+	log:info('Closing KNI')
+	kni.close()
 end
 
 
@@ -159,11 +165,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- right/virtual interface
 	-------------------------------------------------------------
 	-- Create KNI device
-	log:info('Initialize KNI')
-	kni.init(4)
 	log:info('Creating virtual device')
 	local virtualDevMemPool = memory.createMemPool{ n=8192 }
-	local virtualDev = kni.createKNI(0, lRXDev, virtualDevMemPool, "vEth0")
+	local virtualDev = kni.createKni(0, lRXDev, virtualDevMemPool, "vEth0")
 	log:info('Ifconfig virtual device')
 	virtualDev:setIP("192.168.1.1", 24)
 
@@ -242,7 +246,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 	while mg.running() do
 		------------------------------------------------------------------------------ poll right interface
 		--log:debug('Polling right (virtual) Dev')
-		rx = virtualDev:rxBurst(rRXBufs, 63)
+		-- for a real interface use tryRecv
+		rx = virtualDev:recv(rRXBufs, 63)
 		--log:debug(''..rx)
 		if currentStrat == STRAT['cookie'] and rx > 0 then
 			-- buffer for translated packets
@@ -315,7 +320,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 				rTXForwardBufs:freeAfter(numForward)
 				
 				-- ack to right
-				virtualDev:txBurst(rTXAckBufs, numAck)
+				virtualDev:sendN(rTXAckBufs, numAck)
 				rTXAckBufs:freeAfter(numAck)
 			end
 			--log:debug('free rRX')
@@ -478,7 +483,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 			-- all strategies
 			-- send forwarded packets and free unused buffers
-			virtualDev:txBurst(lTXForwardBufs, numForward)
+			virtualDev:sendN(lTXForwardBufs, numForward)
 			lTXForwardBufs:freeAfter(numForward)
 			
 			-- no rx packets reused --> free
@@ -494,9 +499,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 
 	log:info('Releasing KNI device')
 	virtualDev:release()
-	
-	log:info('Closing KNI')
-	kni.close()
 	
 	lRXStats:finalize()
 	lTXStats:finalize()
