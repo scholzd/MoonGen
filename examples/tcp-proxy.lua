@@ -152,7 +152,7 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 
-	local currentStrat = STRAT['sequence']
+	local currentStrat = STRAT['reset']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------
@@ -363,6 +363,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 					if isSyn(lRXPkt) and not isVerifiedIgnore(lRXPkt) then
 						-- do nothing
 						createResponseIgnore()
+					elseif isRst(lRXPkt) then
+						log:error("got a **** rst")
 					else
 						-- everything else simply forward
 						numForward = numForward + 1
@@ -374,6 +376,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 						-- create and send RST packet
 						numRst = numRst + 1
 						createResponseReset(lTXRstBufs[numRst], lRXPkt)
+					elseif isRst(lRXPkt) then
+						log:error("got a **** rst")
 					else
 						-- everything else simply forward
 						numForward = numForward + 1
@@ -461,9 +465,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			if currentStrat == STRAT['cookie'] then	
 				-- send syn ack
 				lTXSynAckBufs:offloadTcpChecksums(nil, nil, nil, numSynAck)
-		
 				lTXQueue:sendN(lTXSynAckBufs, numSynAck)
-
 				lTXSynAckBufs:freeAfter(numSynAck)
 			elseif currentStrat == STRAT['ignore'] then	
 				-- send no response nothing
