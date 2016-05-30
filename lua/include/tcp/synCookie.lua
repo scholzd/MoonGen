@@ -10,6 +10,7 @@ local ffi 	= require "ffi"
 local log	= require "log"
 local memory = require "memory"
 local proto = require "proto/proto"
+local checksum = require "checksum"
 require "utils"
 
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
@@ -409,7 +410,7 @@ function mod.sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	
 	-- calculate TCP checksum
 	-- IP header does not change, hence, do not recalculate IP checksum
-	local cs = checksumUpdateIncremental32(txPkt.tcp:getChecksum(), oldValue, newValue)
+	local cs = checksum.checksumUpdateIncremental32(txPkt.tcp:getChecksum(), oldValue, newValue)
 	txPkt.tcp:setChecksum(cs)
 
 	-- check whether connection should be deleted
