@@ -27,7 +27,7 @@ int rte_kni_release 	( 	struct rte_kni *  	kni	);
 void rte_kni_init(unsigned int max_kni_ifaces);
 ]]
 
-function mod.createKNI(core, device, mempool, name)
+function mod.createKni(core, device, mempool, name)
 	core = core or 0
 	local kni = ffi.C.mg_create_kni(device.id, core, mempool, name)
 	return setmetatable({
@@ -38,11 +38,12 @@ function mod.createKNI(core, device, mempool, name)
 	}, mg_kni)
 end
 
-function mg_kni:rxBurst(bufs, nmax)
+-- not blocking recv
+function mg_kni:recv(bufs, nmax)
 	return ffi.C.rte_kni_rx_burst(self.kni, bufs.array, nmax)
 end
 
-function mg_kni:txBurst(bufs, nmax)
+function mg_kni:sendN(bufs, nmax)
 	return ffi.C.rte_kni_tx_burst(self.kni, bufs.array, nmax)
 end
 
@@ -50,7 +51,7 @@ function mg_kni:send(bufs)
 	return ffi.C.rte_kni_tx_burst(self.kni, bufs.array, bufs.size)
 end
 
-function mg_kni:txSingle(mbuf)
+function mg_kni:sendSingle(mbuf)
 	ffi.C.mg_kni_tx_single(self.kni, mbuf)
 end
 
