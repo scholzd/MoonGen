@@ -266,11 +266,10 @@ function mod.setRst(pkt, leftToRight)
 	end
 end
 
-local function unsetVerified(pkt, leftToRight)
-	local idx = getIdx(pkt, leftToRight)
+local function unsetVerified(idx)
 	--log:warn('Deleting connection ' .. idx)
 	-- disabled as it has huge performance impact :( (3k reqs/s)
-	--verifiedConnections[idx] = nil
+	verifiedConnections[idx] = nil
 end
 
 local function checkUnsetVerified(pkt, leftToRight)
@@ -278,13 +277,13 @@ local function checkUnsetVerified(pkt, leftToRight)
 	local con = verifiedConnections[idx]
 	-- RST: in any case, delete connection
 	if con['lRst'] or con['rRst'] then 
-		unsetVerified(pkt, leftToRight)
+		unsetVerified(idx)
 	-- FIN: only if both parties sent a FIN
 	-- 		+ it has to be an ACK for the last sequence number
 	elseif con['lFin'] and con['rFin'] then 
 		-- check for ack and the number matches
 		if isAck(pkt) and con['FinSeqNumber'] + 1 == pkt.tcp:getAckNumber() then
-				unsetVerified(pkt, leftToRight)
+				unsetVerified(idx)
 		end
 		-- otherwise it was an old packet or wrong direction
 		-- no action in that case

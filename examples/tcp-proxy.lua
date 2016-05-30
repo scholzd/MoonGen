@@ -152,7 +152,7 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 
-	local currentStrat = STRAT['sequence']
+	local currentStrat = STRAT['cookie']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------
@@ -446,7 +446,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					----------------------------------------------------------------------------------------------- unverified, but not syn/ack -> ignore
 					else
 						-- not syn, unverified packets -> belongs to already deleted connection -> drop
-						log:error('unhandled packet ' .. tostring(isVerified(lRXPkt, LEFT_TO_RIGHT)))
+						--log:error('unhandled packet ' .. tostring(isVerified(lRXPkt, LEFT_TO_RIGHT)))
 					end
 				end
 			end
