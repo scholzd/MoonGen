@@ -1,5 +1,5 @@
 ---------------------------------
---- @file cookie.lua
+--- @file synCookie.lua
 --- @brief TCP SYN cookie implementation.
 --- Includes:
 --- - calculate and verify a cookie
@@ -13,6 +13,21 @@ require "utils"
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
 
 
+---------------------------------------------------
+-- Terminology
+---------------------------------------------------
+
+-- left: outside, internet, clients, potential attackers, whatever
+-- right: "protected" side, connection to server(s), only filtered traffic comes here
+
+local mod = {}
+
+mod.LEFT_TO_RIGHT = true
+mod.RIGHT_TO_LEFT = false
+
+----------------------------------------------------
+-- check packet type
+----------------------------------------------------
 
 local function isAck(pkt)
 	return pkt.tcp:getAck() == 1
@@ -25,6 +40,7 @@ end
 local function isFin(pkt)
 	return pkt.tcp:getFin() == 1
 end
+
 
 -------------------------------------------------------------------------------------------
 ---- Cookie
@@ -109,12 +125,7 @@ end
 ---- Cookie crafting
 -------------------------------------------------------------------------------------------
 
-local mod = {}
-
-mod.LEFT_TO_RIGHT = true
-mod.RIGHT_TO_LEFT = false
-
-function mod.calculateCookie(pkt)
+local function calculateCookie(pkt)
 	local tsOrig = getTimestamp()
 	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 	ts = lshift(tsOrig, 27)
@@ -291,41 +302,6 @@ function mod.isVerified(pkt, leftToRight)
 	return false
 end
 
---function mod.isVerifiedReset(pkt)
---	local idx = getIdx(pkt, LEFT_TO_RIGHT)
---	if verifiedConnections[idx] then
---		return true
---	else
---		verifiedConnections[idx] = true
---		return false
---	end
---end
---
----- same as reset
---function mod.isVerifiedIgnore(pkt)
---	local idx = getIdx(pkt, LEFT_TO_RIGHT)
---	if verifiedConnections[idx] then
---		return true
---	else
---		verifiedConnections[idx] = true
---		return false
---	end
---end
---
---function mod.setVerifiedSequence(pkt)
---	local idx = getIdx(pkt, LEFT_TO_RIGHT)
---	verifiedConnections[idx] = true
---end
---
---function mod.isVerifiedSequence(pkt)
---	local idx = getIdx(pkt, LEFT_TO_RIGHT)
---	if verifiedConnections[idx] then
---		return true
---	else
---		return false
---	end
---end
-
 function mod.printVerifiedConnections()
 	log:debug('********************')
 	log:debug('Verified Connections')
@@ -350,6 +326,41 @@ function mod.printVerifiedConnections()
 	log:debug('********************')
 end
 
+-- infringement things (TODO move at some point)
+function mod.isVerifiedReset(pkt)
+	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+	if verifiedConnections[idx] then
+		return true
+	else
+		verifiedConnections[idx] = true
+		return false
+	end
+end
+
+-- same as reset
+function mod.isVerifiedIgnore(pkt)
+	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+	if verifiedConnections[idx] then
+		return true
+	else
+		verifiedConnections[idx] = true
+		return false
+	end
+end
+
+function mod.setVerifiedSequence(pkt)
+	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+	verifiedConnections[idx] = true
+end
+
+function mod.isVerifiedSequence(pkt)
+	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+	if verifiedConnections[idx] then
+		return true
+	else
+		return false
+	end
+end
 
 -------------------------------------------------------------------------------------------
 ---- Packet modification and crafting for cookie strategy
@@ -394,7 +405,7 @@ function mod.sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	checkUnsetVerified(rxPkt, leftToRight)
 end
 
-local function createSynToServer(txBuf, rxBuf)
+function mod.createSynToServer(txBuf, rxBuf)
 	-- set size of tx packet
 	local size = rxBuf:getSize()
 	txBuf:setSize(size)
@@ -418,7 +429,7 @@ local function createSynToServer(txBuf, rxBuf)
 
 end
 
-local function createAckToServer(txBuf, rxBuf, rxPkt)
+function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	-- set size of tx packet
 	local size = rxBuf:getSize()
 	txBuf:setSize(size)
@@ -460,7 +471,7 @@ local function createAckToServer(txBuf, rxBuf, rxPkt)
 	txPkt.ip4:calculateChecksum()
 end
 
-local function createSynAckToClient(txPkt, rxPkt)
+function mod.createSynAckToClient(txPkt, rxPkt)
 	local cookie, mss = calculateCookie(rxPkt)
 	
 	-- MAC addresses
@@ -479,110 +490,6 @@ local function createSynAckToClient(txPkt, rxPkt)
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
 	txPkt.tcp:setWindow(mss)
 end
-
--------------------------------------------------------------------------------------------
----- Packet modification and crafting for protocol violation strategies
--------------------------------------------------------------------------------------------
-
-local function forwardTraffic(vDev, txBufs, rxBuf)
-	--log:debug('alloc txBufs')
-	txBufs:alloc(60)
-	local txBuf = txBufs[1]
-	
-	-- set size of tx packet
-	local size = rxBuf:getSize()
-	txBuf:setSize(size)
-	
-	-- copy data 
-	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
-	vDev:txSingle(txBuf)
-	
-	-- invalidate rx packet
-	rxBuf:setSize(1)
-end
-
-local function createResponseIgnore(txBuf, rxPkt)
-	-- yep, nothing
-end
-
-local function createResponseReset(txBuf, rxPkt)
-	--log:debug('Crafting rst')
-	local txPkt = txBuf:getTcp4Packet()
-	
-	txPkt.eth:setSrc(rxPkt.eth:getDst())
-	txPkt.eth:setDst(rxPkt.eth:getSrc())
-
-	-- IP addresses
-	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
-	txPkt.ip4:setDst(rxPkt.ip4:getSrc())
-	
-	-- TCP
-	txPkt.tcp:setSrc(rxPkt.tcp:getDst())
-	txPkt.tcp:setDst(rxPkt.tcp:getSrc())
-
-	
-	-- alternative approach: reuse rx buffer (saves alloc and free, but more members to set)
-	-- TODO check whats better under load
-	-- MAC addresses
-	--local tmp = lRXPkt.eth:getSrc()
-	--lRXPkt.eth:setSrc(lRXPkt.eth:getDst())
-	--lRXPkt.eth:setDst(tmp)
-
-	---- IP addresses
-	--tmp = lRXPkt.ip4:getSrc()
-	--lRXPkt.ip4:setSrc(lRXPkt.ip4:getDst())
-	--lRXPkt.ip4:setDst(tmp)
-	--
-	---- TCP
-	--tmp = lRXPkt.tcp:getSrc()
-	--lRXPkt.tcp:setSrc(lRXPkt.tcp:getDst())
-	--lRXPkt.tcp:setDst(tmp)
-	--
-	--lRXPkt.tcp:unsetSyn()
-	--lRXPkt.tcp:setRst()
-end
-
-local function createResponseSequence(txBuf, rxPkt)
-	--log:debug('crafting seq vio')
-	local txPkt = txBuf:getTcp4Packet()
-	
-	txPkt.eth:setSrc(rxPkt.eth:getDst())
-	txPkt.eth:setDst(rxPkt.eth:getSrc())
-
-	-- IP addresses
-	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
-	txPkt.ip4:setDst(rxPkt.ip4:getSrc())
-	
-	-- TCP
-	txPkt.tcp:setSrc(rxPkt.tcp:getDst())
-	txPkt.tcp:setDst(rxPkt.tcp:getSrc())
-
-	-- set violating ack number
-	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() - 1) -- violation => AckNumber != SeqNumber + 1
-
-	-- alternative approach: reuse rx buffer (saves alloc and free, but more members to set)
-	-- TODO check whats better under load
-	-- reuse RX buffer
-	-- MAC addresses
-	--local tmp = lRXPkt.eth:getSrc()
-	--lRXPkt.eth:setSrc(lRXPkt.eth:getDst())
-	--lRXPkt.eth:setDst(tmp)
-
-	---- IP addresses
-	--tmp = lRXPkt.ip4:getSrc()
-	--lRXPkt.ip4:setSrc(lRXPkt.ip4:getDst())
-	--lRXPkt.ip4:setDst(tmp)
-	--
-	---- TCP
-	--tmp = lRXPkt.tcp:getSrc()
-	--lRXPkt.tcp:setSrc(lRXPkt.tcp:getDst())
-	--lRXPkt.tcp:setDst(tmp)
-	--
-	--lRXPkt.tcp:setAckNumber(lRXPkt.tcp:getSeqNumber() - 1) -- violation => AckNumber != SeqNumber + 1
-	--lRXPkt.tcp:setSeqNumber(42)
-	--lRXPkt.tcp:setAck()
-end
-
 
 
 return mod
