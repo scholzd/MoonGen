@@ -231,7 +231,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- buffer for sequence to left
 	local numSeq = 0
 	local lTXSeqBufs = infr.getSeqBufs()
-	
+
+	-- buffers for not TCP packets
+	-- need to behandled separately as we cant just offload TCP checksums here
+	-- its only a few packets anyway, so handle them separately
+	local txNotTcpMem = memory.createMemPool()	
+	local txNotTcpBufs = txNotTcpMem:bufArray(1)
 
 	-------------------------------------------------------------
 	-- profiling
@@ -262,7 +267,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 			
 			local rRXPkt = rRXBufs[i]:getTcp4Packet()
 			if not isTcp4(rRXPkt) then
-				--log:info('Ignoring rRX packet from server that is not TCP')
+				--log:info('Sending packet that is not TCP from right')
+				txNotTcpBufs:alloc(60)
+				forwardTraffic(txNotTcpBufs[1], rRXBufs[i])
+				lTXQueue:sendN(txNotTcpBufs, 1)
 			else
 				---------------------------------------------------------------------- process TCP
 				-- handle protocol infiringement strategies
@@ -359,7 +367,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 			
 			local lRXPkt = lRXBufs[i]:getTcp4Packet()
 			if not isTcp4(lRXPkt) then
-				--log:info('Ignoring packet that is not TCP from left')
+				--log:info('Sending packet that is not TCP from left')
+				txNotTcpBufs:alloc(60)
+				forwardTraffic(txNotTcpBufs[1], lRXBufs[i])
+				virtualDev:sendN(txNotTcpBufs, 1)
 			--------------------------------------------------------------- processing TCP
 			else
 				-- here the reaction always depends on the strategy
