@@ -256,7 +256,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 		--log:debug(''..rx)
 		if currentStrat == STRAT['cookie'] and rx > 0 then
 			-- buffer for translated packets
-			rTXForwardBufs:allocN(60, rx)
+			-- not cookie strategies forward all rx packets without touching them
+			if not (currentStrat == STRAT['cookie']) then
+				rTXForwardBufs:allocN(60, rx)
+			end
 			numForward = 0
 			
 			rTXAckBufs:allocN(60, rx)
@@ -307,7 +310,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 			if translate then
 				--log:info('Translating from right to left')
-			
+				if numForward == 0 then
+					rTXForwardBufs:allocN(60, rx - (i - 1))
+				end
+					
 				numForward = numForward + 1
 				local rTXForwardBuf = rTXForwardBufs[numForward]
 				local rTXPkt = rTXForwardBuf:getTcp4Packet()
@@ -324,9 +330,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 				--log:debug('rx ' .. rx .. ' numTX2 ' .. numTX2)
 		
 				-- forwarded to left
-				lTXForwardQueue:sendN(rTXForwardBufs, numForward)
-				rTXForwardBufs:freeAfter(numForward)
-				
+				if numForward > 0 then
+					lTXForwardQueue:sendN(rTXForwardBufs, numForward)
+					rTXForwardBufs:freeAfter(numForward)
+				end
+
 				-- ack to right
 				virtualDev:sendN(rTXAckBufs, numAck)
 				rTXAckBufs:freeAfter(numAck)
