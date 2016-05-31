@@ -66,6 +66,13 @@ function mg_bitMask:set(n)
 	return self
 end
 
+--- Clears the n-th bit in a bitmask to 1
+--- @param n
+function mg_bitMask:clear(n)
+	ffi.C.mg_bitmask_clear_bit(self.bitmask, n)
+	return self
+end
+
 --- sets the first n bits in a bitmask to 1
 --- other bits remain unchanged
 --- @param n
