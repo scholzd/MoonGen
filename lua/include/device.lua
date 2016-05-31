@@ -675,6 +675,11 @@ function txQueue:sendN(bufs, n)
 	return n
 end
 
+function txQueue:sendMasked(bufs, bitmask)
+	self.used = true
+	return dpdkc.send_all_packets_masked(self.id, self.qid, bufs.array, bitmask.bitmask)
+end
+
 function txQueue:start()
 	assert(dpdkc.rte_eth_dev_tx_queue_start(self.id, self.qid) == 0)
 end

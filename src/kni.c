@@ -13,11 +13,11 @@
 #define MAX_PACKET_SZ           2048
 
 static int kni_change_mtu(uint8_t port_id, unsigned new_mtu){
-  printf("change mtu\n");
+  //printf("change mtu\n");
   return 0;
 }
 static int kni_config_network_interface(uint8_t port_id, uint8_t if_up){
-  printf("interface config\n");
+  //printf("interface config %d %d\n", port_id, if_up);
   return 0;
 }
 

@@ -5,6 +5,8 @@
 #include <rte_spinlock.h>
 #include <sys/mman.h>
 
+#include "bitmask.h"
+
 #include <stdint.h>
 
 #define MEMPOOL_CACHE_SIZE 256
@@ -83,3 +85,13 @@ void* alloc_huge(size_t size) {
 	return mem;
 }
 
+void mg_memory_free_masked(struct rte_mbuf **pkts, struct mg_bitmask* mask) {
+	uint16_t i;
+	for(i=0; i< mask->size; i++) {
+		// not sure that the unlikely can be justified in all cases
+		if(unlikely(mg_bitmask_get_bit_inline(mask, i))) {
+			rte_pktmbuf_free(pkts[i]);
+			//pkts[i] = NULL;
+		}
+	}
+}

@@ -353,6 +353,12 @@ function bufArray:free(n)
 	end
 end
 
+--- Free all buffers in the array, where the bitmask is 1
+--- @param bitmask Bitmask, which selects buffers to be freed
+function bufArray:freeMasked(bitmask)
+	dpdkc.mg_memory_free_mask(self.array, bitmask.bitmask)
+end
+
 function bufArray.__index(self, k)
 	-- TODO: is this as fast as I hope it to be?
 	return type(k) == "number" and self.array[k - 1] or bufArray[k]
