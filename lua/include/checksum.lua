@@ -32,6 +32,7 @@ function checksum(data, len)
 	return band(bnot(cs), 0xFFFF)
 end
 
+-- Inspired by Snabb
 -- RFC1624 Eq. 4:
 -- HC' = HC - ~m - m'
 function mod.checksumUpdateIncremental32(checksum, oldValue, newValue)
