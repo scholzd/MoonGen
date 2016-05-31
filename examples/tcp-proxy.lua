@@ -359,7 +359,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 
 			-- every strategy needs buffers to simply forward packets left to right
-			lTXForwardBufs:allocN(60, rx)
+			--lTXForwardBufs:allocN(60, rx)
 			numForward = 0
 		end
 		for i = 1, rx do
@@ -445,6 +445,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 							
 							setLeftVerified(lRXPkt)
 							-- connection is left verified, start handshake with right
+							if numForward == 0 then
+								lTXForwardBufs:allocN(60, rx - (i - 1))
+								--log:debug("alloc'd with i = " .. i)
+							end
 							numForward = numForward + 1
 							createSynToServer(lTXForwardBufs[numForward], lRXBufs[i])
 						else
@@ -462,6 +466,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 			if translate then
 				--log:info('Translating from left to right')
+				if numForward == 0 then
+					lTXForwardBufs:allocN(60, rx - (i - 1))
+					--log:debug("alloc'd with i = " .. i)
+				end
 				numForward = numForward + 1
 				sequenceNumberTranslation(lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
 			end
@@ -488,8 +496,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 			-- all strategies
 			-- send forwarded packets and free unused buffers
-			virtualDev:sendN(lTXForwardBufs, numForward)
-			lTXForwardBufs:freeAfter(numForward)
+			if numForward > 0 then
+				virtualDev:sendN(lTXForwardBufs, numForward)
+				lTXForwardBufs:freeAfter(numForward)
+			end
 			
 			-- no rx packets reused --> free
 			lRXBufs:free(rx)
