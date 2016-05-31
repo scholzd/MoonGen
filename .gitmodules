@@ -10,3 +10,6 @@
 [submodule "deps/doxygen-lua"]
 	path = deps/doxygen-lua
 	url = https://github.com/scholzd/doxygen-lua.git
+[submodule "deps/sparsehash"]
+	path = deps/sparsehash
+	url = https://github.com/sparsehash/sparsehash.git
