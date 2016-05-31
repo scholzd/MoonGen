@@ -262,7 +262,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 			numForward = 0
 			
-			rTXAckBufs:allocN(60, rx)
 			numAck = 0
 		end
 		for i = 1, rx do
@@ -286,6 +285,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 					if isSyn(rRXPkt) and isAck(rRXPkt) then
 						--log:debug('Received SYN/ACK from server, sending ACK back')
 						setRightVerified(rRXPkt)
+						
+						if numAck == 0 then
+							rTXAckBufs:allocN(60, rx - (i - 1))
+						end
 						
 						numAck = numAck + 1
 						createAckToServer(rTXAckBufs[numAck], rRXBufs[i], rRXPkt)
@@ -336,8 +339,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 				end
 
 				-- ack to right
-				virtualDev:sendN(rTXAckBufs, numAck)
-				rTXAckBufs:freeAfter(numAck)
+				if numAck > 0 then
+					virtualDev:sendN(rTXAckBufs, numAck)
+					rTXAckBufs:freeAfter(numAck)
+				end
 			end
 			--log:debug('free rRX')
 			rRXBufs:freeAll()
