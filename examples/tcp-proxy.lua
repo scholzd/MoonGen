@@ -346,7 +346,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 		--log:debug('rx ' .. rx)
 		if rx > 0 then
 			if currentStrat == STRAT['cookie'] then
-				lTXSynAckBufs:allocN(60, rx)
 				numSynAck = 0
 			elseif currentStrat == STRAT['ignore'] then
 				-- nothing
@@ -359,7 +358,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 
 			-- every strategy needs buffers to simply forward packets left to right
-			--lTXForwardBufs:allocN(60, rx)
 			numForward = 0
 		end
 		for i = 1, rx do
@@ -414,6 +412,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 					if isSyn(lRXPkt) then
 						--log:info('Received SYN from left')
 						-- strategy cookie
+						if numSynAck == 0 then
+							lTXSynAckBufs:allocN(60, rx - (i - 1))
+							--log:debug("alloc'd with i = " .. i)
+						end
 						numSynAck = numSynAck + 1
 						local lTXPkt = lTXSynAckBufs[numSynAck]:getTcp4Packet()
 						createSynAckToClient(lTXPkt, lRXPkt)
@@ -477,12 +479,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 		if rx > 0 then
 			-- strategy specific responses
 			if currentStrat == STRAT['cookie'] then	
-				-- send syn ack
-				lTXSynAckBufs:offloadTcpChecksums(nil, nil, nil, numSynAck)
-		
-				lTXQueue:sendN(lTXSynAckBufs, numSynAck)
+				if numSynAck > 0 then
+					-- send syn ack
+					lTXSynAckBufs:offloadTcpChecksums(nil, nil, nil, numSynAck)
+			
+					lTXQueue:sendN(lTXSynAckBufs, numSynAck)
 
-				lTXSynAckBufs:freeAfter(numSynAck)
+					lTXSynAckBufs:freeAfter(numSynAck)
+				end
 			elseif currentStrat == STRAT['ignore'] then	
 				-- send no response nothing
 			elseif currentStrat == STRAT['reset'] then	
