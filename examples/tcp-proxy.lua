@@ -392,6 +392,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 						createResponseIgnore()
 					else
 						-- everything else simply forward
+						if numForward == 0 then
+							lTXForwardBufs:allocN(60, rx - (i - 1))
+						end
 						numForward = numForward + 1
 						forwardTraffic(lTXForwardBufs[numForward], lRXBufs[i])
 					end
@@ -403,6 +406,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 						createResponseReset(lTXRstBufs[numRst], lRXPkt)
 					else
 						-- everything else simply forward
+						if numForward == 0 then
+							lTXForwardBufs:allocN(60, rx - (i - 1))
+						end
 						numForward = numForward + 1
 						forwardTraffic(lTXForwardBufs[numForward], lRXBufs[i])
 					end
@@ -417,6 +423,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 						-- do nothing with RX packet
 					else
 						-- everything else simply forward
+						if numForward == 0 then
+							lTXForwardBufs:allocN(60, rx - (i - 1))
+						end
 						numForward = numForward + 1
 						forwardTraffic(lTXForwardBufs[numForward], lRXBufs[i])
 					end
