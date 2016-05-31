@@ -327,7 +327,7 @@ function mod.printVerifiedConnections()
 		end
 		log:debug(tostring(k) .. ' -> ' .. str)
 	end
-	log:debug('Numer of resets: ' .. numRst .. '/' .. num)
+	log:debug('Number of resets: ' .. numRst .. '/' .. num)
 	log:debug('********************')
 end
 
