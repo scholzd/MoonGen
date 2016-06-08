@@ -164,26 +164,31 @@ function tcpProxySlave(lRXDev, lTXDev)
 
 
 	log:debug("Creating hash table")
-	local dm4 = hashMap.createHashMap()
+	local shmc = hashMap.createSparseHashMapCookie()
 
 	log:debug("Creating tcppkt type")
-	local ipv4_tcppkt_type = ffi.typeof("struct ipv4_tcppkt")
+	local ipv4_tcppkt_type = ffi.typeof("struct __ethernet_eth__ip4_ip4__tcp_tcp")
 	log:debug("Creating tcppkt")
-	local ipv4_tcppkt = ipv4_tcppkt_type()
-	ipv4_tcppkt.ts=10
-	ipv4_tcppkt.flags=0
-	
-	ipv4_tcppkt.t4.ext_port = 1111
-	ipv4_tcppkt.t4.int_port = 2222
-	ipv4_tcppkt.t4.ext_ip = parseIP4Address("1.1.1.1")
-	ipv4_tcppkt.t4.int_ip = parseIP4Address("2.2.2.2")
-	ipv4_tcppkt.ttl = 64
+	local pkt = ipv4_tcppkt_type()
+	pkt.ip4:setSrcString("1.1.1.1")
+	pkt.ip4:setDstString("2.2.2.2")
+	pkt.tcp:setSrc(1111)
+	pkt.tcp:setDst(2222)
 
 	log:debug("Inserting value")
-	dm4:insert(ipv4_tcppkt)
+	shmc:insert(pkt, 10, LEFT_TO_RIGHT)
+	
+	log:debug("Inserting value")
+	shmc:insert(pkt, 20, RIGHT_TO_LEFT)
 
 	log:debug("Find value")
-	local result = dm4:find(ipv4_tcppkt)
+	--pkt.tcp:setDst(2223)
+	local result = shmc:find(pkt, LEFT_TO_RIGHT)
+	log:debug(tostring(result))
+	if result then
+		log:debug("diff: " .. result.diff)
+	end
+	local result = shmc:find(pkt, RIGHT_TO_LEFT)
 	log:debug(tostring(result))
 	if result then
 		log:debug("diff: " .. result.diff)

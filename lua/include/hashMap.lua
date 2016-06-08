@@ -1,47 +1,69 @@
 local log = require "log"
 local ffi = require "ffi"
 ffi.cdef [[
-	typedef struct ipv4_4t {
-		uint32_t ext_ip;
-		uint32_t int_ip;		
-		uint16_t ext_port;
-		uint16_t int_port;
-	} ipv4_4t;
-	
-	typedef struct ipv4_tcppkt {
-		struct ipv4_4t t4;
-		uint64_t ts;
-		uint8_t ttl;
-		uint8_t flags;
-	} ipv4_tcppkt;
-	
-	struct dmap_cookie {};
-	typedef struct dmap_cookie_value {
-		uint32_t diff;
+	struct sparse_hash_map_cookie_key {
+		uint32_t ip_src;
+		uint32_t ip_dst;		
+		uint16_t tcp_src;
+		uint16_t tcp_dst;
 	};
-	struct dmap_cookie* mg_dmap_cookie_create();
-	void mg_dmap_cookie_insert(struct dmap_cookie* m, ipv4_tcppkt* p);
-	struct dmap_cookie_value*  mg_dmap_cookie_find(struct dmap_cookie* m, ipv4_tcppkt* p);
+
+	typedef struct sparse_hash_map_cookie_value {
+		uint32_t diff;
+		uint32_t last_ack;
+		uint8_t flags;
+	};
+	
+	struct sparse_hash_map_cookie {};
+	struct sparse_hash_map_cookie * mg_sparse_hash_map_cookie_create();
+	
+	void mg_sparse_hash_map_cookie_insert(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t v);
+	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 ]]
 
 local mod = {}
 
-local hashMap = {}
-hashMap.__index = hashMap
+local sparseHashMapCookie = {}
+sparseHashMapCookie.__index = sparseHashMapCookie
 
-function mod.createHashMap()
-	log:info("Creating hash map")
+function mod.createSparseHashMapCookie()
+	log:info("Creating a sparse hash map for TCP SYN flood cookie strategy")
 	return setmetatable({
-		map = ffi.C.mg_dmap_cookie_create()
-	}, hashMap)
+		map = ffi.C.mg_sparse_hash_map_cookie_create()
+	}, sparseHashMapCookie)
 end
 
-function hashMap:insert(idx)
-	ffi.C.mg_dmap_cookie_insert(self.map, idx)
+
+local key = ffi.new("struct sparse_hash_map_cookie_key")
+local function sparseHashMapCookieGetKey(pkt, leftToRight)
+	if leftToRight then
+		key.ip_src = pkt.ip4:getSrc()
+		key.ip_dst = pkt.ip4:getDst()
+		key.tcp_src = pkt.tcp:getSrc()
+		key.tcp_dst = pkt.tcp:getDst()
+	else
+		key.ip_src = pkt.ip4:getDst()
+		key.ip_dst = pkt.ip4:getSrc()
+		key.tcp_src = pkt.tcp:getDst()
+		key.tcp_dst = pkt.tcp:getSrc()
+	end
+	return key
 end
 
-function hashMap:find(idx)
-	return ffi.C.mg_dmap_cookie_find(self.map, idx)
+function sparseHashMapCookie:insert(pkt, diff, leftToRight)
+	local k = sparseHashMapCookieGetKey(pkt, leftToRight)
+	ffi.C.mg_sparse_hash_map_cookie_insert(self.map, k, diff)
+end
+
+function sparseHashMapCookie:find(pkt, leftToRight)
+	local k = sparseHashMapCookieGetKey(pkt, leftToRight)
+	local r = ffi.C.mg_sparse_hash_map_cookie_find(self.map, k)
+	log:debug(tostring(r))
+	if not (r == nil) then
+		log:debug("result")
+	else
+		log:debug("no result")
+	end
 end
 
 return mod

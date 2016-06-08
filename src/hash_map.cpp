@@ -4,85 +4,77 @@
 #include <map>
 #include <iostream> // for std::endl
 
-#include <sparsehash/dense_hash_map>
+#include <sparsehash/sparse_hash_map>
 
 
-typedef struct ipv4_4t {
-	uint32_t ext_ip;
-	uint32_t int_ip;		
-	uint16_t ext_port;
-	uint16_t int_port;
+typedef struct sparse_hash_map_cookie_key {
+	uint32_t ip_src;
+	uint32_t ip_dst;		
+	uint16_t tcp_src;
+	uint16_t tcp_dst;
 		
 		
-	bool operator==(const ipv4_4t& rhs) const {
+	bool operator==(const sparse_hash_map_cookie_key& rhs) const {
 		return 
-       	this->ext_ip == rhs.ext_ip &&
-       	this->int_ip == rhs.int_ip &&
-       	this->ext_port == rhs.ext_port &&
-        this->int_port == rhs.int_port
+       	this->ip_src == rhs.ip_src &&
+       	this->ip_dst == rhs.ip_dst &&
+       	this->tcp_src == rhs.tcp_src &&
+        this->tcp_dst == rhs.tcp_dst
         ;
     }
-} ipv4_4t;
+} sparse_hash_map_cookie_key;
 
-struct eq_ipv4_4t{
-	bool operator()(const ipv4_4t& lhs, const ipv4_4t& rhs) const {
+struct eq_sparse_hash_map_cookie_key{
+	bool operator()(const sparse_hash_map_cookie_key& lhs, const sparse_hash_map_cookie_key& rhs) const {
 		return 
-       	lhs.ext_ip == rhs.ext_ip &&
-       	lhs.int_ip == rhs.int_ip &&
-       	lhs.ext_port == rhs.ext_port &&
-        lhs.int_port == rhs.int_port
+       	lhs.ip_src == rhs.ip_src &&
+       	lhs.ip_dst == rhs.ip_dst &&
+       	lhs.tcp_src == rhs.tcp_src &&
+        lhs.tcp_dst == rhs.tcp_dst
         ;
 	}
 };
 
 namespace std {
-	template <> struct hash<ipv4_4t>{
-   		inline size_t operator()(const ipv4_4t& ft) const {
+	template <> struct hash<sparse_hash_map_cookie_key>{
+   		inline size_t operator()(const sparse_hash_map_cookie_key& ft) const {
 			// fastest hash possible, but no perf increase
 			uint32_t hash = 0;
-			hash = _mm_crc32_u32(hash, ft.ext_ip);
-			hash = _mm_crc32_u32(hash, ft.int_ip);
-			hash = _mm_crc32_u16(hash, ft.int_port);
-			hash = _mm_crc32_u16(hash, ft.ext_port);
+			hash = _mm_crc32_u32(hash, ft.ip_src);
+			hash = _mm_crc32_u32(hash, ft.ip_dst);
+			hash = _mm_crc32_u16(hash, ft.tcp_dst);
+			hash = _mm_crc32_u16(hash, ft.tcp_src);
 			return hash;
 		}
 	};
 }
 
-typedef struct ipv4_tcppkt {
-	struct ipv4_4t t4;
-	uint64_t ts;
-	uint8_t ttl;
-	uint8_t flags;
-} ipv4_tcppkt;
-
-typedef struct dmap_cookie_value {
+typedef struct sparse_hash_map_cookie_value {
 	uint32_t diff;
-} dmap_cookie_value;
+	uint32_t last_ack;
+	uint8_t flags;
+} sparse_hash_map_cookie_value;
 
-using dmap_cookie = google::dense_hash_map<ipv4_4t, dmap_cookie_value*, std::hash<ipv4_4t> , eq_ipv4_4t>;
+using sparse_hash_map_cookie = google::sparse_hash_map<sparse_hash_map_cookie_key, sparse_hash_map_cookie_value*, std::hash<sparse_hash_map_cookie_key> , eq_sparse_hash_map_cookie_key>;
 
 extern "C" {
 	/* Google HashMap Densehash */
-	dmap_cookie* mg_dmap_cookie_create(){
-		dmap_cookie* m = new dmap_cookie(113234544);
-		struct ipv4_4t e;
-		memset(&e, 0, sizeof(ipv4_4t));
-		m->set_empty_key(e);
-		return m;
+	sparse_hash_map_cookie* mg_sparse_hash_map_cookie_create(){
+		return new sparse_hash_map_cookie;
 	}
 
-	void mg_dmap_cookie_insert(dmap_cookie *m, ipv4_tcppkt *p) {
-         auto it = m->find(p->t4);
-         if (it == m->end() ){ // fourtupel not in list yet, add flow
- 			dmap_cookie_value *tmp = new dmap_cookie_value;
-			tmp->diff = p->ttl;
-			(*m)[p->t4] = tmp;
+	void mg_sparse_hash_map_cookie_insert(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, uint32_t v) {
+		auto it = m->find(*k);
+        if (it == m->end() ){ // fourtupel not in list yet, add flow
+ 			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
+			tmp->diff = v;
+			(*m)[*k] = tmp;
 		} else {
+			((*m)[*k])->diff = v;
 		}	
 		
     };
-	dmap_cookie_value* mg_dmap_cookie_find(dmap_cookie *m, ipv4_tcppkt *p) {
-		return (*m)[p->t4];
+	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k) {
+		return (*m)[*k];
 	};
 }
