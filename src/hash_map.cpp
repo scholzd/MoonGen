@@ -58,22 +58,22 @@ typedef struct sparse_hash_map_cookie_value {
 using sparse_hash_map_cookie = google::sparse_hash_map<sparse_hash_map_cookie_key, sparse_hash_map_cookie_value*, std::hash<sparse_hash_map_cookie_key> , eq_sparse_hash_map_cookie_key>;
 
 extern "C" {
-	/* Google HashMap Densehash */
+	/* Google HashMap Sparsehash */
 	sparse_hash_map_cookie* mg_sparse_hash_map_cookie_create(){
 		return new sparse_hash_map_cookie;
 	}
 
 	void mg_sparse_hash_map_cookie_insert(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, uint32_t v) {
 		auto it = m->find(*k);
-        if (it == m->end() ){ // fourtupel not in list yet, add flow
+        if (it == m->end() ){
  			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
 			tmp->diff = v;
 			(*m)[*k] = tmp;
 		} else {
 			((*m)[*k])->diff = v;
-		}	
-		
+		}
     };
+
 	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k) {
 		return (*m)[*k];
 	};

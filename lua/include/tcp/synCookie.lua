@@ -49,7 +49,7 @@ end
 -------------------------------------------------------------------------------------------
 
 -- one cycle is 64 64 seconds (6 bit right shoft of timestamp)
-local timestampValidCycles = 1
+local timestampValidCycles = 2
 
 -- MSS encodings
 local MSS = { 
@@ -271,7 +271,7 @@ function mod.setRst(pkt, leftToRight)
 end
 
 local function unsetVerified(idx)
-	--log:warn('Deleting connection ' .. idx)
+	log:warn('Deleting connection ' .. idx)
 	-- disabled as it has huge performance impact :( (3k reqs/s)
 	verifiedConnections[idx] = nil
 end
@@ -372,7 +372,7 @@ end
 -------------------------------------------------------------------------------------------
 
 -- simply resend the complete packet, but adapt seq/ack number
-function mod.sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
+function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	--log:debug('Performing Sequence Number Translation ' .. (leftToRight and 'from left ' or 'from right '))
 	
 	-- I recall this delivered the wrong size once
@@ -384,14 +384,6 @@ function mod.sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	txBuf:setSize(size)
 
 	-- translate numbers, depends on direction
-	local diff = mod.isVerified(rxPkt, leftToRight)
-	if not diff then
-		-- packet is not verified, hence, we can't translate it
-		-- happens after deleting connections or before second handshake is finished
-		--log:error('translation without diff, something is horribly wrong ' .. getIdx(rxPkt, leftToRight))
-		--rxBuf:dump()
-		return
-	end
 	if leftToRight then
 		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff['diff'])
 	else
@@ -407,7 +399,14 @@ function mod.sequenceNumberTranslation(rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	--end
 
 	-- check whether connection should be deleted
-	checkUnsetVerified(rxPkt, leftToRight)
+	if isRst(rxPkt) then -- TODO move to bottom
+		--log:debug('Got RST packet from left ' )
+		mod.setRst(rxPkt, leftToRight)
+	elseif isFin(rxPkt) then
+		--log:debug('Got FIN packet from left ' )
+		mod.setFin(rxPkt, leftToRight)
+	end
+	--checkUnsetVerified(rxPkt, leftToRight)
 end
 
 function mod.createSynToServer(txBuf, rxBuf)
