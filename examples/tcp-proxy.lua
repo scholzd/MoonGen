@@ -163,38 +163,51 @@ function tcpProxySlave(lRXDev, lTXDev)
 
 
 
-	--log:debug("Creating hash table")
-	--local shmc = hashMap.createSparseHashMapCookie()
+	log:debug("Creating hash table")
+	local shmc = hashMap.createSparseHashMapCookie()
 
-	--log:debug("Creating tcppkt type")
-	--local ipv4_tcppkt_type = ffi.typeof("struct __ethernet_eth__ip4_ip4__tcp_tcp")
-	--log:debug("Creating tcppkt")
-	--local pkt = ipv4_tcppkt_type()
-	--pkt.ip4:setSrcString("1.1.1.1")
-	--pkt.ip4:setDstString("2.2.2.2")
-	--pkt.tcp:setSrc(1111)
-	--pkt.tcp:setDst(2222)
+	log:debug("Creating tcppkt type")
+	local ipv4_tcppkt_type = ffi.typeof("struct __ethernet_eth__ip4_ip4__tcp_tcp")
+	log:debug("Creating tcppkt")
+	local pkt = ipv4_tcppkt_type()
+	pkt.ip4:setSrcString("1.1.1.1")
+	pkt.ip4:setDstString("2.2.2.2")
+	pkt.tcp:setSrc(1111)
+	pkt.tcp:setDst(2222)
+	pkt.tcp:setSeqNumber(42)
 
-	--log:debug("Inserting value")
-	--shmc:insert(pkt, 10, LEFT_TO_RIGHT)
-	--
-	--log:debug("Inserting value")
-	--shmc:insert(pkt, 20, RIGHT_TO_LEFT)
+	log:debug("Inserting value")
+	shmc:insert(pkt, 10, LEFT_TO_RIGHT)
+	
+	log:debug("Find value")
+	--pkt.tcp:setDst(2223)
+	local result = shmc:find(pkt, LEFT_TO_RIGHT)
+	log:debug(tostring(result))
+	if result then
+		log:debug("diff: " .. result.diff)
+		log:debug("flags: " .. result.flags)
+		log:debug("ack: " .. result.last_ack)
+	end
+	log:debug("Update value")
+	pkt.tcp:setFin()
+	local result = shmc:update(pkt, LEFT_TO_RIGHT)
+	log:debug(tostring(result))
+	if result then
+		log:debug("diff: " .. result.diff)
+		log:debug("flags: " .. result.flags)
+		log:debug("ack: " .. result.last_ack)
+	end
+	log:debug("Find value")
+	--pkt.tcp:setDst(2223)
+	local result = shmc:find(pkt, LEFT_TO_RIGHT)
+	log:debug(tostring(result))
+	if result then
+		log:debug("diff: " .. result.diff)
+		log:debug("flags: " .. result.flags)
+		log:debug("ack: " .. result.last_ack)
+	end
 
-	--log:debug("Find value")
-	----pkt.tcp:setDst(2223)
-	--local result = shmc:find(pkt, LEFT_TO_RIGHT)
-	--log:debug(tostring(result))
-	--if result then
-	--	log:debug("diff: " .. result.diff)
-	--end
-	--local result = shmc:find(pkt, RIGHT_TO_LEFT)
-	--log:debug(tostring(result))
-	--if result then
-	--	log:debug("diff: " .. result.diff)
-	--end
-
-	--exit()
+	exit()
 
 	local currentStrat = STRAT['cookie']
 	local maxBurstSize = 63

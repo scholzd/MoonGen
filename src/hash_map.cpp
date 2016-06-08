@@ -6,6 +6,7 @@
 
 #include <sparsehash/sparse_hash_map>
 
+#define unlikely(x)     __builtin_expect(!!(x), 0)
 
 typedef struct sparse_hash_map_cookie_key {
 	uint32_t ip_src;
@@ -53,6 +54,11 @@ typedef struct sparse_hash_map_cookie_value {
 	uint32_t diff;
 	uint32_t last_ack;
 	uint8_t flags;
+	/* 
+		#1: leftFIN
+		#2: rightFIN
+		#rest: reserved (0)
+	*/
 } sparse_hash_map_cookie_value;
 
 using sparse_hash_map_cookie = google::sparse_hash_map<sparse_hash_map_cookie_key, sparse_hash_map_cookie_value*, std::hash<sparse_hash_map_cookie_key> , eq_sparse_hash_map_cookie_key>;
@@ -76,5 +82,20 @@ extern "C" {
 
 	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k) {
 		return (*m)[*k];
+	};
+	
+	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find_update(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, bool leftFin, bool rightFin, uint32_t last_ack) {
+		sparse_hash_map_cookie_value *tmp = (*m)[*k];
+		if (tmp) {
+			if (unlikely(leftFin)) {
+				tmp->flags = tmp->flags | 0x1;
+				tmp->last_ack = last_ack;
+			} else if (unlikely(rightFin)) {
+				tmp->flags = tmp->flags | 0x2;
+				tmp->last_ack = last_ack;
+			}
+		}	
+
+		return tmp;
 	};
 }

@@ -271,7 +271,7 @@ function mod.setRst(pkt, leftToRight)
 end
 
 local function unsetVerified(idx)
-	log:warn('Deleting connection ' .. idx)
+	--log:warn('Deleting connection ' .. idx)
 	-- disabled as it has huge performance impact :( (3k reqs/s)
 	verifiedConnections[idx] = nil
 end
@@ -406,7 +406,7 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToR
 		--log:debug('Got FIN packet from left ' )
 		mod.setFin(rxPkt, leftToRight)
 	end
-	--checkUnsetVerified(rxPkt, leftToRight)
+	checkUnsetVerified(rxPkt, leftToRight)
 end
 
 function mod.createSynToServer(txBuf, rxBuf)
