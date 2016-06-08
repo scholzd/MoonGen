@@ -9,13 +9,14 @@ local ffi		= require "ffi"
 local dpdkc 	= require "dpdkc"
 local proto		= require "proto/proto"
 
+local hashMap 	= require "hashMap"
+
 -- tcp SYN defense strategies
 local cookie	= require "tcp/synCookie"
 local infr		= require "tcp/synInfringement"
 
 -- utility
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
-
 
 ---------------------------------------------------
 -- Usage
@@ -157,6 +158,40 @@ local STRAT = {
 
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
+
+
+
+
+
+	log:debug("Creating hash table")
+	local dm4 = hashMap.createHashMap()
+
+	log:debug("Creating tcppkt type")
+	local ipv4_tcppkt_type = ffi.typeof("struct ipv4_tcppkt")
+	log:debug("Creating tcppkt")
+	local ipv4_tcppkt = ipv4_tcppkt_type()
+	ipv4_tcppkt.ts=10
+	ipv4_tcppkt.flags=0
+	ipv4_tcppkt.t5.proto = 1
+	
+	ipv4_tcppkt.t5.ext_port = 1111
+	ipv4_tcppkt.t5.int_port = 2222
+	ipv4_tcppkt.t5.ext_ip = parseIP4Address("1.1.1.1")
+	ipv4_tcppkt.t5.int_ip = parseIP4Address("2.2.2.2")
+	ipv4_tcppkt.ttl = 64
+
+	log:debug("Inserting value")
+	dm4:insert(ipv4_tcppkt)
+
+	log:debug("Find value")
+	--ipv4_tcppkt.t5.proto = 2
+	local result = dm4:find(ipv4_tcppkt)
+	log:debug(tostring(result))
+	if result then
+		--log:debug("ttl: " .. result)
+	end
+
+	exit()
 
 	local currentStrat = STRAT['cookie']
 	local maxBurstSize = 63

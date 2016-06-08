@@ -26,6 +26,7 @@ SET(FILES
 	src/ring.c
 	src/rate_limiter.cpp
 	src/kni.c
+	src/hash_map.cpp
 )
 
 SET(DPDK_LIBS
