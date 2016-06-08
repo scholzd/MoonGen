@@ -172,23 +172,21 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local ipv4_tcppkt = ipv4_tcppkt_type()
 	ipv4_tcppkt.ts=10
 	ipv4_tcppkt.flags=0
-	ipv4_tcppkt.t5.proto = 1
 	
-	ipv4_tcppkt.t5.ext_port = 1111
-	ipv4_tcppkt.t5.int_port = 2222
-	ipv4_tcppkt.t5.ext_ip = parseIP4Address("1.1.1.1")
-	ipv4_tcppkt.t5.int_ip = parseIP4Address("2.2.2.2")
+	ipv4_tcppkt.t4.ext_port = 1111
+	ipv4_tcppkt.t4.int_port = 2222
+	ipv4_tcppkt.t4.ext_ip = parseIP4Address("1.1.1.1")
+	ipv4_tcppkt.t4.int_ip = parseIP4Address("2.2.2.2")
 	ipv4_tcppkt.ttl = 64
 
 	log:debug("Inserting value")
 	dm4:insert(ipv4_tcppkt)
 
 	log:debug("Find value")
-	--ipv4_tcppkt.t5.proto = 2
 	local result = dm4:find(ipv4_tcppkt)
 	log:debug(tostring(result))
 	if result then
-		--log:debug("ttl: " .. result)
+		log:debug("diff: " .. result.diff)
 	end
 
 	exit()
