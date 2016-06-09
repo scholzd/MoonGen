@@ -5,6 +5,8 @@
 #include <iostream> // for std::endl
 #include <string>
 #include <sparsehash/sparse_hash_map>
+#include <thread>
+#include <time.h>
 
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
@@ -70,13 +72,36 @@ using namespace std;
 
 extern "C" {
 	/* Google HashMap Sparsehash */
+	void mg_sparse_hash_map_cookie_gc(sparse_hash_map_cookie *m) {
+		double time_diff = 0;
+   	 	clock_t this_time = clock();
+   	 	clock_t last_time = this_time;
+
+   	 	while(true) {
+   	 	    this_time = clock();
+   	 	    time_diff = (double)(this_time - last_time);
+   	 	    if(time_diff <= (double)(2 * CLOCKS_PER_SEC)) {
+				continue;
+   	 	    }
+
+			printf("size %d\n", m->size());
+   	 	}
+	}
+
 	sparse_hash_map_cookie* mg_sparse_hash_map_cookie_create(){
 		sparse_hash_map_cookie *tmp = new sparse_hash_map_cookie;
 		sparse_hash_map_cookie_key k;
 		memset(&k, 0, sizeof(sparse_hash_map_cookie_key));
 		tmp->set_deleted_key(k);
+
+		// start gc thread
+		thread gc(mg_sparse_hash_map_cookie_gc, tmp);
+		gc.detach();
+
 		return tmp;
 	}
+
+
 
 	/* Insert on setLeftVerified
 	 * Stores the Ack Number for later calculation of the diff in the diff field
@@ -97,7 +122,7 @@ extern "C" {
         if (it == m->end() ){
  			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
 			tmp->diff = ack;
-			tmp->flags = 4; // set leftVerified flag
+			tmp->flags = 52; // set leftVerified flag 4 + ts flags 16 32
 			(*m)[*k] = tmp;
 			//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
 			return;
@@ -120,12 +145,12 @@ extern "C" {
 		
 		// Check that flags are correct
 		// Only leftVerified must be set
-		if ( unlikely(tmp->flags != 4) ) {
+		if ( unlikely((tmp->flags & 4) != 4) ) {
 			return false;
 		}
 		
 		tmp->diff = seq - tmp->diff + 1;
-		tmp->flags = tmp->flags | 12;
+		tmp->flags = tmp->flags | 56; // set rightVerified flag 8 + ts flags 16 32
 		//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
 		return true;
 	};
@@ -143,18 +168,19 @@ extern "C" {
 		
 		sparse_hash_map_cookie_value *tmp = (*m)[*k];
 		
-		// Check verified flags (both must be set)
+		// Check verified flags (both 4 8 must be set)
 		if ((tmp->flags & 12) != 12) {
 			return 0;
 		}
 
 		if (unlikely(leftFin)) {
-			tmp->flags = tmp->flags | 0x1;
+			tmp->flags = tmp->flags | 1;
 			tmp->last_ack = last_ack;
 		} else if (unlikely(rightFin)) {
-			tmp->flags = tmp->flags | 0x2;
+			tmp->flags = tmp->flags | 2;
 			tmp->last_ack = last_ack;
 		}
+		tmp->flags = tmp->flags | 48; // update ts flags 16 32
 
 		return tmp;
 	};
