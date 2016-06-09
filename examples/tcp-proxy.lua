@@ -106,17 +106,12 @@ end
 -------------------------------------------------------------------------------------------
 
 local verifyCookie = cookie.verifyCookie
+local checkConnectionClosing = cookie.checkConnectionClosing
+
 
 -------------------------------------------------------------------------------------------
 ---- State keeping
 -------------------------------------------------------------------------------------------
-
-local getIdx = cookie.getIdx
-local setLeftVerified = cookie.setLeftVerified
-local setRightVerified = cookie.setRightVerified
-local setFin = cookie.setFin
-local setRst = cookie.setRst
-local isVerified = cookie.isVerified
 
 local isVerifiedReset = cookie.isVerifiedReset
 local isVerifiedIgnore = cookie.isVerifiedIgnore
@@ -159,55 +154,48 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 
-
-
-
-
-	log:debug("Creating hash table")
-	local shmc = hashMap.createSparseHashMapCookie()
-
-	log:debug("Creating tcppkt type")
-	local ipv4_tcppkt_type = ffi.typeof("struct __ethernet_eth__ip4_ip4__tcp_tcp")
-	log:debug("Creating tcppkt")
-	local pkt = ipv4_tcppkt_type()
-	pkt.ip4:setSrcString("1.1.1.1")
-	pkt.ip4:setDstString("2.2.2.2")
-	pkt.tcp:setSrc(1111)
-	pkt.tcp:setDst(2222)
-	pkt.tcp:setSeqNumber(42)
-
-	log:debug("Inserting value")
-	shmc:insert(pkt, 10, LEFT_TO_RIGHT)
-	
-	log:debug("Find value")
-	--pkt.tcp:setDst(2223)
-	local result = shmc:find(pkt, LEFT_TO_RIGHT)
-	log:debug(tostring(result))
-	if result then
-		log:debug("diff: " .. result.diff)
-		log:debug("flags: " .. result.flags)
-		log:debug("ack: " .. result.last_ack)
-	end
-	log:debug("Update value")
-	pkt.tcp:setFin()
-	local result = shmc:update(pkt, LEFT_TO_RIGHT)
-	log:debug(tostring(result))
-	if result then
-		log:debug("diff: " .. result.diff)
-		log:debug("flags: " .. result.flags)
-		log:debug("ack: " .. result.last_ack)
-	end
-	log:debug("Find value")
-	--pkt.tcp:setDst(2223)
-	local result = shmc:find(pkt, LEFT_TO_RIGHT)
-	log:debug(tostring(result))
-	if result then
-		log:debug("diff: " .. result.diff)
-		log:debug("flags: " .. result.flags)
-		log:debug("ack: " .. result.last_ack)
-	end
-
-	exit()
+--	log:debug("Creating tcppkt type")
+--	local ipv4_tcppkt_type = ffi.typeof("struct __ethernet_eth__ip4_ip4__tcp_tcp")
+--	log:debug("Creating tcppkt")
+--	local pkt = ipv4_tcppkt_type()
+--	pkt.ip4:setSrcString("1.1.1.1")
+--	pkt.ip4:setDstString("2.2.2.2")
+--	pkt.tcp:setSrc(1111)
+--	pkt.tcp:setDst(2222)
+--	pkt.tcp:setSeqNumber(42)
+--
+--	log:debug("Inserting value")
+--	shmc:insert(pkt, 10, LEFT_TO_RIGHT)
+--	
+--	log:debug("Find value")
+--	--pkt.tcp:setDst(2223)
+--	local result = shmc:find(pkt, LEFT_TO_RIGHT)
+--	log:debug(tostring(result))
+--	if result then
+--		log:debug("diff: " .. result.diff)
+--		log:debug("flags: " .. result.flags)
+--		log:debug("ack: " .. result.last_ack)
+--	end
+--	log:debug("Update value")
+--	pkt.tcp:setFin()
+--	local result = shmc:update(pkt, LEFT_TO_RIGHT)
+--	log:debug(tostring(result))
+--	if result then
+--		log:debug("diff: " .. result.diff)
+--		log:debug("flags: " .. result.flags)
+--		log:debug("ack: " .. result.last_ack)
+--	end
+--	log:debug("Find value")
+--	--pkt.tcp:setDst(2223)
+--	local result = shmc:find(pkt, LEFT_TO_RIGHT)
+--	log:debug(tostring(result))
+--	if result then
+--		log:debug("diff: " .. result.diff)
+--		log:debug("flags: " .. result.flags)
+--		log:debug("ack: " .. result.last_ack)
+--	end
+--
+--	exit()
 
 	local currentStrat = STRAT['cookie']
 	local maxBurstSize = 63
@@ -289,6 +277,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local txNotTcpMem = memory.createMemPool()	
 	local txNotTcpBufs = txNotTcpMem:bufArray(1)
 
+
+	-------------------------------------------------------------
+	-- Hash table
+	-------------------------------------------------------------
+	log:info("Creating hash table")
+	local sparseMapCookie = hashMap.createSparseHashMapCookie()
+
+
 	-------------------------------------------------------------
 	-- profiling
 	-------------------------------------------------------------
@@ -333,7 +329,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					---------------------------------------------------------------------- SYN/ACK from server, finally establish connection
 					if isSyn(rRXPkt) and isAck(rRXPkt) then
 						--log:debug('Received SYN/ACK from server, sending ACK back')
-						setRightVerified(rRXPkt)
+						sparseMapCookie:setRightVerified(rRXPkt)
 						
 						if numAck == 0 then
 							rTXAckBufs:allocN(60, rx - (i - 1))
@@ -343,19 +339,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 						createAckToServer(rTXAckBufs[numAck], rRXBufs[i], rRXPkt)
 					----------------------------------------------------------------------- any verified packet from server
 					else
-						local diff = isVerified(rRXPkt, RIGHT_TO_LEFT) 
+						local diff, key = sparseMapCookie:isVerified(rRXPkt, RIGHT_TO_LEFT) 
 						if diff then
 							-- anything else must be from a verified connection, translate and send via physical nic
 							--log:info('Packet of verified connection from server, translate and forward')
-							--local idx = getIdx(rRXPkt, RIGHT_TO_LEFT)
-							--if isRst(rRXPkt) then -- TODO move to bottom
-							--	--log:debug('Got RST packet from right ' .. idx)
-							--	setRst(rRXPkt, RIGHT_TO_LEFT)
-							--elseif isFin(rRXPkt) then
-							--	--log:debug('Got FIN packet from right ' .. idx)
-							--	setFin(rRXPkt, RIGHT_TO_LEFT)
-							--end
-							--log:info('Translating from right to left')
 							if numForward == 0 then
 								rTXForwardBufs:allocN(60, rx - (i - 1))
 							end
@@ -364,7 +351,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 							local rTXForwardBuf = rTXForwardBufs[numForward]
 							local rTXPkt = rTXForwardBuf:getTcp4Packet()
 
-							sequenceNumberTranslation(diff, rRXBufs[i], rTXForwardBuf, rRXPkt, rTXPkt, RIGHT_TO_LEFT)
+							sequenceNumberTranslation(diff.diff, rRXBufs[i], rTXForwardBuf, rRXPkt, rTXPkt, RIGHT_TO_LEFT)
+							if checkConnectionClosing(diff, rRXPkt) then
+								sparseMapCookie:delete(key)
+							end
 						------------------------------------------------------------------------ not verified connection from server
 						else
 							--log:debug('Packet of not verified connection from right')
@@ -495,24 +485,17 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- check with verified connections
 					-- if already verified in both directions, immediately forward, otherwise check cookie
 					else
-						local diff = isVerified(lRXPkt, LEFT_TO_RIGHT) 
+						local diff, key = sparseMapCookie:isVerified(lRXPkt, LEFT_TO_RIGHT) 
 						if diff then 
 							--log:info('Received packet of verified connection from left, translating and forwarding')
-							--local idx = getIdx(lRXPkt, LEFT_TO_RIGHT)
-							--if isRst(lRXPkt) then -- TODO move to bottom
-							--	--log:debug('Got RST packet from left ' .. idx)
-							--	setRst(lRXPkt, LEFT_TO_RIGHT)
-							--elseif isFin(lRXPkt) then
-							--	--log:debug('Got FIN packet from left ' .. idx)
-							--	setFin(lRXPkt, LEFT_TO_RIGHT)
-							--end
-							--log:info('Translating from left to right')
 							if numForward == 0 then
 								lTXForwardBufs:allocN(60, rx - (i - 1))
-								--log:debug("alloc'd with i = " .. i)
 							end
 							numForward = numForward + 1
-							sequenceNumberTranslation(diff, lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
+							sequenceNumberTranslation(diff.diff, lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
+							if checkConnectionClosing(diff, lRXPkt) then
+								sparseMapCookie:delete(key)
+							end
 						------------------------------------------------------------------------------------------------------- not verified, but is ack -> verify cookie
 						elseif isAck(lRXPkt) then
 							local ack = lRXPkt.tcp:getAckNumber()
@@ -520,7 +503,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							if mss then
 								--log:info('Received valid cookie from left, starting handshake with server')
 								
-								setLeftVerified(lRXPkt)
+								sparseMapCookie:setLeftVerified(lRXPkt)
 								-- connection is left verified, start handshake with right
 								if numForward == 0 then
 									lTXForwardBufs:allocN(60, rx - (i - 1))
@@ -581,7 +564,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 		lRXStats:update()
 		lTXStats:update()
 	end
-	printVerifiedConnections()
+	log:debug("*****************\n" .. tostring(sparseMapCookie))
 
 	log:info('Releasing KNI device')
 	virtualDev:release()

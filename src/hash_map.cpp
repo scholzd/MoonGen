@@ -57,6 +57,8 @@ typedef struct sparse_hash_map_cookie_value {
 	/* 
 		#1: leftFIN
 		#2: rightFIN
+		#3: leftVerified
+		#4: rightVerified
 		#rest: reserved (0)
 	*/
 } sparse_hash_map_cookie_value;
@@ -69,22 +71,75 @@ extern "C" {
 		return new sparse_hash_map_cookie;
 	}
 
-	void mg_sparse_hash_map_cookie_insert(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, uint32_t v) {
+	/* Insert on setLeftVerified
+	 * Stores the Ack Number for later calculation of the diff in the diff field
+	 * Sets the leftVerified flag
+	 * If entry already present:
+	 *  connection is already left verified, 
+	 *  hence, this packet and the syn we send next is duplicated
+	 *  option A: drop it
+	 *  		disadvantage: original syn might have gotten lost (server busy, ...)
+	 *  option B (chosen): send again
+	 *  		we assume the Ack number has not changed (which it obviously shouldn't)
+	 * 		if it has changed, something is wrong
+	 * 		hence, we assume the first Ack number to be the correct one and don't update it here
+	 */
+	void mg_sparse_hash_map_cookie_insert(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, uint32_t ack) {
 		auto it = m->find(*k);
+		// not existing yet
+		//printf("insert %d %d\n", it, m->end());
         if (it == m->end() ){
  			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
-			tmp->diff = v;
+			tmp->diff = ack;
+			tmp->flags = 4; // set leftVerified flag
 			(*m)[*k] = tmp;
-		} else {
-			((*m)[*k])->diff = v;
+			//printf("inserted\n");
+			//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
+			return;
 		}
+		//printf("NOT inserted\n");
     };
 
-	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k) {
-		return (*m)[*k];
+	/* Finalize an entry on setRightVerified
+	 * Find the entry and check that flags are correct (only leftVerified set)
+	 * Calculate and store diff from seq number and stored ack number
+	 * Set rightVerified flag
+	 */
+	bool mg_sparse_hash_map_cookie_finalize(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, uint32_t seq) {
+		//printf("finalizing\n");
+		auto it = m->find(*k);
+		if (it == m->end() ) {
+			//printf("Not found\n");
+			return false;
+		}
+		//printf("get tmp %d %d\n", it, m->end());
+
+ 		sparse_hash_map_cookie_value *tmp = (*m)[*k];
+		//printf("got tmp %d\n", tmp);
+		// Check that flags are correct
+		// Only leftVerified must be set
+		if (tmp->flags != 4) {
+			//printf("Flags wrong\n");
+			return false;
+		}
+		//printf("set vals\n");
+		
+		tmp->diff = seq - tmp->diff + 1;
+		tmp->flags = tmp->flags | 12;
+		//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
+		return true;
 	};
-	
+
+	/* Find and update on isVerified
+	 * If it is verified, update the flags: fin flags, timestamp bits
+	 * Also set the last_ack on FIN
+	 * Return the value struct
+	 */	
 	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find_update(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, bool leftFin, bool rightFin, uint32_t last_ack) {
+		auto it = m->find(*k);
+		if (it == m->end() ) {
+			return 0;
+		}
 		sparse_hash_map_cookie_value *tmp = (*m)[*k];
 		if (tmp) {
 			if (unlikely(leftFin)) {
@@ -98,4 +153,12 @@ extern "C" {
 
 		return tmp;
 	};
+	
+	void mg_sparse_hash_map_cookie_delete(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k) {
+		//printf("delete NYI\n");
+	}
+	
+	char * mg_sparse_hash_map_cookie_string(sparse_hash_map_cookie *m) {
+		return (char *)"NYI";
+	}
 }

@@ -6,10 +6,11 @@
 --- - functions to build and verify each part of the cookie
 ---------------------------------
 
-local ffi 	= require "ffi"
-local log	= require "log"
-local memory = require "memory"
-local proto = require "proto/proto"
+local ffi		= require "ffi"
+local log		= require "log"
+local memory	= require "memory"
+local proto		= require "proto/proto"
+local hashMap	= require "hashMap"
 require "utils"
 
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
@@ -178,194 +179,73 @@ function mod.verifyCookie(pkt)
 	end
 end
 
--------------------------------------------------------------------------------------------
----- State keeping
--------------------------------------------------------------------------------------------
 
--- TODO add some form of timestamp and garbage collection on timeout
--- eg if not refreshed, remove after 60 seconds(2bits, every 30 seconds unset one, if both unset remove)
-local verifiedConnections = {}
+---------------------------------------------------------------------------------------------
+---- Connection Handling
+---------------------------------------------------------------------------------------------
 
-function mod.getIdx(pkt, leftToRight)
-	if leftToRight then
-		return pkt.ip4:getSrc() .. ':' .. pkt.tcp:getSrc() .. '-' .. pkt.ip4:getDst() .. ':' .. pkt.tcp:getDst()
-	else
-		return pkt.ip4:getDst() .. ':' .. pkt.tcp:getDst() .. '-' .. pkt.ip4:getSrc() .. ':' .. pkt.tcp:getSrc()
+function mod.checkConnectionClosing(diff, pkt)
+	-- check whether connection should be deleted
+	if isRst(pkt) then
+		--log:debug("isRST")	
+		return true
 	end
-end
-
-local getIdx = mod.getIdx
-
-function mod.setLeftVerified(pkt)
-	local idx = getIdx(pkt, mod.LEFT_TO_RIGHT)
-	local con = verifiedConnections[idx]
-	if con then
-		-- connection is already left verified, 
-		-- hence, this packet and the syn we send next is duplicated
-		-- option A: drop it
-		-- 		disadvantage: original syn might have gotten lost (server busy, ...)
-		-- option B (chosen): send again
-		-- 		we assume the Ack number has not changed (which it obviously shouldn't)
-		--		if it has changed, something is wrong
-		--		hence, we assume the first Ack number to be the correct one
-		return
-	end
-	con = {}
-	con['lAck'] = pkt.tcp:getAckNumber()
-	verifiedConnections[idx] = con
-end
-
-function mod.setRightVerified(pkt)
-	local idx = getIdx(pkt, mod.RIGHT_TO_LEFT)
-	local con = verifiedConnections[idx]
-	if not con or not con['lAck'] then
-		-- not left verified,
-		-- happens if a connection is deleted 
-		-- but right still has some packets in flight
-		--log:debug('Not left verified, something is wrong')
-		return false
-	end
-	con['diff'] = pkt.tcp:getSeqNumber() - con['lAck'] + 1
-	con['lAck'] = nil
-	return true
-end
-
-function mod.setFin(pkt, leftToRight)
-	local idx = getIdx(pkt, leftToRight)
-	local con = verifiedConnections[idx]
-	if not con then
-		-- FIN for not verified connection
-		-- means conenction was already deleted
-		-- and this packet can be ignored
-		--log:debug('FIN for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
-		return
-	end
-	--log:debug('one way FIN ' .. (leftToRight and 'from left' or 'from right'))
-	if leftToRight then
-		con['lFin'] = true --con['lFin'] .. '-' .. getPkts(con)
-	else
-		con['rFin'] = true -- con['rFin'] .. '-' .. getPkts(con)
-	end
-	-- to identify the final ACK of the connection store the Sequence number
-	if con['lFin'] and con['rFin'] then 
-		con['FinSeqNumber'] = pkt.tcp:getSeqNumber()
-	end
-end
-
-function mod.setRst(pkt, leftToRight)
-	local idx = getIdx(pkt, leftToRight)
-	local con = verifiedConnections[idx]
-	if not con then
-		-- RST for not verified connection
-		-- means conenction was already deleted
-		-- and this packet can be ignored
-		--log:debug('RST for not verified connection ' .. (leftToRight and 'from left ' or 'from right ') .. idx)
-		return
-	end
-	--log:debug('one way RST ' .. (leftToRight and 'from left' or 'from right'))
-	if leftToRight then
-		con['lRst'] = true --con['lRst'] .. '-' .. getPkts(con)
-	else
-		con['rRst'] = true --con['rRst'] .. '-' .. getPkts(con)
-	end
-end
-
-local function unsetVerified(idx)
-	--log:warn('Deleting connection ' .. idx)
-	-- disabled as it has huge performance impact :( (3k reqs/s)
-	verifiedConnections[idx] = nil
-end
-
-local function checkUnsetVerified(pkt, leftToRight)
-	local idx = getIdx(pkt, leftToRight)
-	local con = verifiedConnections[idx]
-	-- RST: in any case, delete connection
-	if con['lRst'] or con['rRst'] then 
-		unsetVerified(idx)
 	-- FIN: only if both parties sent a FIN
 	-- 		+ it has to be an ACK for the last sequence number
-	elseif con['lFin'] and con['rFin'] then 
+	--log:debug("flags " .. diff.flags)	
+	if band(diff.flags, 3) == 3 then 
+		--log:debug("is both flags")	
 		-- check for ack and the number matches
-		if isAck(pkt) and con['FinSeqNumber'] + 1 == pkt.tcp:getAckNumber() then
-				unsetVerified(idx)
+		if isAck(pkt) and diff.last_ack + 1 == pkt.tcp:getAckNumber() then
+				return true
 		end
 		-- otherwise it was an old packet or wrong direction
 		-- no action in that case
 	end
-end
-
--- TODO update timstamp
-function mod.isVerified(pkt, leftToRight)
-	local idx = getIdx(pkt, leftToRight)
-	local con = verifiedConnections[idx]
-
-	-- a connection is verified if it is in both directions
-	-- in that case, the diff is calculated
-	if con and con['diff'] then
-		return con
-	end
 	return false
 end
 
-function mod.printVerifiedConnections()
-	log:debug('********************')
-	log:debug('Verified Connections')
-	local numRst = 0
-	local num = 0
-	for k, v in pairs(verifiedConnections) do
-		num = num + 1
-		local str = ''
-		if type(v) == 'table' then
-		for ik, iv in pairs(v) do
-			str = str .. ', ' .. tostring(ik) .. '=' .. tostring(iv)
-			if ik == 'lRst' or ik == 'rRst' then
-				numRst = numRst + 1
-			end
-		end
-		else
-		str = tostring(v)
-		end
-		log:debug(tostring(k) .. ' -> ' .. str)
-	end
-	log:debug('Number of resets: ' .. numRst .. '/' .. num)
-	log:debug('********************')
-end
 
--- infringement things (TODO move at some point)
-function mod.isVerifiedReset(pkt)
-	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	if verifiedConnections[idx] then
-		return true
-	else
-		verifiedConnections[idx] = true
-		return false
-	end
-end
-
--- same as reset
-function mod.isVerifiedIgnore(pkt)
-	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	if verifiedConnections[idx] then
-		return true
-	else
-		verifiedConnections[idx] = true
-		return false
-	end
-end
-
-function mod.setVerifiedSequence(pkt)
-	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	verifiedConnections[idx] = true
-end
-
-function mod.isVerifiedSequence(pkt)
-	local idx = getIdx(pkt, LEFT_TO_RIGHT)
-	if verifiedConnections[idx] then
-		return true
-	else
-		return false
-	end
-end
+---------------------------------------------------------------------------------------------
+------ State keeping
+---------------------------------------------------------------------------------------------
+--
+--
+---- infringement things (TODO move at some point)
+--function mod.isVerifiedReset(pkt)
+--	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+--	if verifiedConnections[idx] then
+--		return true
+--	else
+--		verifiedConnections[idx] = true
+--		return false
+--	end
+--end
+--
+---- same as reset
+--function mod.isVerifiedIgnore(pkt)
+--	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+--	if verifiedConnections[idx] then
+--		return true
+--	else
+--		verifiedConnections[idx] = true
+--		return false
+--	end
+--end
+--
+--function mod.setVerifiedSequence(pkt)
+--	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+--	verifiedConnections[idx] = true
+--end
+--
+--function mod.isVerifiedSequence(pkt)
+--	local idx = getIdx(pkt, LEFT_TO_RIGHT)
+--	if verifiedConnections[idx] then
+--		return true
+--	else
+--		return false
+--	end
+--end
 
 -------------------------------------------------------------------------------------------
 ---- Packet modification and crafting for cookie strategy
@@ -375,8 +255,6 @@ end
 function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToRight)
 	--log:debug('Performing Sequence Number Translation ' .. (leftToRight and 'from left ' or 'from right '))
 	
-	-- I recall this delivered the wrong size once
-	-- however, it is significantly faster (4-5k reqs/s!!)
 	local size = rxBuf:getSize() 	
 	
 	-- copy content
@@ -385,9 +263,9 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToR
 
 	-- translate numbers, depends on direction
 	if leftToRight then
-		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff['diff'])
+		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff)
 	else
-		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff['diff'])
+		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff)
 	end
 
 	
@@ -397,16 +275,6 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToR
 		--log:debug('Calc checksum ' .. (leftToRight and 'from left ' or 'from right '))
 		txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	--end
-
-	-- check whether connection should be deleted
-	if isRst(rxPkt) then -- TODO move to bottom
-		--log:debug('Got RST packet from left ' )
-		mod.setRst(rxPkt, leftToRight)
-	elseif isFin(rxPkt) then
-		--log:debug('Got FIN packet from left ' )
-		mod.setFin(rxPkt, leftToRight)
-	end
-	checkUnsetVerified(rxPkt, leftToRight)
 end
 
 function mod.createSynToServer(txBuf, rxBuf)
@@ -495,7 +363,11 @@ function mod.createSynAckToClient(txPkt, rxPkt)
 	txPkt.tcp:setWindow(mss)
 end
 
--- bufs
+
+-------------------------------------------------------------------------------------------
+---- Packet mempools and buf arrays
+-------------------------------------------------------------------------------------------
+
 function mod.getSynAckBufs()
 	local lTXSynAckMem = memory.createMemPool(function(buf)
 		buf:getTcp4Packet():fill{

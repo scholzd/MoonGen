@@ -17,9 +17,12 @@ ffi.cdef [[
 	struct sparse_hash_map_cookie {};
 	struct sparse_hash_map_cookie * mg_sparse_hash_map_cookie_create();
 	
-	void mg_sparse_hash_map_cookie_insert(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t v);
-	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
+	char * mg_sparse_hash_map_cookie_string(struct sparse_hash_map_cookie *m);
+	
+	void mg_sparse_hash_map_cookie_insert(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t ack);
+	bool mg_sparse_hash_map_cookie_finalize(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t seq);
 	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find_update(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, bool leftFin, bool rightFin, uint32_t last_ack);
+	void mg_sparse_hash_map_cookie_delete(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 ]]
 
 
@@ -29,9 +32,18 @@ end
 
 local mod = {}
 
+local LEFT_TO_RIGHT = true
+local RIGHT_TO_LEFT = false
+
+----------------------------------------------------------------------------------------------------------------------------
+---- Google Sparse Hash Map for TCP SYN cookies
+----------------------------------------------------------------------------------------------------------------------------
+
 local sparseHashMapCookie = {}
 sparseHashMapCookie.__index = sparseHashMapCookie
 
+-- TODO add some form of timestamp and garbage collection on timeout
+-- eg if not refreshed, remove after 60 seconds(2bits, every 30 seconds unset one, if both unset remove)
 function mod.createSparseHashMapCookie()
 	log:info("Creating a sparse hash map for TCP SYN flood cookie strategy")
 	return setmetatable({
@@ -53,26 +65,32 @@ local function sparseHashMapCookieGetKey(pkt, leftToRight)
 		key.tcp_src = pkt.tcp:getDst()
 		key.tcp_dst = pkt.tcp:getSrc()
 	end
+	--log:debug("Key: " .. key.ip_src .. ":" .. key.tcp_src .. "->" .. key.ip_dst .. ":" .. key.tcp_dst)
 	return key
 end
 
-function sparseHashMapCookie:insert(pkt, diff, leftToRight)
-	local k = sparseHashMapCookieGetKey(pkt, leftToRight)
-	ffi.C.mg_sparse_hash_map_cookie_insert(self.map, k, diff)
+function sparseHashMapCookie:setLeftVerified(pkt)
+	--log:debug("set left verified")
+	local k = sparseHashMapCookieGetKey(pkt, LEFT_TO_RIGHT)
+	local ack = pkt.tcp:getAckNumber()
+	ffi.C.mg_sparse_hash_map_cookie_insert(self.map, k, ack)
 end
 
-function sparseHashMapCookie:find(pkt, leftToRight)
-	local k = sparseHashMapCookieGetKey(pkt, leftToRight)
-	local r = ffi.C.mg_sparse_hash_map_cookie_find(self.map, k)
-	log:debug(tostring(r))
-	if not (r == nil) then
-		return r
-	else
-		log:debug("no result")
+function sparseHashMapCookie:setRightVerified(pkt)
+	--log:debug("set right verified")
+	local k = sparseHashMapCookieGetKey(pkt, RIGHT_TO_LEFT)
+	local seq = pkt.tcp:getSeqNumber()
+	local r = ffi.C.mg_sparse_hash_map_cookie_finalize(self.map, k, seq)
+	if not r then
+		-- not left verified,
+		-- happens if a connection is deleted 
+		-- but right still has some packets in flight
+		log:debug('Not left verified, something is wrong')
 	end
 end
 
-function sparseHashMapCookie:update(pkt, leftToRight)
+function sparseHashMapCookie:isVerified(pkt, leftToRight)
+	--log:debug("is verified")
 	local k = sparseHashMapCookieGetKey(pkt, leftToRight)
 
 	-- set/update left/right FIN flags to determine closed connections
@@ -82,21 +100,33 @@ function sparseHashMapCookie:update(pkt, leftToRight)
 	if isFin(pkt) then
 		if leftToRight then
 			leftFin = true
+			--log:debug("leftFin")
 		else
 			rightFin = true
+			--log:debug("rightFin")
 		end
 		-- in case it is the FIN/ACK, also store 
-		-- the Seq number to check in in final ACK
+		-- the Seq number to check it in final ACK
 		lastAck = pkt.tcp:getSeqNumber()
 	end
 
-	local r = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k, leftFin, rightFin, lastAck)
-	log:debug(tostring(r))
-	if not (r == nil) then
-		return r
+	local diff = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k, leftFin, rightFin, lastAck)
+	--log:debug(tostring(diff))
+	if not (diff == nil) then
+		return diff, k
 	else
-		log:debug("no result")
+		--log:debug("no result")
+		return false
 	end
+end
+
+function sparseHashMapCookie:__tostring()
+	return ffi.C.mg_sparse_hash_map_cookie_string(self.map)
+end
+
+function sparseHashMapCookie:delete(k)
+	--log:debug("delete")
+	ffi.C.mg_sparse_hash_map_cookie_delete(self.map, k)
 end
 
 return mod
