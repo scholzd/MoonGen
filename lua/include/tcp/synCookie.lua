@@ -197,7 +197,8 @@ function mod.checkConnectionClosing(diff, pkt)
 		--log:debug("is both flags")	
 		-- check for ack and the number matches
 		if isAck(pkt) and diff.last_ack + 1 == pkt.tcp:getAckNumber() then
-				return true
+			--log:debug("both flags and ack matches")	
+			return true
 		end
 		-- otherwise it was an old packet or wrong direction
 		-- no action in that case

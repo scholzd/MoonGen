@@ -3,7 +3,7 @@
 #include "nmmintrin.h" // for sse4.2 hardware crc checksum
 #include <map>
 #include <iostream> // for std::endl
-
+#include <string>
 #include <sparsehash/sparse_hash_map>
 
 #define unlikely(x)     __builtin_expect(!!(x), 0)
@@ -59,16 +59,23 @@ typedef struct sparse_hash_map_cookie_value {
 		#2: rightFIN
 		#3: leftVerified
 		#4: rightVerified
+		#5: ts1
+		#6: ts2
 		#rest: reserved (0)
 	*/
 } sparse_hash_map_cookie_value;
 
 using sparse_hash_map_cookie = google::sparse_hash_map<sparse_hash_map_cookie_key, sparse_hash_map_cookie_value*, std::hash<sparse_hash_map_cookie_key> , eq_sparse_hash_map_cookie_key>;
+using namespace std;
 
 extern "C" {
 	/* Google HashMap Sparsehash */
 	sparse_hash_map_cookie* mg_sparse_hash_map_cookie_create(){
-		return new sparse_hash_map_cookie;
+		sparse_hash_map_cookie *tmp = new sparse_hash_map_cookie;
+		sparse_hash_map_cookie_key k;
+		memset(&k, 0, sizeof(sparse_hash_map_cookie_key));
+		tmp->set_deleted_key(k);
+		return tmp;
 	}
 
 	/* Insert on setLeftVerified
@@ -87,13 +94,11 @@ extern "C" {
 	void mg_sparse_hash_map_cookie_insert(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, uint32_t ack) {
 		auto it = m->find(*k);
 		// not existing yet
-		//printf("insert %d %d\n", it, m->end());
         if (it == m->end() ){
  			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
 			tmp->diff = ack;
 			tmp->flags = 4; // set leftVerified flag
 			(*m)[*k] = tmp;
-			//printf("inserted\n");
 			//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
 			return;
 		}
@@ -106,23 +111,18 @@ extern "C" {
 	 * Set rightVerified flag
 	 */
 	bool mg_sparse_hash_map_cookie_finalize(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, uint32_t seq) {
-		//printf("finalizing\n");
 		auto it = m->find(*k);
 		if (it == m->end() ) {
-			//printf("Not found\n");
 			return false;
 		}
-		//printf("get tmp %d %d\n", it, m->end());
 
  		sparse_hash_map_cookie_value *tmp = (*m)[*k];
-		//printf("got tmp %d\n", tmp);
+		
 		// Check that flags are correct
 		// Only leftVerified must be set
-		if (tmp->flags != 4) {
-			//printf("Flags wrong\n");
+		if ( unlikely(tmp->flags != 4) ) {
 			return false;
 		}
-		//printf("set vals\n");
 		
 		tmp->diff = seq - tmp->diff + 1;
 		tmp->flags = tmp->flags | 12;
@@ -140,25 +140,31 @@ extern "C" {
 		if (it == m->end() ) {
 			return 0;
 		}
+		
 		sparse_hash_map_cookie_value *tmp = (*m)[*k];
-		if (tmp) {
-			if (unlikely(leftFin)) {
-				tmp->flags = tmp->flags | 0x1;
-				tmp->last_ack = last_ack;
-			} else if (unlikely(rightFin)) {
-				tmp->flags = tmp->flags | 0x2;
-				tmp->last_ack = last_ack;
-			}
-		}	
+		
+		// Check verified flags (both must be set)
+		if ((tmp->flags & 12) != 12) {
+			return 0;
+		}
+
+		if (unlikely(leftFin)) {
+			tmp->flags = tmp->flags | 0x1;
+			tmp->last_ack = last_ack;
+		} else if (unlikely(rightFin)) {
+			tmp->flags = tmp->flags | 0x2;
+			tmp->last_ack = last_ack;
+		}
 
 		return tmp;
 	};
 	
 	void mg_sparse_hash_map_cookie_delete(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k) {
-		//printf("delete NYI\n");
+		m->erase(*k);
 	}
 	
-	char * mg_sparse_hash_map_cookie_string(sparse_hash_map_cookie *m) {
-		return (char *)"NYI";
+	string mg_sparse_hash_map_cookie_string(sparse_hash_map_cookie *m) {
+		string str = "NYI";
+		return str;
 	}
 }
