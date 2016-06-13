@@ -15,7 +15,7 @@ ffi.cdef [[
 	};
 	
 	struct sparse_hash_map_cookie {};
-	struct sparse_hash_map_cookie * mg_sparse_hash_map_cookie_create();
+	struct sparse_hash_map_cookie * mg_sparse_hash_map_cookie_create(uint32_t size);
 	
 	char * mg_sparse_hash_map_cookie_string(struct sparse_hash_map_cookie *m);
 	
@@ -44,10 +44,10 @@ sparseHashMapCookie.__index = sparseHashMapCookie
 
 -- TODO add some form of timestamp and garbage collection on timeout
 -- eg if not refreshed, remove after 60 seconds(2bits, every 30 seconds unset one, if both unset remove)
-function mod.createSparseHashMapCookie()
+function mod.createSparseHashMapCookie(size)
 	log:info("Creating a sparse hash map for TCP SYN flood cookie strategy")
 	return setmetatable({
-		map = ffi.C.mg_sparse_hash_map_cookie_create()
+		map = ffi.C.mg_sparse_hash_map_cookie_create(size or 0)
 	}, sparseHashMapCookie)
 end
 

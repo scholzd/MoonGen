@@ -6,7 +6,7 @@
 #include <string>
 #include <sparsehash/sparse_hash_map>
 #include <thread>
-#include <time.h>
+#include <unistd.h>
 
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
@@ -57,12 +57,12 @@ typedef struct sparse_hash_map_cookie_value {
 	uint32_t last_ack;
 	uint8_t flags;
 	/* 
-		#1: leftFIN
-		#2: rightFIN
-		#3: leftVerified
-		#4: rightVerified
-		#5: ts1
-		#6: ts2
+		#1: leftFIN			1
+		#2: rightFIN		2
+		#3: leftVerified	4
+		#4: rightVerified	8
+		#5: ts1				16
+		#6: ts2				32
 		#rest: reserved (0)
 	*/
 } sparse_hash_map_cookie_value;
@@ -73,23 +73,25 @@ using namespace std;
 extern "C" {
 	/* Google HashMap Sparsehash */
 	void mg_sparse_hash_map_cookie_gc(sparse_hash_map_cookie *m) {
-		double time_diff = 0;
-   	 	clock_t this_time = clock();
-   	 	clock_t last_time = this_time;
-
    	 	while(true) {
-   	 	    this_time = clock();
-   	 	    time_diff = (double)(this_time - last_time);
-   	 	    if(time_diff <= (double)(2 * CLOCKS_PER_SEC)) {
-				continue;
-   	 	    }
-
-			printf("size %d\n", m->size());
+			for(auto it = m->begin(); it != m->end(); it++) {
+				auto tmp = it->second;
+				if ((tmp->flags & 32) == 32) {
+					tmp->flags = tmp->flags ^ 32;
+					continue;
+				}
+				if ((tmp->flags & 16) == 16) {
+					tmp->flags = tmp->flags ^ 16;
+					continue;
+				}
+				m->erase(it->first);			
+			}
+			sleep(30);
    	 	}
 	}
 
-	sparse_hash_map_cookie* mg_sparse_hash_map_cookie_create(){
-		sparse_hash_map_cookie *tmp = new sparse_hash_map_cookie;
+	sparse_hash_map_cookie* mg_sparse_hash_map_cookie_create(uint32_t size){
+		sparse_hash_map_cookie *tmp = new sparse_hash_map_cookie(size);
 		sparse_hash_map_cookie_key k;
 		memset(&k, 0, sizeof(sparse_hash_map_cookie_key));
 		tmp->set_deleted_key(k);
@@ -181,7 +183,6 @@ extern "C" {
 			tmp->last_ack = last_ack;
 		}
 		tmp->flags = tmp->flags | 48; // update ts flags 16 32
-
 		return tmp;
 	};
 	
