@@ -36,8 +36,8 @@ function master(rxPort, txPort)
 	
 	local lRXDev = device.config{ port = rxPort, txQueues=2 }
 	local lTXDev = device.config{ port = txPort }
-	lRXDev:wait()
-	lTXDev:wait()
+	--lRXDev:wait()
+	--lTXDev:wait()
 	mg.launchLua("tcpProxySlave", lRXDev, lTXDev)
 	
 	mg.waitForSlaves()
@@ -152,20 +152,26 @@ local STRAT = {
 
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
+	
+	log:info("Creating hash table")
+	local shmc = hashMap.createSparseHashMapCookie(1000)
 
---	log:debug("Creating tcppkt type")
---	local ipv4_tcppkt_type = ffi.typeof("struct __ethernet_eth__ip4_ip4__tcp_tcp")
---	log:debug("Creating tcppkt")
---	local pkt = ipv4_tcppkt_type()
---	pkt.ip4:setSrcString("1.1.1.1")
---	pkt.ip4:setDstString("2.2.2.2")
---	pkt.tcp:setSrc(1111)
---	pkt.tcp:setDst(2222)
---	pkt.tcp:setSeqNumber(42)
---
---	log:debug("Inserting value")
---	shmc:insert(pkt, 10, LEFT_TO_RIGHT)
---	
+	log:debug("Creating tcppkt type")
+	local ipv4_tcppkt_type = ffi.typeof("struct __ethernet_eth__ip4_ip4__tcp_tcp")
+	log:debug("Creating tcppkt")
+	local pkt = ipv4_tcppkt_type()
+	pkt.ip4:setSrcString("1.1.1.1")
+	pkt.ip4:setDstString("2.2.2.2")
+	pkt.tcp:setSrc(1111)
+	pkt.tcp:setDst(2222)
+	pkt.tcp:setSeqNumber(42)
+
+	log:debug("Inserting value")
+	shmc:setLeftVerified(pkt)
+	pkt.tcp:setDst(2223)
+	shmc:setLeftVerified(pkt)
+	shmc:setRightVerified(pkt)
+
 --	log:debug("Find value")
 --	--pkt.tcp:setDst(2223)
 --	local result = shmc:find(pkt, LEFT_TO_RIGHT)
@@ -278,7 +284,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- Hash table
 	-------------------------------------------------------------
 	log:info("Creating hash table")
-	local sparseMapCookie = hashMap.createSparseHashMapCookie()
+	--local sparseMapCookie = hashMap.createSparseHashMapCookie()
 
 
 	-------------------------------------------------------------
@@ -292,6 +298,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	log:info('Starting TCP Proxy')
 	while mg.running() do
+		shmc:isVerified(pkt, true)
 		------------------------------------------------------------------------------ poll right interface
 		--log:debug('Polling right (virtual) Dev')
 		-- for a real interface use tryRecv
