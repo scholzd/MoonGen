@@ -56,8 +56,8 @@ typedef struct sparse_hash_map_cookie_value {
 	uint32_t diff;
 	uint8_t flags;
 	/* 
-		#1: leftFIN			1
-		#2: rightFIN		2
+		#1: unused
+		#2: unused
 		#3: leftVerified	4
 		#4: rightVerified	8
 		#5: ts1				16
@@ -71,33 +71,11 @@ using namespace std;
 
 extern "C" {
 	/* Google HashMap Sparsehash */
-	void mg_sparse_hash_map_cookie_gc(sparse_hash_map_cookie *m) {
-   	 	while(true) {
-			for(auto it = m->begin(); it != m->end(); it++) {
-				auto tmp = it->second;
-				if ((tmp->flags & 32) == 32) {
-					tmp->flags = tmp->flags ^ 32;
-					continue;
-				}
-				if ((tmp->flags & 16) == 16) {
-					tmp->flags = tmp->flags ^ 16;
-					continue;
-				}
-				m->erase(it->first);			
-			}
-			sleep(30);
-   	 	}
-	}
-
 	sparse_hash_map_cookie* mg_sparse_hash_map_cookie_create(uint32_t size){
 		sparse_hash_map_cookie *tmp = new sparse_hash_map_cookie(size);
 		sparse_hash_map_cookie_key k;
 		memset(&k, 0, sizeof(sparse_hash_map_cookie_key));
 		tmp->set_deleted_key(k);
-
-		// start gc thread
-		thread gc(mg_sparse_hash_map_cookie_gc, tmp);
-		gc.detach();
 
 		return tmp;
 	}
@@ -177,10 +155,6 @@ extern "C" {
 		tmp->flags = tmp->flags | 48; // update ts flags 16 32
 		return tmp;
 	};
-	
-	void mg_sparse_hash_map_cookie_delete(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k) {
-		m->erase(*k);
-	}
 	
 	string mg_sparse_hash_map_cookie_string(sparse_hash_map_cookie *m) {
 		string str = "NYI";
