@@ -106,7 +106,6 @@ end
 -------------------------------------------------------------------------------------------
 
 local verifyCookie = cookie.verifyCookie
-local checkConnectionClosing = cookie.checkConnectionClosing
 
 
 -------------------------------------------------------------------------------------------
@@ -174,7 +173,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 --	if result then
 --		log:debug("diff: " .. result.diff)
 --		log:debug("flags: " .. result.flags)
---		log:debug("ack: " .. result.last_ack)
 --	end
 --	log:debug("Update value")
 --	pkt.tcp:setFin()
@@ -183,7 +181,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 --	if result then
 --		log:debug("diff: " .. result.diff)
 --		log:debug("flags: " .. result.flags)
---		log:debug("ack: " .. result.last_ack)
 --	end
 --	log:debug("Find value")
 --	--pkt.tcp:setDst(2223)
@@ -192,7 +189,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 --	if result then
 --		log:debug("diff: " .. result.diff)
 --		log:debug("flags: " .. result.flags)
---		log:debug("ack: " .. result.last_ack)
 --	end
 --
 --	exit()
@@ -339,7 +335,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						createAckToServer(rTXAckBufs[numAck], rRXBufs[i], rRXPkt)
 					----------------------------------------------------------------------- any verified packet from server
 					else
-						local diff, key = sparseMapCookie:isVerified(rRXPkt, RIGHT_TO_LEFT) 
+						local diff = sparseMapCookie:isVerified(rRXPkt, RIGHT_TO_LEFT) 
 						if diff then
 							-- anything else must be from a verified connection, translate and send via physical nic
 							--log:info('Packet of verified connection from server, translate and forward')
@@ -351,10 +347,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							local rTXForwardBuf = rTXForwardBufs[numForward]
 							local rTXPkt = rTXForwardBuf:getTcp4Packet()
 
-							sequenceNumberTranslation(diff.diff, rRXBufs[i], rTXForwardBuf, rRXPkt, rTXPkt, RIGHT_TO_LEFT)
-							if checkConnectionClosing(diff, rRXPkt) then
-								sparseMapCookie:delete(key)
-							end
+							sequenceNumberTranslation(diff, rRXBufs[i], rTXForwardBuf, rRXPkt, rTXPkt, RIGHT_TO_LEFT)
 						------------------------------------------------------------------------ not verified connection from server
 						else
 							--log:debug('Packet of not verified connection from right')
@@ -485,17 +478,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- check with verified connections
 					-- if already verified in both directions, immediately forward, otherwise check cookie
 					else
-						local diff, key = sparseMapCookie:isVerified(lRXPkt, LEFT_TO_RIGHT) 
+						local diff = sparseMapCookie:isVerified(lRXPkt, LEFT_TO_RIGHT) 
 						if diff then 
 							--log:info('Received packet of verified connection from left, translating and forwarding')
 							if numForward == 0 then
 								lTXForwardBufs:allocN(60, rx - (i - 1))
 							end
 							numForward = numForward + 1
-							sequenceNumberTranslation(diff.diff, lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
-							if checkConnectionClosing(diff, lRXPkt) then
-								sparseMapCookie:delete(key)
-							end
+							sequenceNumberTranslation(diff, lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
 						------------------------------------------------------------------------------------------------------- not verified, but is ack -> verify cookie
 						elseif isAck(lRXPkt) then
 							local ack = lRXPkt.tcp:getAckNumber()

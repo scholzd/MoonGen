@@ -10,7 +10,6 @@ ffi.cdef [[
 
 	typedef struct sparse_hash_map_cookie_value {
 		uint32_t diff;
-		uint32_t last_ack;
 		uint8_t flags;
 	};
 	
@@ -21,7 +20,7 @@ ffi.cdef [[
 	
 	void mg_sparse_hash_map_cookie_insert(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t ack);
 	bool mg_sparse_hash_map_cookie_finalize(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t seq);
-	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find_update(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, bool leftFin, bool rightFin, uint32_t last_ack);
+	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find_update(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 	void mg_sparse_hash_map_cookie_delete(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 ]]
 
@@ -54,7 +53,7 @@ end
 
 local key = ffi.new("struct sparse_hash_map_cookie_key")
 local function sparseHashMapCookieGetKey(pkt, leftToRight)
-	if leftToRight then
+	if true or leftToRight then
 		key.ip_src = pkt.ip4:getSrc()
 		key.ip_dst = pkt.ip4:getDst()
 		key.tcp_src = pkt.tcp:getSrc()
@@ -93,27 +92,10 @@ function sparseHashMapCookie:isVerified(pkt, leftToRight)
 	--log:debug("is verified")
 	local k = sparseHashMapCookieGetKey(pkt, leftToRight)
 
-	-- set/update left/right FIN flags to determine closed connections
-	local leftFin = false
-	local rightFin = false
-	local lastAck = 0
-	if isFin(pkt) then
-		if leftToRight then
-			leftFin = true
-			--log:debug("leftFin")
-		else
-			rightFin = true
-			--log:debug("rightFin")
-		end
-		-- in case it is the FIN/ACK, also store 
-		-- the Seq number to check it in final ACK
-		lastAck = pkt.tcp:getSeqNumber()
-	end
-
-	local diff = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k, leftFin, rightFin, lastAck)
+	local diff = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k)
 	--log:debug(tostring(diff))
 	if not (diff == nil) then
-		return diff, k
+		return diff.diff
 	else
 		--log:debug("no result")
 		return false

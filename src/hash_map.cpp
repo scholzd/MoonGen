@@ -54,7 +54,6 @@ namespace std {
 
 typedef struct sparse_hash_map_cookie_value {
 	uint32_t diff;
-	uint32_t last_ack;
 	uint8_t flags;
 	/* 
 		#1: leftFIN			1
@@ -158,11 +157,10 @@ extern "C" {
 	};
 
 	/* Find and update on isVerified
-	 * If it is verified, update the flags: fin flags, timestamp bits
-	 * Also set the last_ack on FIN
+	 * If it is verified, update the timestamp bits
 	 * Return the value struct
 	 */	
-	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find_update(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k, bool leftFin, bool rightFin, uint32_t last_ack) {
+	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find_update(sparse_hash_map_cookie *m, sparse_hash_map_cookie_key *k) {
 		auto it = m->find(*k);
 		if (it == m->end() ) {
 			return 0;
@@ -171,17 +169,11 @@ extern "C" {
 		sparse_hash_map_cookie_value *tmp = (*m)[*k];
 		
 		// Check verified flags (both 4 8 must be set)
+		// TODO maybe even drop this, not necessary really
 		if ((tmp->flags & 12) != 12) {
 			return 0;
 		}
 
-		if (unlikely(leftFin)) {
-			tmp->flags = tmp->flags | 1;
-			tmp->last_ack = last_ack;
-		} else if (unlikely(rightFin)) {
-			tmp->flags = tmp->flags | 2;
-			tmp->last_ack = last_ack;
-		}
 		tmp->flags = tmp->flags | 48; // update ts flags 16 32
 		return tmp;
 	};
