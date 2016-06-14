@@ -10,6 +10,7 @@ local dpdkc 	= require "dpdkc"
 local proto		= require "proto/proto"
 
 local hashMap 	= require "hashMap"
+local bitMap 	= require "bitMap"
 
 -- tcp SYN defense strategies
 local cookie	= require "tcp/synCookie"
@@ -285,6 +286,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	log:info("Creating hash table")
 	--local sparseMapCookie = hashMap.createSparseHashMapCookie()
+	local bitMapInfr = bitMap.createBitMapInfr()
 
 
 	-------------------------------------------------------------
@@ -298,7 +300,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	log:info('Starting TCP Proxy')
 	while mg.running() do
-		shmc:isVerified(pkt, true)
+		--shmc:isVerified(pkt, true)
 		------------------------------------------------------------------------------ poll right interface
 		--log:debug('Polling right (virtual) Dev')
 		-- for a real interface use tryRecv
@@ -424,10 +426,13 @@ function tcpProxySlave(lRXDev, lTXDev)
 				-- here the reaction always depends on the strategy
 				if currentStrat == STRAT['ignore'] then
 					-- do nothing on unverified SYN
-					if isSyn(lRXPkt) and not isVerifiedIgnore(lRXPkt) then
+					if isSyn(lRXPkt) and not bitMapInfr:isVerifiedIgnore(lRXPkt) then
 						-- do nothing
 						createResponseIgnore()
 					else
+						-- update timstamps
+						bitMapInfr:updateVerifiedIgnore(lRXPkt)
+						
 						-- everything else simply forward
 						if numForward == 0 then
 							lTXForwardBufs:allocN(60, rx - (i - 1))
@@ -437,11 +442,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 					end
 				elseif currentStrat == STRAT['reset'] then
 					-- send RST on unverified SYN
-					if isSyn(lRXPkt) and not isVerifiedReset(lRXPkt) then
+					if isSyn(lRXPkt) and not bitMapInfr:isVerifiedReset(lRXPkt) then
 						-- create and send RST packet
 						numRst = numRst + 1
 						createResponseReset(lTXRstBufs[numRst], lRXPkt)
 					else
+						-- update timstamps
+						bitMapInfr:updateVerifiedReset(lRXPkt)
+						
 						-- everything else simply forward
 						if numForward == 0 then
 							lTXForwardBufs:allocN(60, rx - (i - 1))
@@ -451,14 +459,19 @@ function tcpProxySlave(lRXDev, lTXDev)
 					end
 				elseif currentStrat == STRAT['sequence'] then
 					-- send wrong sequence number on unverified SYN
-					if isSyn(lRXPkt) and not isVerifiedSequence(lRXPkt) then
+					if isSyn(lRXPkt) and not bitMapInfr:isVerifiedSequence(lRXPkt) then
 						-- create and send packet with wrong sequence
 						numSeq = numSeq + 1
 						createResponseSequence(lTXSeqBufs[numSeq], lRXPkt)
-					elseif isRst(lRXPkt) and not isVerifiedSequence(lRXPkt) then
-						setVerifiedSequence(lRXPkt)
-						-- do nothing with RX packet
 					else
+						-- react to RST and verify connection
+						-- or update timestamps but only if connection was verified already
+						if isRst(lRXPkt) then
+							bitMapInfr:setVerifiedSequence(lRXPkt)
+						else
+							bitMapInfr:updateVerifiedSequence(lRXPkt)
+						end
+						
 						-- everything else simply forward
 						if numForward == 0 then
 							lTXForwardBufs:allocN(60, rx - (i - 1))
