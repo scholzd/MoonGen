@@ -174,6 +174,13 @@ function tcpProxySlave(lRXDev, lTXDev)
     	virtualDev:handleRequest()	
 		mg.sleepMillisIdle(1)
 	end
+
+	log:info('Set default route')
+	io.popen("ip r add default via 192.168.1.201")
+	log:info('Set ARP for HTTP')
+	io.popen("/usr/sbin/arp -s 192.168.1.101 90:e2:ba:98:58:78")
+	log:info('Set ARP for DoS')
+	io.popen("/usr/sbin/arp -s 192.168.1.201 90:e2:ba:98:58:79")
 	
 	-- RX buffers for right
 	local rRXMem = memory.createMemPool()	
