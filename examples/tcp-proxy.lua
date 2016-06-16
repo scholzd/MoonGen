@@ -153,52 +153,6 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 	
-	log:info("Creating hash table")
-	local shmc = hashMap.createSparseHashMapCookie(1000)
-
-	log:debug("Creating tcppkt type")
-	local ipv4_tcppkt_type = ffi.typeof("struct __ethernet_eth__ip4_ip4__tcp_tcp")
-	log:debug("Creating tcppkt")
-	local pkt = ipv4_tcppkt_type()
-	pkt.ip4:setSrcString("1.1.1.1")
-	pkt.ip4:setDstString("2.2.2.2")
-	pkt.tcp:setSrc(1111)
-	pkt.tcp:setDst(2222)
-	pkt.tcp:setSeqNumber(42)
-
-	log:debug("Inserting value")
-	shmc:setLeftVerified(pkt)
-	pkt.tcp:setDst(2223)
-	shmc:setLeftVerified(pkt)
-	shmc:setRightVerified(pkt)
-
---	log:debug("Find value")
---	--pkt.tcp:setDst(2223)
---	local result = shmc:find(pkt, LEFT_TO_RIGHT)
---	log:debug(tostring(result))
---	if result then
---		log:debug("diff: " .. result.diff)
---		log:debug("flags: " .. result.flags)
---	end
---	log:debug("Update value")
---	pkt.tcp:setFin()
---	local result = shmc:update(pkt, LEFT_TO_RIGHT)
---	log:debug(tostring(result))
---	if result then
---		log:debug("diff: " .. result.diff)
---		log:debug("flags: " .. result.flags)
---	end
---	log:debug("Find value")
---	--pkt.tcp:setDst(2223)
---	local result = shmc:find(pkt, LEFT_TO_RIGHT)
---	log:debug(tostring(result))
---	if result then
---		log:debug("diff: " .. result.diff)
---		log:debug("flags: " .. result.flags)
---	end
---
---	exit()
-
 	local currentStrat = STRAT['cookie']
 	local maxBurstSize = 63
 
@@ -284,7 +238,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- Hash table
 	-------------------------------------------------------------
 	log:info("Creating hash table")
-	--local sparseMapCookie = hashMap.createSparseHashMapCookie()
+	local sparseMapCookie = hashMap.createSparseHashMapCookie()
 
 
 	-------------------------------------------------------------
@@ -298,7 +252,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	log:info('Starting TCP Proxy')
 	while mg.running() do
-		shmc:isVerified(pkt, true)
 		------------------------------------------------------------------------------ poll right interface
 		--log:debug('Polling right (virtual) Dev')
 		-- for a real interface use tryRecv
@@ -509,7 +462,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 								numForward = numForward + 1
 								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i])
 							else
-								log:warn('Wrong cookie, dropping packet ' .. getIdx(lRXPkt, LEFT_TO_RIGHT))
+								log:warn('Wrong cookie, dropping packet ')
 								-- drop, and done
 								-- most likely simply the timestamp timed out
 								-- but it might also be a DoS attack that tried to guess the cookie

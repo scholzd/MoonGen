@@ -53,7 +53,7 @@ end
 
 local key = ffi.new("struct sparse_hash_map_cookie_key")
 local function sparseHashMapCookieGetKey(pkt, leftToRight)
-	if true or leftToRight then
+	if leftToRight then
 		key.ip_src = pkt.ip4:getSrc()
 		key.ip_dst = pkt.ip4:getDst()
 		key.tcp_src = pkt.tcp:getSrc()

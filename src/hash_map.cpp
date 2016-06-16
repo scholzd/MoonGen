@@ -133,6 +133,8 @@ extern "C" {
 			tmp->flags = 4; // set leftVerified flag 4
 			(*m)[*k] = tmp;
 			//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
+			mg_sparse_hash_map_cookie_swap(maps);
+			return;
 		}
 		//printf("NOT inserted\n");
 		mg_sparse_hash_map_cookie_swap(maps);
@@ -147,11 +149,11 @@ extern "C" {
 		auto m = maps->current;
 		auto it = m->find(*k);
 		if (it == m->end() ) {
-			printf("not found in current, checking old\n");
+			//printf("fin not found in current, checking old\n");
 			m = maps->old;
 			it = m->find(*k);
 			if (it == m->end() ) {
-				printf("also not found here\n");
+				//printf("fin also not found here\n");
 				mg_sparse_hash_map_cookie_swap(maps);
 				return false;
 			}
@@ -186,11 +188,11 @@ extern "C" {
 		auto m = maps->current;
 		auto it = m->find(*k);
 		if (it == m->end() ) {
-			printf("not found in current, checking old\n");
+			//printf("upd not found in current, checking old\n");
 			m = maps->old;
 			it = m->find(*k);
 			if (it == m->end() ) {
-				printf("also not found here\n");
+				//printf("upd also not found here\n");
 				mg_sparse_hash_map_cookie_swap(maps);
 				return 0;
 			}
