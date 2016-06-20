@@ -54,12 +54,6 @@ end
 -- one cycle is 64 seconds (6 bit right shift of timestamp)
 local timestampValidCycles = 2
 
--- MSS encodings
-local MSS = { 
-	mss1=1460, 
-	mss2=1000,
-}
-
 
 -------------------------------------------------------------------------------------------
 ---- Timestamp
@@ -83,14 +77,45 @@ end
 
 
 -------------------------------------------------------------------------------------------
+---- Option extracting
+-------------------------------------------------------------------------------------------
+
+local function extractOptions(pkt)
+	-- get MSS and WSOPT options
+	local offset = pkt.tcp:getDataOffset() - 5 -- options length
+	local mss = 0
+	if offset > 0 then
+		if pkt.payload.uint8[0] == 2 and pkt.payload.uint8[1] == 4 then -- MSS option type and length
+			mss = ntoh16(pkt.payload.uint16[1]) -- MSS option
+		end
+	end
+	--log:debug("mss " .. mss)
+	return mss
+end
+
+-------------------------------------------------------------------------------------------
 ---- MSS
 -------------------------------------------------------------------------------------------
 
-local function encodeMss()
+-- MSS encodings
+local MSS = { }
+MSS[1] = 1460
+MSS[2] = 1360
+MSS[3] = 1260
+MSS[4] = 1160
+MSS[5] = 960
+MSS[6] = 760
+MSS[7] = 660
+MSS[8] = 536
+
+local function encodeMss(mss)
 	-- 3 bits, allows for 8 different MSS
-	mss = 1 -- encoding see MSS
-	-- log:debug('MSS: ' .. mss .. ' ' .. toBinary(mss))
-	return mss
+	for i = 1, 8 do
+		if mss >= MSS[i] then
+			return i, MSS[i]
+		end
+	end
+	return 8, 536
 end
 
 local function decodeMss(idx)
@@ -131,9 +156,13 @@ local function calculateCookie(pkt)
 	local ts = lshift(tsOrig, 27)
 	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 
-	local mss = encodeMss()
-	mss = lshift(mss, 24)
+	-- extra options we support
+	local mss = extractOptions(pkt)
+	local mssEnc
+	mssEnc, mss = encodeMss(mss)
+	mssEnc = lshift(mssEnc, 24)
 
+	-- hash
 	local hash = getHash(
 		pkt.ip4:getSrc(), 
 		pkt.ip4:getDst(), 
@@ -144,7 +173,7 @@ local function calculateCookie(pkt)
 	--log:debug('Created TS:     ' .. toBinary(ts))
 	--log:debug('Created MSS:    ' .. toBinary(mss))
 	--log:debug('Created hash:   ' .. toBinary(hash))
-	local cookie = ts + mss + hash
+	local cookie = ts + mssEnc + hash
 	--log:debug('Created cookie: ' .. toBinary(cookie))
 	return cookie, mss
 end
@@ -337,7 +366,7 @@ end
 
 function mod.createSynAckToClient(txPkt, rxPkt)
 	local cookie, mss = calculateCookie(rxPkt)
-	
+
 	-- MAC addresses
 	txPkt.eth:setDst(rxPkt.eth:getSrc())
 	txPkt.eth:setSrc(rxPkt.eth:getDst())
@@ -352,7 +381,8 @@ function mod.createSynAckToClient(txPkt, rxPkt)
 	
 	txPkt.tcp:setSeqNumber(cookie)
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
-	txPkt.tcp:setWindow(mss)
+
+	-- set options
 end
 
 
