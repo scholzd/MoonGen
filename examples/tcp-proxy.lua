@@ -7,8 +7,9 @@ local kni 		= require "kni"
 local ffi		= require "ffi"
 local dpdkc 	= require "dpdkc"
 local proto		= require "proto/proto"
+local check		= require "proto/packetChecks"
 
-local hashMap 	= require "hashMap"
+local hashMap 	= require "hashMap" -- TODO move to synCookie.lua
 
 -- tcp SYN defense strategies
 local cookie	= require "tcp/synCookie"
@@ -58,29 +59,8 @@ local RIGHT_TO_LEFT = cookie.RIGHT_TO_LEFT
 -- check packet type
 ----------------------------------------------------
 
-local function isIP4(pkt)
-	return pkt.eth:getType() == proto.eth.TYPE_IP 
-end
-
-local function isTcp4(pkt)
-	return isIP4(pkt) and pkt.ip4:getProtocol() == proto.ip4.PROTO_TCP
-end
-
-local function isSyn(pkt)
-	return pkt.tcp:getSyn() == 1
-end
-
-local function isAck(pkt)
-	return pkt.tcp:getAck() == 1
-end
-
-local function isRst(pkt)
-	return pkt.tcp:getRst() == 1
-end
-
-local function isFin(pkt)
-	return pkt.tcp:getFin() == 1
-end
+local isIP4 = check.isIP4
+local isTcp4 = check.isTcp4
 
 
 -------------------------------------------------------------------------------------------
@@ -266,7 +246,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 				-- strategie cookie
 				else
 					---------------------------------------------------------------------- SYN/ACK from server, finally establish connection
-					if isSyn(rRXPkt) and isAck(rRXPkt) then
+					if rRXPkt.tcp:getSyn() and rRXPkt.tcp:getAck() then
 						--log:debug('Received SYN/ACK from server, sending ACK back')
 						sparseMapCookie:setRightVerified(rRXPkt)
 						
@@ -360,7 +340,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 				-- here the reaction always depends on the strategy
 				if currentStrat == STRAT['ignore'] then
 					-- do nothing on unverified SYN
-					if isSyn(lRXPkt) and not isVerifiedIgnore(lRXPkt) then
+					if lRXPkt.tcp:getSyn() and not isVerifiedIgnore(lRXPkt) then
 						-- do nothing
 						createResponseIgnore()
 					else
@@ -373,7 +353,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					end
 				elseif currentStrat == STRAT['reset'] then
 					-- send RST on unverified SYN
-					if isSyn(lRXPkt) and not isVerifiedReset(lRXPkt) then
+					if lRXPkt.tcp:getSyn() and not isVerifiedReset(lRXPkt) then
 						-- create and send RST packet
 						numRst = numRst + 1
 						createResponseReset(lTXRstBufs[numRst], lRXPkt)
@@ -387,11 +367,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 					end
 				elseif currentStrat == STRAT['sequence'] then
 					-- send wrong sequence number on unverified SYN
-					if isSyn(lRXPkt) and not isVerifiedSequence(lRXPkt) then
+					if lRXPkt.tcp:getSyn() and not isVerifiedSequence(lRXPkt) then
 						-- create and send packet with wrong sequence
 						numSeq = numSeq + 1
 						createResponseSequence(lTXSeqBufs[numSeq], lRXPkt)
-					elseif isRst(lRXPkt) and not isVerifiedSequence(lRXPkt) then
+					elseif lRXPkt.tcp:getRst() and not isVerifiedSequence(lRXPkt) then
 						setVerifiedSequence(lRXPkt)
 						-- do nothing with RX packet
 					else
@@ -404,7 +384,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					end
 				elseif currentStrat == STRAT['cookie'] then
 					------------------------------------------------------------ SYN -> defense mechanism
-					if isSyn(lRXPkt) then
+					if lRXPkt.tcp:getSyn() then
 						--log:info('Received SYN from left')
 						-- strategy cookie
 						if numSynAck == 0 then
@@ -430,7 +410,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							numForward = numForward + 1
 							sequenceNumberTranslation(diff, lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
 						------------------------------------------------------------------------------------------------------- not verified, but is ack -> verify cookie
-						elseif isAck(lRXPkt) then
+						elseif lRXPkt.tcp:getAck() then
 							local ack = lRXPkt.tcp:getAckNumber()
 							local mss, wsopt = verifyCookie(lRXPkt)
 							if mss then

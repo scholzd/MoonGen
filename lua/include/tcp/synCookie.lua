@@ -15,7 +15,6 @@ local dpdk		= require "dpdk" -- for getTime
 require "utils"
 
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
---local ntoh16, hton16 = ntoh16, hton16
 local time = time
 
 ---------------------------------------------------
@@ -34,17 +33,7 @@ mod.RIGHT_TO_LEFT = false
 -- check packet type
 ----------------------------------------------------
 
-local function isAck(pkt)
-	return pkt.tcp:getAck() == 1
-end
 
-local function isRst(pkt)
-	return pkt.tcp:getRst() == 1
-end
-
-local function isFin(pkt)
-	return pkt.tcp:getFin() == 1
-end
 
 
 -------------------------------------------------------------------------------------------

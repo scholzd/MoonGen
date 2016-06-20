@@ -248,9 +248,9 @@ function tcpHeader:unsetUrg()
 end
 
 --- Retrieve the Urg flag.
---- @return Flag as 1 bit integer.
+--- @return Flag as bool.
 function tcpHeader:getUrg()
-	return rshift(band(self.flags, 0x20), 5)
+	return rshift(band(self.flags, 0x20), 5) == 1
 end
 
 --- Retrieve the Urg flag.
@@ -274,9 +274,9 @@ function tcpHeader:unsetAck()
 end
 
 --- Retrieve the Ack flag.
---- @return Flag as 1 bit integer.
+--- @return Flag as bool.
 function tcpHeader:getAck()
-	return rshift(band(self.flags, 0x10), 4)
+	return rshift(band(self.flags, 0x10), 4) == 1
 end
 
 --- Retrieve the Ack flag.
@@ -300,9 +300,9 @@ function tcpHeader:unsetPsh()
 end
 
 --- Retrieve the Psh flag.
---- @return Flag as 1 bit integer.
+--- @return Flag as bool.
 function tcpHeader:getPsh()
-	return rshift(band(self.flags, 0x08), 3)
+	return rshift(band(self.flags, 0x08), 3) == 1
 end
 
 --- Retrieve the Psh flag.
@@ -326,9 +326,9 @@ function tcpHeader:unsetRst()
 end
 
 --- Retrieve the Rst flag.
---- @return Flag as 1 bit integer.
+--- @return Flag as bool.
 function tcpHeader:getRst()
-	return rshift(band(self.flags, 0x04), 2)
+	return rshift(band(self.flags, 0x04), 2) == 1
 end
 
 --- Retrieve the Rst flag.
@@ -352,9 +352,9 @@ function tcpHeader:unsetSyn()
 end
 
 --- Retrieve the Syn flag.
---- @return Flag as 1 bit integer.
+--- @return Flag as bool.
 function tcpHeader:getSyn()
-	return rshift(band(self.flags, 0x02), 1)
+	return rshift(band(self.flags, 0x02), 1) == 1
 end
 
 --- Retrieve the Syn flag.
@@ -378,9 +378,9 @@ function tcpHeader:unsetFin()
 end
 
 --- Retrieve the Fin flag.
---- @return Flag as 1 bit integer.
+--- @return Flag as bool.
 function tcpHeader:getFin()
-	return band(self.flags, 0x01)
+	return band(self.flags, 0x01) == 1
 end
 
 --- Retrieve the Fin flag.
