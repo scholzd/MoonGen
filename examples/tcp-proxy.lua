@@ -406,11 +406,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							--log:debug("alloc'd with i = " .. i)
 						end
 						numSynAck = numSynAck + 1
-						local lTXPkt = lTXSynAckBufs[numSynAck]:getTcp4Packet()
-						createSynAckToClient(lTXPkt, lRXPkt)
-						
-						lTXSynAckBufs[numSynAck]:setSize(68) --TODO move to creatXYZ()
-						--log:debug(''..lRXBufs[i]:getSize())
+						createSynAckToClient(lTXSynAckBufs[numSynAck], lRXPkt)
 					-------------------------------------------------------------------------------------------------------- verified -> translate and forward
 					-- check with verified connections
 					-- if already verified in both directions, immediately forward, otherwise check cookie

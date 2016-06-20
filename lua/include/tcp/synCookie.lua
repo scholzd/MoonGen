@@ -366,7 +366,8 @@ function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	txPkt.ip4:calculateChecksum()
 end
 
-function mod.createSynAckToClient(txPkt, rxPkt)
+function mod.createSynAckToClient(txBuf, rxPkt)
+	local txPkt = txBuf:getTcp4Packet()
 	local cookie = calculateCookie(rxPkt)
 
 	-- TODO set directly without set/get, should be a bit faster
@@ -384,6 +385,8 @@ function mod.createSynAckToClient(txPkt, rxPkt)
 	
 	txPkt.tcp:setSeqNumber(cookie)
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
+					
+	txBuf:setSize(68)
 end
 
 
