@@ -36,8 +36,8 @@ function master(rxPort, txPort)
 	
 	local lRXDev = device.config{ port = rxPort, txQueues=2 }
 	local lTXDev = device.config{ port = txPort }
-	--lRXDev:wait()
-	--lTXDev:wait()
+	lRXDev:wait()
+	lTXDev:wait()
 	mg.launchLua("tcpProxySlave", lRXDev, lTXDev)
 	
 	mg.waitForSlaves()

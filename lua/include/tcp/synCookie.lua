@@ -29,24 +29,13 @@ local mod = {}
 mod.LEFT_TO_RIGHT = true
 mod.RIGHT_TO_LEFT = false
 
-----------------------------------------------------
--- check packet type
-----------------------------------------------------
-
-
-
-
--------------------------------------------------------------------------------------------
----- Cookie
--------------------------------------------------------------------------------------------
-
--- one cycle is 64 seconds (6 bit right shift of timestamp)
-local timestampValidCycles = 2
-
 
 -------------------------------------------------------------------------------------------
 ---- Timestamp
 -------------------------------------------------------------------------------------------
+
+-- one cycle is 64 seconds (6 bit right shift of timestamp)
+local timestampValidCycles = 2
 
 local function getTimestamp()
 	local t = dpdk.getTime()
@@ -182,7 +171,6 @@ end
 ---- Cookie crafting
 -------------------------------------------------------------------------------------------
 
-
 local function calculateCookie(pkt)
 	--------------------------------------
 	---- LAYOUT Original
@@ -249,7 +237,7 @@ function mod.verifyCookie(pkt)
 		log:warn('Received cookie with invalid hash')
 		return false
 	else
-		-- finally decode MSS and return it
+		-- finally decode options and return it
 		--log:debug('Received legitimate cookie')
 		local mss = decodeMss(band(rshift(cookie, 24), 0x7))
 		local wsopt = decodeWsopt(band(rshift(cookie, 20), 0xf))
