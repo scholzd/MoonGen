@@ -56,8 +56,8 @@ local timestampValidCycles = 2
 
 -- MSS encodings
 local MSS = { 
-	mss1=50, 
-	mss2=55,
+	mss1=1460, 
+	mss2=1000,
 }
 
 
@@ -113,8 +113,8 @@ local function getHash(ipSrc, ipDst, portSrc, portDst, ts)
 	return band(hash(sum), 0x00ffffff)
 end
 
-local function verifyHash(oldHash, ...)
-	local newHash = getHash(...)
+local function verifyHash(oldHash, ipSrc, ipDst, portSrc, portDst, ts)
+	local newHash = getHash(ipSrc, ipDst, portSrc, portDst, ts)
 	-- log:debug('Old hash:       ' .. toBinary(oldHash))
 	-- log:debug('New hash:       ' .. toBinary(newHash))
 	return oldHash == newHash
@@ -159,15 +159,22 @@ function mod.verifyCookie(pkt)
 	local ts = rshift(cookie, 27)
 	--log:debug('TS:           ' .. toBinary(ts))
 	if not verifyTimestamp(ts) then
-		--log:warn('Received cookie with invalid timestamp')
+		log:warn('Received cookie with invalid timestamp')
 		return false
 	end
 
 	-- check hash
 	local hash = band(cookie, 0x00ffffff)
 	-- log:debug('Hash:           ' .. toBinary(hash))
-	if not verifyHash(hash, pkt.ip4:getSrc(), pkt.ip4:getDst(), pkt.tcp:getSrc(), pkt.tcp:getDst(), ts) then
-		--log:warn('Received cookie with invalid hash')
+	if not verifyHash(
+			hash, 
+			pkt.ip4:getSrc(), 
+			pkt.ip4:getDst(), 
+			pkt.tcp:getSrc(), 
+			pkt.tcp:getDst(), 
+			ts
+	) then
+		log:warn('Received cookie with invalid hash')
 		return false
 	else
 		-- finally decode MSS and return it
