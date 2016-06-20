@@ -27,6 +27,7 @@ SET(FILES
 	src/rate_limiter.cpp
 	src/kni.c
 	src/hash_map.cpp
+	src/bit_map.cpp
 )
 
 SET(DPDK_LIBS
