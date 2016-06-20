@@ -415,7 +415,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						local lTXPkt = lTXSynAckBufs[numSynAck]:getTcp4Packet()
 						createSynAckToClient(lTXPkt, lRXPkt)
 						
-						lTXSynAckBufs[numSynAck]:setSize(lRXBufs[i]:getSize())
+						lTXSynAckBufs[numSynAck]:setSize(68) --TODO move to creatXYZ()
 						--log:debug(''..lRXBufs[i]:getSize())
 					-------------------------------------------------------------------------------------------------------- verified -> translate and forward
 					-- check with verified connections
@@ -432,7 +432,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						------------------------------------------------------------------------------------------------------- not verified, but is ack -> verify cookie
 						elseif isAck(lRXPkt) then
 							local ack = lRXPkt.tcp:getAckNumber()
-							local mss = verifyCookie(lRXPkt)
+							local mss, wsopt = verifyCookie(lRXPkt)
 							if mss then
 								--log:info('Received valid cookie from left, starting handshake with server')
 								
@@ -443,7 +443,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 									--log:debug("alloc'd with i = " .. i)
 								end
 								numForward = numForward + 1
-								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i], mss)
+								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i], mss, wsopt)
 							else
 								log:warn('Wrong cookie, dropping packet ')
 								-- drop, and done

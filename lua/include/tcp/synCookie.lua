@@ -82,19 +82,40 @@ end
 
 local function extractOptions(pkt)
 	-- get MSS and WSOPT options
-	local offset = pkt.tcp:getDataOffset() - 5 -- options length
-	local mss = 0
-	if offset > 0 then
-		if pkt.payload.uint8[0] == 2 and pkt.payload.uint8[1] == 4 then -- MSS option type and length
-			mss = ntoh16(pkt.payload.uint16[1]) -- MSS option
+	local offset = pkt.tcp:getDataOffset() - 5 -- options length in 32 bits (deduct 5 for standard tcp header length)
+	local mss = nil
+	local upper = 0
+	local lower = 0
+	local wsopt = nil
+	local opt = 0
+	local i = 0
+	while i < offset * 4 do
+		opt = pkt.payload.uint8[i]
+		if opt == 2 then -- MSS option type
+			-- alignment is not guaranteed, build uint16 from uint8s
+			upper = pkt.payload.uint8[i + 2]
+			lower = pkt.payload.uint8[i + 3]
+			mss = lshift(upper, 8) + lower
+			i = i + 4
+		elseif opt == 3 then
+			wsopt = pkt.payload.uint8[i + 2]
+			i = i + 3
+		elseif opt == 0 then
+			-- signals end
+			break
+		elseif opt == 1 then
+			-- nop padding
+			i = i + 1
+		else
+			-- other options
+			i = i + pkt.payload.uint8[i + 1] -- increment by option length
 		end
 	end
-	--log:debug("mss " .. mss)
-	return mss
+	return mss, wsopt
 end
 
 -------------------------------------------------------------------------------------------
----- MSS
+---- TCP Options
 -------------------------------------------------------------------------------------------
 
 -- MSS encodings
@@ -105,23 +126,45 @@ MSS[3] = 1260
 MSS[4] = 1160
 MSS[5] = 960
 MSS[6] = 760
-MSS[7] = 660
-MSS[8] = 536
+MSS[7] = 536
+MSS[8] = nil -- not set
 
+-- always round down to next MSS value
 local function encodeMss(mss)
 	-- 3 bits, allows for 8 different MSS
-	for i = 1, 8 do
+	if not mss then
+		return 7 -- not set
+	end
+	for i = 1, 7 do
 		if mss >= MSS[i] then
-			return i, MSS[i]
+			return i - 1 -- convert to 0-7
 		end
 	end
-	return 8, 536
+	return 6 -- below minimum (weird, but set minimum?!)
 end
 
 local function decodeMss(idx)
-	return MSS['mss' .. tostring(idx)] or -1
+	return MSS[idx + 1] or 536
 end
 
+-- we can encode values 0 - 14 (everything above is 14)
+-- value 15 means no option set
+local function encodeWsopt(wsopt)
+	if not wsopt then
+		return 15
+	end
+	if wsopt > 14 then
+		return 14
+	end
+	return wsopt
+end
+
+local function decodeWsopt(wsopt)
+	if wsopt == 15 then
+		return nil
+	end
+	return wsopt
+end
 
 -------------------------------------------------------------------------------------------
 ---- Hash
@@ -135,7 +178,7 @@ end
 local function getHash(ipSrc, ipDst, portSrc, portDst, ts)
 	local sum = 0
 	sum = sum + ipSrc + ipDst + portSrc + portDst + ts
-	return band(hash(sum), 0x00ffffff)
+	return band(hash(sum), 0x000fffff) -- 20 bits
 end
 
 local function verifyHash(oldHash, ipSrc, ipDst, portSrc, portDst, ts)
@@ -150,17 +193,27 @@ end
 ---- Cookie crafting
 -------------------------------------------------------------------------------------------
 
+
 local function calculateCookie(pkt)
+	--------------------------------------
+	---- LAYOUT Original
+	---- ts 5 - mss 3 - hash 24
+	---- LAYOUT with wsopt
+	---- ts 5 - mss 3 - wsopt 4 - hash 20
+	--------------------------------------
+
 	local tsOrig = getTimestamp()
 	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 	local ts = lshift(tsOrig, 27)
 	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 
 	-- extra options we support
-	local mss = extractOptions(pkt)
-	local mssEnc
-	mssEnc, mss = encodeMss(mss)
-	mssEnc = lshift(mssEnc, 24)
+	local mss, wsopt = extractOptions(pkt)
+	mss = encodeMss(mss)
+	mss = lshift(mss, 24)
+
+	wsopt = encodeWsopt(wsopt)
+	wsopt = lshift(wsopt, 20)
 
 	-- hash
 	local hash = getHash(
@@ -172,10 +225,11 @@ local function calculateCookie(pkt)
 	)
 	--log:debug('Created TS:     ' .. toBinary(ts))
 	--log:debug('Created MSS:    ' .. toBinary(mss))
+	--log:debug('Created WSOPT:  ' .. toBinary(wsopt))
 	--log:debug('Created hash:   ' .. toBinary(hash))
-	local cookie = ts + mssEnc + hash
+	local cookie = ts + mss + wsopt + hash
 	--log:debug('Created cookie: ' .. toBinary(cookie))
-	return cookie, mss
+	return cookie
 end
 
 function mod.verifyCookie(pkt)
@@ -193,7 +247,7 @@ function mod.verifyCookie(pkt)
 	end
 
 	-- check hash
-	local hash = band(cookie, 0x00ffffff)
+	local hash = band(cookie, 0x000fffff)
 	-- log:debug('Hash:           ' .. toBinary(hash))
 	if not verifyHash(
 			hash, 
@@ -208,7 +262,11 @@ function mod.verifyCookie(pkt)
 	else
 		-- finally decode MSS and return it
 		--log:debug('Received legitimate cookie')
-		return decodeMss(band(rshift(cookie, 24), 0x3))
+		local mss = decodeMss(band(rshift(cookie, 24), 0x7))
+		local wsopt = decodeWsopt(band(rshift(cookie, 20), 0xf))
+		--log:debug('wsopt:          ' .. toBinary(wsopt))
+		--log:debug("dec " .. wsopt)
+		return mss, wsopt
 	end
 end
 
@@ -284,7 +342,7 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToR
 	--end
 end
 
-function mod.createSynToServer(txBuf, rxBuf, mss)
+function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 	-- set size of tx packet
 	local size = rxBuf:getSize()
 	
@@ -300,19 +358,27 @@ function mod.createSynToServer(txBuf, rxBuf, mss)
 	txPkt.tcp:unsetAck()
 
 	-- MSS option
-	txPkt.payload.uint8[0] = 2 -- MSS option type
-	txPkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
-	txPkt.payload.uint16[1] = hton16(mss) -- MSS option
+	local offset = 0
+	local dataOffset = 5
+	if mss then
+		txPkt.payload.uint8[0] = 2 -- MSS option type
+		txPkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
+		txPkt.payload.uint16[1] = hton16(mss) -- MSS option
+		offset = 4
+		dataOffset = dataOffset + 1
+		size = size + 4
+	end
 	-- window scale option
-	--txPkt.payload.uint8[4] = 3 -- WSOPT option type
-	--txPkt.payload.uint8[5] = 3 -- WSOPT option length (3 bytes)
-	--txPkt.payload.uint8[6] = 3 -- WSOPT option
-	--txPkt.payload.uint8[7] = 0 -- padding
+	if wsopt then
+		txPkt.payload.uint8[offset] = 3 -- WSOPT option type
+		txPkt.payload.uint8[offset + 1] = 3 -- WSOPT option length (3 bytes)
+		txPkt.payload.uint8[offset + 2] = wsopt -- WSOPT option
+		txPkt.payload.uint8[offset + 3] = 0 -- padding
+		dataOffset = dataOffset + 1
+		size = size + 4
+	end
 
-	txPkt.tcp:setDataOffset(6)--7)
-
-	size = size + 4 --+ 4 -- 4 bytes MSS option, 4 bytes WSOPT option (3 + 1 padding)
-	
+	txPkt.tcp:setDataOffset(dataOffset)
 	txBuf:setSize(size)
 	txPkt:setLength(size)
 
@@ -365,8 +431,9 @@ function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 end
 
 function mod.createSynAckToClient(txPkt, rxPkt)
-	local cookie, mss = calculateCookie(rxPkt)
+	local cookie = calculateCookie(rxPkt)
 
+	-- TODO set directly without set/get, should be a bit faster
 	-- MAC addresses
 	txPkt.eth:setDst(rxPkt.eth:getSrc())
 	txPkt.eth:setSrc(rxPkt.eth:getDst())
@@ -381,8 +448,6 @@ function mod.createSynAckToClient(txPkt, rxPkt)
 	
 	txPkt.tcp:setSeqNumber(cookie)
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
-
-	-- set options
 end
 
 
@@ -390,9 +455,14 @@ end
 ---- Packet mempools and buf arrays
 -------------------------------------------------------------------------------------------
 
+-- TODO config options
+local SERVER_MSS = 1460
+local SERVER_WSOPT = 7
+
 function mod.getSynAckBufs()
 	local lTXSynAckMem = memory.createMemPool(function(buf)
-		buf:getTcp4Packet():fill{
+		local pkt = buf:getTcp4Packet()
+		pkt:fill{
 			ethSrc="90:e2:ba:98:88:e9",
 			ethDst="90:e2:ba:98:58:79",
 			ip4Src="192.168.1.1",
@@ -403,9 +473,18 @@ function mod.getSynAckBufs()
 			tcpAckNumber=0,
 			tcpAck=1,
 			tcpSyn=1,
-			tcpWindow=50,
-			pktLength=60,
+			tcpDataOffset=7,
+			pktLength=68,
 		}
+		-- MSS option
+		pkt.payload.uint8[0] = 2 -- MSS option type
+		pkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
+		pkt.payload.uint16[1] = hton16(SERVER_MSS) -- MSS option
+		-- window scale option
+		pkt.payload.uint8[4] = 3 -- WSOPT option type
+		pkt.payload.uint8[5] = 3 -- WSOPT option length (3 bytes)
+		pkt.payload.uint8[6] = SERVER_WSOPT -- WSOPT option
+		pkt.payload.uint8[7] = 0 -- padding (end of options)
 	end)
 	return lTXSynAckMem:bufArray()
 end
