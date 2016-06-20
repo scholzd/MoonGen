@@ -11,10 +11,12 @@ local log		= require "log"
 local memory	= require "memory"
 local proto		= require "proto/proto"
 local hashMap	= require "hashMap"
+local dpdk		= require "dpdk" -- for getTime
 require "utils"
 
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
-
+--local ntoh16, hton16 = ntoh16, hton16
+local time = time
 
 ---------------------------------------------------
 -- Terminology
@@ -64,7 +66,7 @@ local MSS = {
 -------------------------------------------------------------------------------------------
 
 local function getTimestamp()
-	local t = time()
+	local t = dpdk.getTime()
 	--log:debug('Time: ' .. t .. ' ' .. toBinary(t))
 	-- 64 seconds resolution
 	t = rshift(t, 6)
@@ -105,14 +107,9 @@ local function hash(int)
 	return int
 end
 
-local function getHash(...)
-	local args = {...}
+local function getHash(ipSrc, ipDst, portSrc, portDst, ts)
 	local sum = 0
-	for k, v in pairs(args) do
-		-- log:debug(k .. ':            ' .. toBinary(tonumber(v)))
-		sum = sum + tonumber(v)
-	end
-	-- log:debug('sum:            ' .. toBinary(sum))
+	sum = sum + ipSrc + ipDst + portSrc + portDst + ts
 	return band(hash(sum), 0x00ffffff)
 end
 
@@ -131,7 +128,7 @@ end
 local function calculateCookie(pkt)
 	local tsOrig = getTimestamp()
 	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
-	ts = lshift(tsOrig, 27)
+	local ts = lshift(tsOrig, 27)
 	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 
 	local mss = encodeMss()
@@ -329,8 +326,8 @@ function mod.createSynAckToClient(txPkt, rxPkt)
 	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
 	
 	-- TCP
-	txPkt.tcp:setDst(rxPkt.tcp:getSrc())
-	txPkt.tcp:setSrc(rxPkt.tcp:getDst())
+	txPkt.tcp.src = rxPkt.tcp.dst
+	txPkt.tcp.dst = rxPkt.tcp.src
 	
 	txPkt.tcp:setSeqNumber(cookie)
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
@@ -345,10 +342,10 @@ end
 function mod.getSynAckBufs()
 	local lTXSynAckMem = memory.createMemPool(function(buf)
 		buf:getTcp4Packet():fill{
-			ethSrc=proto.eth.NULL,
-			ethDst=proto.eth.NULL,
-			ip4Src=proto.ip4.NULL,
-			ip4Dst=proto.ip4.NULL,
+			ethSrc="90:e2:ba:98:88:e9",
+			ethDst="90:e2:ba:98:58:79",
+			ip4Src="192.168.1.1",
+			ip4Dst="192.168.1.201",
 			tcpSrc=0,
 			tcpDst=0,
 			tcpSeqNumber=0,
