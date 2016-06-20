@@ -285,13 +285,13 @@ function tcpProxySlave(lRXDev, lTXDev)
 		
 		if currentStrat == STRAT['cookie'] then
 			if rx > 0 then	
-				--offload checksums to NIC
-				--log:debug('Offloading ' .. rx)
-				--lTX2Bufs:offloadTcpChecksums(nil, nil, nil, rx)
-				--log:debug('rx ' .. rx .. ' numTX2 ' .. numTX2)
-		
 				-- forwarded to left
 				if numForward > 0 then
+					-- offload checksums to NIC
+					--log:debug('Offloading ' .. rx)
+					--rTXForwardBufs:offloadTcpChecksums(nil, nil, nil, rx)
+					--log:debug('rx ' .. rx .. ' numTX2 ' .. numTX2)
+
 					lTXForwardQueue:sendN(rTXForwardBufs, numForward)
 					rTXForwardBufs:freeAfter(numForward)
 				end
