@@ -13,6 +13,7 @@ local proto		= require "proto/proto"
 local hashMap	= require "hashMap"
 local dpdk		= require "dpdk" -- for getTime
 require "utils"
+local checksum	= require "checksum"
 
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
 local time = time
@@ -262,11 +263,18 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToR
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
 	txBuf:setSize(size)
 
+	local oldValue
+	local newValue
+
 	-- translate numbers, depends on direction
 	if leftToRight then
-		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff)
+		oldValue = rxPkt.tcp:getAckNumber()
+		newValue = oldValue + diff
+		txPkt.tcp:setAckNumber(newValue)
 	else
-		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff)
+		oldValue = rxPkt.tcp:getSeqNumber()
+		newValue = oldValue - diff
+		txPkt.tcp:setSeqNumber(newValue)
 	end
 	
 	-- calculate TCP checksum
@@ -274,6 +282,17 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToR
 	--if leftToRight then
 		--log:debug('Calc checksum ' .. (leftToRight and 'from left ' or 'from right '))
 		txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
+	--if leftToRight then
+	local cs1 = checksum.checksumUpdateIncremental32(txPkt.tcp:getChecksum(), oldValue, newValue)
+	local cs2 = checksum.checksumUpdateIncremental32Slow(txPkt.tcp:getChecksum(), oldValue, newValue)
+	if not cs1 == cs2 then
+		log:debug("unequal")
+	end
+	if not leftToRight then
+		log:debug("translate rl")	
+	end
+	txPkt.tcp:setChecksum(cs2)
+--end
 	--end
 end
 

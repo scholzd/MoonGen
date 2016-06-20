@@ -52,4 +52,19 @@ function mod.checksumUpdateIncremental32(checksum, oldValue, newValue)
 	return band(sum, 0xFFFF);
 end
 
+function mod.checksumUpdateIncremental32Slow(checksum, oldValue, newValue)
+	local sum;
+
+	oldValue = bnot(oldValue);
+
+	sum = bnot(band(checksum, 0xFFFF));
+	sum = sum + (rshift(oldValue, 16) + band(oldValue, 0xFFFF));
+	sum = sum + (rshift(newValue, 16) + band(newValue, 0xFFFF));
+	
+	sum = rshift(sum, 16) + band(sum, 0xFFFF);
+	sum = sum + rshift(sum, 16)
+
+	return band(bnot(sum), 0xFFFF);
+end
+
 return mod
