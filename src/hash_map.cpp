@@ -158,7 +158,7 @@ extern "C" {
 				return false;
 			}
 			// copy and proceed normally
-			printf("found-> copy\n");
+			printf("right found-> copy\n");
 			(*(maps->current))[*k] = (*m)[*k];
 		}
 
@@ -197,7 +197,7 @@ extern "C" {
 				return 0;
 			}
 			// copy and proceed normally
-			printf("found-> copy\n");
+			printf("find found-> copy\n");
 			(*(maps->current))[*k] = (*m)[*k];
 		}
 		

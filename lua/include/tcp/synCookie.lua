@@ -51,7 +51,7 @@ end
 ---- Cookie
 -------------------------------------------------------------------------------------------
 
--- one cycle is 64 64 seconds (6 bit right shoft of timestamp)
+-- one cycle is 64 seconds (6 bit right shift of timestamp)
 local timestampValidCycles = 2
 
 -- MSS encodings

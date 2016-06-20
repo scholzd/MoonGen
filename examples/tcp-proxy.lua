@@ -497,7 +497,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 		lRXStats:update()
 		lTXStats:update()
 	end
-	log:debug("*****************\n" .. tostring(sparseMapCookie))
+	--log:debug("*****************\n" .. tostring(sparseMapCookie))
 
 	log:info('Releasing KNI device')
 	virtualDev:release()
