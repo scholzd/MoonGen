@@ -443,7 +443,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 									--log:debug("alloc'd with i = " .. i)
 								end
 								numForward = numForward + 1
-								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i])
+								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i], mss)
 							else
 								log:warn('Wrong cookie, dropping packet ')
 								-- drop, and done

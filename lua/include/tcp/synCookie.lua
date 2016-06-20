@@ -255,10 +255,9 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToR
 	--end
 end
 
-function mod.createSynToServer(txBuf, rxBuf)
+function mod.createSynToServer(txBuf, rxBuf, mss)
 	-- set size of tx packet
 	local size = rxBuf:getSize()
-	txBuf:setSize(size)
 	
 	-- copy data
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
@@ -271,6 +270,21 @@ function mod.createSynToServer(txBuf, rxBuf)
 	txPkt.tcp:setSyn()
 	txPkt.tcp:unsetAck()
 
+	-- MSS option
+	txPkt.payload.uint8[0] = 2 -- MSS option type
+	txPkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
+	txPkt.payload.uint16[1] = hton16(mss) -- MSS option
+	-- window scale option
+	--txPkt.payload.uint8[4] = 3 -- WSOPT option type
+	--txPkt.payload.uint8[5] = 3 -- WSOPT option length (3 bytes)
+	--txPkt.payload.uint8[6] = 3 -- WSOPT option
+	--txPkt.payload.uint8[7] = 0 -- padding
+
+	txPkt.tcp:setDataOffset(6)--7)
+
+	size = size + 4 --+ 4 -- 4 bytes MSS option, 4 bytes WSOPT option (3 + 1 padding)
+	
+	txBuf:setSize(size)
 	txPkt:setLength(size)
 
 	-- calculate checksums
