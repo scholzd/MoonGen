@@ -26,6 +26,11 @@ local serpent	= require "Serpent"
 
 -- TODO: add command line switches for this and other luajit-debugging features
 --require("jit.v").on()
+--local dump = require "jit.dump"
+--dump.on("b", "/tmp/jit.log")
+
+local jit = require "jit"
+jit.opt.start("maxrecord=10000", "maxirconst=1000", "loopunroll=30")
 
 local function getStackTrace(err)
 	print(red("[FATAL] Lua error in task %s", MOONGEN_TASK_NAME))

@@ -14,6 +14,7 @@ require "headers"
 local dpdkc = require "dpdkc"
 local dpdk = require "dpdk"
 local log = require "log"
+local colors = require "colors"
 
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
 local istype = ffi.istype
@@ -71,7 +72,7 @@ end
 --- Offload VLAN tagging to the NIC for this packet.
 function pkt:setVlan(vlan, pcp, cfi)
 	local tci = vlan + bit.lshift(pcp or 0, 13) + bit.lshift(cfi or 0, 12)
-	self.pkt.vlan_tci = tci
+	self.vlan_tci = tci
 	self.ol_flags = bit.bor(self.ol_flags, dpdk.PKT_TX_VLAN_PKT)
 end
 
@@ -82,7 +83,7 @@ function pkt:getVlan()
 	if bit.bor(self.ol_flags, VLAN_VALID_MASK) == 0 then
 		return nil
 	end
-	local tci = self.pkt.vlan_tci
+	local tci = self.vlan_tci
 	return bit.band(tci, 0xFFF), bit.rshift(tci, 13), bit.band(bit.rshift(tci, 12), 1)
 end
 
@@ -90,7 +91,7 @@ local uint64Ptr = ffi.typeof("uint64_t*")
 
 function pkt:getSoftwareTxTimestamp(offs)
 	local offs = offs and offs / 8 or 6 -- default from sendWithTimestamp
-	return uint64Ptr(self.pkt.data)[offs]
+	return uint64Ptr(self:getData())[offs]
 end
 
 function pkt:getSoftwareRxTimestamp(offs)
@@ -128,12 +129,15 @@ end
 --- Dumps the packet data cast to the best fitting packet struct.
 --- @param bytes number of bytes to dump, optional (default = packet size)
 --- @param stream the stream to write to, optional (default = io.stdout)
-function pkt:dump(bytes, stream)
+--- @param colorized Print the dump with different colors for each protocol (default = true)
+function pkt:dump(bytes, stream, colorized)
 	if type(bytes) == "userdata" then
 		stream = bytes
+		colorized = stream
 		bytes = nil
 	end
-	self:get():dump(bytes or self.pkt_len, stream or io.stdout)
+	colorized = colorized == nil or colorized
+	self:get():dump(bytes or self.pkt_len, stream or io.stdout, colorized)
 end
 
 -------------------------------------------------------------------------------------------------------
@@ -388,7 +392,8 @@ end
 --- @param self the packet
 --- @param bytes Number of bytes to dump. If no size is specified the payload is truncated.
 --- @param stream the IO stream to write to, optional (default = io.stdout)
-function packetDump(self, bytes, stream) 
+--- @param colorized Dump the packet colorized, every protocol in a different color (default = true)
+function packetDump(self, bytes, stream, colorized) 
 	if type(bytes) == "userdata" then
 		-- if someone calls this directly on a packet
 		stream = bytes
@@ -396,24 +401,33 @@ function packetDump(self, bytes, stream)
 	end
 	bytes = bytes or ffi.sizeof(self:getName())
 	stream = stream or io.stdout
+	colorized = colorized == nil or colorized
 
 	-- print timestamp
-	stream:write(getTimeMicros())
+	stream:write(colorized and white(getTimeMicros()) or getTimeMicros())
 
+	-- separators (protocol offsets) for colorized hex dump
+	local seps = { }
+	local colorCode = ''
 	-- headers in cleartext
 	for i, v in ipairs(self:getHeaders()) do
+		if colorized then
+			colorCode = getColorCode(i)
+		end
+
 		local str = v:getString()
 		if i == 1 then
-			stream:write(" " .. str .. "\n")
+			stream:write(colorCode .. " " .. str .. "\n")
 		else
-			stream:write(str .. "\n")
+			stream:write(colorCode .. str .. "\n")
 		end
+		seps[#seps + 1] = (seps[#seps] or 0 ) + ffi.sizeof(v)
 	end
 
 	-- hex dump
-	dumpHex(self, bytes, stream)
+	dumpHex(self, bytes, stream, colorized and seps or nil)
 end
-	
+
 --- Set all members of all headers.
 --- Per default, all members are set to default values specified in the respective set function.
 --- Optional named arguments can be used to set a member to a user-provided value.
@@ -538,7 +552,7 @@ function packetSetLength(args)
 	local accumulatedLength = 0
 	for _, v in ipairs(args) do
 		local header, member = getHeaderMember(v)
-		if header == "ip4" or header == "udp" or header == "ptp" then
+		if header == "ip4" or header == "udp" or header == "ptp" or header == "ipfix" then
 			str = str .. [[
 				self.]] .. member .. [[:setLength(length - ]] .. accumulatedLength .. [[)
 				]]

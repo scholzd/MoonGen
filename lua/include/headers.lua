@@ -169,6 +169,101 @@ ffi.cdef[[
 		uint16_t	arcount;
 		uint8_t		body[];
 	};
+
+	// -----------------------------------------------------
+	// ---- https://tools.ietf.org/html/rfc7011
+	// ---- IPFIX structures
+	// -----------------------------------------------------
+
+	struct __attribute__((__packed__)) ipfix_header {
+		uint16_t	version;
+		uint16_t	length;
+		uint32_t	export_time;
+		uint32_t	sequence_number;
+		uint32_t	observation_domain_id;
+	};
+
+	struct __attribute__((__packed__)) ipfix_set_header {
+		uint16_t	set_id;
+		uint16_t	length;
+	};
+
+	struct __attribute__((__packed__)) ipfix_tmpl_record_header {
+		uint16_t	template_id;
+		uint16_t	field_count;
+	};
+
+	struct __attribute__((__packed__)) ipfix_opts_tmpl_record_header {
+		uint16_t	template_id;
+		uint16_t	field_count;
+		uint16_t	scope_field_count;
+	};
+
+	struct __attribute__((__packed__)) ipfix_information_element {
+		uint16_t	ie_id;
+		uint16_t	length;
+	};
+
+	struct __attribute__((__packed__)) ipfix_data_record {
+		uint8_t		field_values[?];
+	};
+
+	struct __attribute__((__packed__)) ipfix_tmpl_record {
+		struct ipfix_tmpl_record_header		template_header;
+		struct ipfix_information_element	information_elements[5];
+	};
+
+	struct __attribute__((__packed__)) ipfix_opts_tmpl_record {
+		struct ipfix_opts_tmpl_record_header	template_header;
+		struct ipfix_information_element	information_elements[5];
+	};
+
+	struct __attribute__((__packed__)) ipfix_data_set {
+		struct ipfix_set_header		set_header;
+		uint8_t				field_values[?];
+	};
+
+	struct __attribute__((__packed__)) ipfix_tmpl_set {
+		struct ipfix_set_header		set_header;
+		struct ipfix_tmpl_record	record;
+		uint8_t				padding;
+	};
+
+	struct __attribute__((__packed__)) ipfix_opts_tmpl_set {
+		struct ipfix_set_header		set_header;
+		struct ipfix_opts_tmpl_record	record;
+		uint8_t				padding;
+	};
+	
+	// structs and constants partially copied from Open vSwitch lacp.c (Apache 2.0 license)
+	struct __attribute__((__packed__)) lacp_info {
+		uint16_t sys_priority;            /* System priority. */
+		union mac_address sys_id;         /* System ID. */
+		uint16_t key;                     /* Operational key. */
+		uint16_t port_priority;           /* Port priority. */
+		uint16_t port_id;                 /* Port ID. */
+		uint8_t state;                    /* State mask.  See lacp.STATE_ consts. */
+	};
+
+	struct __attribute__((__packed__)) lacp_header {
+		uint8_t subtype;          /* Always 1. */
+		uint8_t version;          /* Always 1. */
+
+		uint8_t actor_type;       /* Always 1. */
+		uint8_t actor_len;        /* Always 20. */
+		struct lacp_info actor;   /* LACP actor information. */
+		uint8_t z1[3];            /* Reserved.  Always 0. */
+
+		uint8_t partner_type;     /* Always 2. */
+		uint8_t partner_len;      /* Always 20. */
+		struct lacp_info partner; /* LACP partner information. */
+		uint8_t z2[3];            /* Reserved.  Always 0. */
+
+		uint8_t collector_type;   /* Always 3. */
+		uint8_t collector_len;    /* Always 16. */
+		uint16_t collector_delay; /* Maximum collector delay. Set to 0. */
+		uint8_t z3[64];           /* Combination of several fields.  Always 0. */
+	};
 ]]
 
 return ffi.C

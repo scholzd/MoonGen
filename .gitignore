@@ -5,3 +5,14 @@
 doc/html/
 *.log
 histogram.csv
+CMakeCache.txt
+CMakeFiles/
+Makefile
+MoonGen
+PROXY_BACKUP
+cmake_install.cmake
+foo1.lua
+gogo.sh
+sparse_hash
+.gitignore
+deps/dpdk
