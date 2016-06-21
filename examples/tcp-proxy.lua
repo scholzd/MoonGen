@@ -209,7 +209,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	log:info("Creating hash table")
 	local sparseMapCookie = hashMap.createSparseHashMapCookie()
-	--local sparseMapCookie = hashMap.createSparseHashMapCookie()
 	local bitMapInfr = bitMap.createBitMapInfr()
 
 

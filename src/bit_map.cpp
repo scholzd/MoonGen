@@ -16,6 +16,7 @@ extern "C" {
 
 	void mg_bit_map_infr_gc(bit_map_infr_map *m) {
 		while(true) {
+			sleep(300);
 			for (uint32_t b = 0; b < sizeof(*m); b++) {
 				for (uint8_t i = 0; i < 4; i++) {
 					if (m->bucket[b] & (1 << (i * 2))) {
@@ -25,8 +26,6 @@ extern "C" {
 					}
 				}
 			}
-
-			sleep(300);
 		}
 	}
 

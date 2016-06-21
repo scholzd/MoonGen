@@ -321,7 +321,6 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 	-- calculate checksums
 	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	txPkt.ip4:calculateChecksum()
-
 end
 
 function mod.createAckToServer(txBuf, rxBuf, rxPkt)
