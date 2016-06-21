@@ -4,7 +4,7 @@ local device	= require "device"
 local stats		= require "stats"
 local log 		= require "log"
 
-function master(txPorts, rxPorts, minIp, numIps, rate)
+function master(txPorts, rxPorts, rate)
 	if not txPorts or not rxPorts then
 		log:info("usage: txPort1[,txPort2[,...]] rxPort1[,rxPort2[,...]] [rate]")
 		return
