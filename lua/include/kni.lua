@@ -27,6 +27,7 @@ int rte_kni_release 	( 	struct rte_kni *  	kni	);
 void rte_kni_init(unsigned int max_kni_ifaces);
 ]]
 
+-- only works with "insmod deps/dpdk/x86_64-native-linuxapp-gcc/kmod/rte_kni.ko"
 function mod.createKni(core, device, mempool, name)
 	core = core or 0
 	local kni = ffi.C.mg_create_kni(device.id, core, mempool, name)
