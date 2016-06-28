@@ -280,7 +280,7 @@ end
 
 function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 	-- set size of tx packet
-	local size = rxBuf:getSize()
+	local size = 54 --rxBuf:getSize()
 	
 	-- copy data
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
@@ -290,8 +290,10 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 	-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
 	-- this way, it does not have to be translated at all
 	txPkt.tcp:setSeqNumber(txPkt.tcp:getSeqNumber() - 1)
+	txPkt.tcp:setWindow(29200)
+	txPkt.tcp:setFlags(0)
 	txPkt.tcp:setSyn()
-	txPkt.tcp:unsetAck()
+
 
 	-- MSS option
 	local offset = 0
@@ -306,17 +308,20 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 	end
 	-- window scale option
 	if wsopt then
-		txPkt.payload.uint8[offset] = 3 -- WSOPT option type
-		txPkt.payload.uint8[offset + 1] = 3 -- WSOPT option length (3 bytes)
-		txPkt.payload.uint8[offset + 2] = wsopt -- WSOPT option
-		txPkt.payload.uint8[offset + 3] = 0 -- padding
+		txPkt.payload.uint8[offset] = 1 -- padding
+		txPkt.payload.uint8[offset + 1] = 3 -- WSOPT option type
+		txPkt.payload.uint8[offset + 2] = 3 -- WSOPT option length (3 bytes)
+		txPkt.payload.uint8[offset + 3] = wsopt -- WSOPT option
 		dataOffset = dataOffset + 1
 		size = size + 4
 	end
 
 	txPkt.tcp:setDataOffset(dataOffset)
-	txBuf:setSize(size)
 	txPkt:setLength(size)
+	if size < 60 then
+		size = 60
+	end
+	txBuf:setSize(size)
 
 	-- calculate checksums
 	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
@@ -325,7 +330,7 @@ end
 
 function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	-- set size of tx packet
-	local size = rxBuf:getSize()
+	local size = 60 --rxBuf:getSize()
 	txBuf:setSize(size)
 	
 	-- copy data TODO directly use rx buffer
@@ -357,8 +362,10 @@ function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
 	txPkt.tcp:unsetSyn()
 	txPkt.tcp:setAck()
+	txPkt.tcp:setDataOffset(5)
+	txPkt.tcp:setWindow(229)
 	
-	txPkt:setLength(size)
+	txPkt:setLength(54)
 
 	-- calculate checksums
 	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
@@ -384,6 +391,8 @@ function mod.createSynAckToClient(txBuf, rxPkt)
 	
 	txPkt.tcp:setSeqNumber(cookie)
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
+	txPkt.tcp:setWindow(29200)
+	txPkt.ip4:setFlags(2)
 					
 	txBuf:setSize(68)
 end
@@ -412,17 +421,18 @@ function mod.getSynAckBufs()
 			tcpAck=1,
 			tcpSyn=1,
 			tcpDataOffset=7,
-			pktLength=68,
+			pktLength=62,
 		}
 		-- MSS option
 		pkt.payload.uint8[0] = 2 -- MSS option type
 		pkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
 		pkt.payload.uint16[1] = hton16(SERVER_MSS) -- MSS option
 		-- window scale option
-		pkt.payload.uint8[4] = 3 -- WSOPT option type
-		pkt.payload.uint8[5] = 3 -- WSOPT option length (3 bytes)
-		pkt.payload.uint8[6] = SERVER_WSOPT -- WSOPT option
-		pkt.payload.uint8[7] = 0 -- padding (end of options)
+		pkt.payload.uint8[4] = 1 -- padding
+		pkt.payload.uint8[5] = 3 -- WSOPT option type
+		pkt.payload.uint8[6] = 3 -- WSOPT option length (3 bytes)
+		pkt.payload.uint8[7] = SERVER_WSOPT -- WSOPT option
+
 	end)
 	return lTXSynAckMem:bufArray()
 end

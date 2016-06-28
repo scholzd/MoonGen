@@ -84,7 +84,7 @@ function sparseHashMapCookie:setRightVerified(pkt)
 		-- not left verified,
 		-- happens if a connection is deleted 
 		-- but right still has some packets in flight
-		log:debug('Not left verified, something is wrong')
+		--log:debug('Not left verified, something is wrong')
 	end
 end
 

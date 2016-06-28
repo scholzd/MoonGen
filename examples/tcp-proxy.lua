@@ -240,6 +240,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 				forwardTraffic(txNotTcpBufs[1], rRXBufs[i])
 				lTXQueue:sendN(txNotTcpBufs, 1)
 			else
+				if rRXPkt.tcp:getRst() then
+					log:debug("reset right")
+				end
 				---------------------------------------------------------------------- process TCP
 				-- handle protocol infiringement strategies
 				if not (currentStrat == STRAT['cookie']) then
@@ -339,6 +342,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 				virtualDev:sendN(txNotTcpBufs, 1)
 			--------------------------------------------------------------- processing TCP
 			else
+				if lRXPkt.tcp:getRst() then
+					log:debug("reset left")
+				end
 				-- here the reaction always depends on the strategy
 				if currentStrat == STRAT['ignore'] then
 					-- do nothing on unverified SYN

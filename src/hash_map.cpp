@@ -124,6 +124,7 @@ extern "C" {
 	 * 		hence, we assume the first Ack number to be the correct one and don't update it here
 	 */
 	void mg_sparse_hash_map_cookie_insert(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, uint32_t ack) {
+		//printf("insert %d\n", k->tcp_src);
 		auto m = maps->current;
 		auto it = m->find(*k);
 		// not existing yet
@@ -146,6 +147,7 @@ extern "C" {
 	 * Set rightVerified flag
 	 */
 	bool mg_sparse_hash_map_cookie_finalize(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, uint32_t seq) {
+		//printf("finalize %d\n", k->tcp_src);
 		auto m = maps->current;
 		auto it = m->find(*k);
 		if (it == m->end() ) {
@@ -167,8 +169,9 @@ extern "C" {
 		// Check that flags are correct
 		// Only leftVerified must be set
 		// TODO can we do this without flags..., reduces complexity to single uint32_t
-		if ( unlikely((tmp->flags & 4) != 4) ) {
+		if ( unlikely((tmp->flags & 12) != 4) ) {
 			mg_sparse_hash_map_cookie_swap(maps);
+			//printf("ignoring second syn ack\n");
 			return false;
 		}
 		
