@@ -63,8 +63,13 @@ local function extractOptions(pkt)
 	local offset = pkt.tcp:getDataOffset() - 5 -- options length in 32 bits (deduct 5 for standard tcp header length)
 	local mss = nil
 	local upper = 0
+	--local upper2 = 0
 	local lower = 0
+	--local lower2 = 0
+
 	local wsopt = nil
+	local sack = false
+	--local tsval = false
 	local opt = 0
 	local i = 0
 	while i < offset * 4 do
@@ -78,6 +83,23 @@ local function extractOptions(pkt)
 		elseif opt == 3 then
 			wsopt = pkt.payload.uint8[i + 2]
 			i = i + 3
+		elseif opt == 4 then
+			sack = true
+			i = i + 2
+		--elseif opt == 8 then
+			--upper = pkt.payload.uint8[i + 2]
+			--upper2 = pkt.payload.uint8[i + 3]
+			--lower = pkt.payload.uint8[i + 4]
+			--upper2 = pkt.payload.uint8[i + 5]
+			--tsval = lshift(upper, 48) + lshift(upper2, 32) + lshift(lower, 16) + lower2 
+			--
+			--upper = pkt.payload.uint8[i + 6]
+			--upper2 = pkt.payload.uint8[i + 7]
+			--lower = pkt.payload.uint8[i + 8]
+			--upper2 = pkt.payload.uint8[i + 9]
+			--ecr = lshift(upper, 48) + lshift(upper2, 32) + lshift(lower, 16) + lower2 
+		--	tsval = true
+		--	i = i + 10
 		elseif opt == 0 then
 			-- signals end
 			break
@@ -89,7 +111,7 @@ local function extractOptions(pkt)
 			i = i + pkt.payload.uint8[i + 1] -- increment by option length
 		end
 	end
-	return mss, wsopt
+	return mss, wsopt, sack
 end
 
 -------------------------------------------------------------------------------------------
@@ -185,12 +207,14 @@ local function calculateCookie(pkt)
 	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 
 	-- extra options we support
-	local mss, wsopt = extractOptions(pkt)
+	local mss, wsopt, sack = extractOptions(pkt)
 	mss = encodeMss(mss)
 	mss = lshift(mss, 24)
 
 	wsopt = encodeWsopt(wsopt)
 	wsopt = lshift(wsopt, 20)
+	
+	-- TODO encode sack 1 bit, tsval can be checked at ack again
 
 	-- hash
 	local hash = getHash(
@@ -206,7 +230,7 @@ local function calculateCookie(pkt)
 	--log:debug('Created hash:   ' .. toBinary(hash))
 	local cookie = ts + mss + wsopt + hash
 	--log:debug('Created cookie: ' .. toBinary(cookie))
-	return cookie
+	return cookie, tsval, ecr
 end
 
 function mod.verifyCookie(pkt)
@@ -297,24 +321,50 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 
 	-- MSS option
 	local offset = 0
-	local dataOffset = 5
 	if mss then
 		txPkt.payload.uint8[0] = 2 -- MSS option type
 		txPkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
 		txPkt.payload.uint16[1] = hton16(mss) -- MSS option
-		offset = 4
-		dataOffset = dataOffset + 1
-		size = size + 4
+		offset = offset + 4
 	end
 	-- window scale option
 	if wsopt then
-		txPkt.payload.uint8[offset] = 1 -- padding
-		txPkt.payload.uint8[offset + 1] = 3 -- WSOPT option type
-		txPkt.payload.uint8[offset + 2] = 3 -- WSOPT option length (3 bytes)
-		txPkt.payload.uint8[offset + 3] = wsopt -- WSOPT option
-		dataOffset = dataOffset + 1
-		size = size + 4
+		txPkt.payload.uint8[offset] = 3 -- WSOPT option type
+		txPkt.payload.uint8[offset + 1] = 3 -- WSOPT option length (3 bytes)
+		txPkt.payload.uint8[offset + 2] = wsopt -- WSOPT option
+		offset = offset + 3
 	end
+	
+	if true then -- sack then
+		txPkt.payload.uint8[offset] = 4 -- sack option type
+		txPkt.payload.uint8[offset + 1] = 2 -- sack option length (2 bytes)
+		offset = offset + 2
+	end
+
+	if true then -- ts then
+		txPkt.payload.uint8[offset] = 8 -- ts option type
+		txPkt.payload.uint8[offset + 1] = 10 -- ts option length (2 bytes)
+		txPkt.payload.uint8[offset + 2] = 0 -- ts option tsval
+		txPkt.payload.uint8[offset + 3] = 0 -- ts option tsval
+		txPkt.payload.uint8[offset + 4] = 0 -- ts option tsval
+		txPkt.payload.uint8[offset + 5] = 0 -- ts option tsval
+		txPkt.payload.uint8[offset + 6] = 0 -- ts option ecr
+		txPkt.payload.uint8[offset + 7] = 0 -- ts option ecr
+		txPkt.payload.uint8[offset + 8] = 0 -- ts option ecr
+		txPkt.payload.uint8[offset + 9] = 0 -- ts option ecr
+		offset = offset + 10
+	end
+
+	local pad = 4 - (offset % 4)
+	if pad > 0 then
+		txPkt.payload.uint8[offset + pad - 1] = 0 -- eop
+		for i = pad - 2, 0, -1 do
+			txPkt.payload.uint8[offset + i] = 1 -- padding
+		end
+	end
+	offset = offset + pad
+	size = size + offset
+	local dataOffset = 5 + (offset / 4)
 
 	txPkt.tcp:setDataOffset(dataOffset)
 	txPkt:setLength(size)
@@ -374,7 +424,7 @@ end
 
 function mod.createSynAckToClient(txBuf, rxPkt)
 	local txPkt = txBuf:getTcp4Packet()
-	local cookie = calculateCookie(rxPkt)
+	local cookie, tsval, ecr = calculateCookie(rxPkt)
 
 	-- TODO set directly without set/get, should be a bit faster
 	-- MAC addresses
@@ -391,10 +441,8 @@ function mod.createSynAckToClient(txBuf, rxPkt)
 	
 	txPkt.tcp:setSeqNumber(cookie)
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
-	txPkt.tcp:setWindow(29200)
-	txPkt.ip4:setFlags(2)
-					
-	txBuf:setSize(68)
+
+	txBuf:setSize(txPkt.ip4:getLength() + 14)
 end
 
 
@@ -414,25 +462,65 @@ function mod.getSynAckBufs()
 			ethDst="90:e2:ba:98:58:79",
 			ip4Src="192.168.1.1",
 			ip4Dst="192.168.1.201",
+			ip4Flags=2, -- set DF
 			tcpSrc=0,
 			tcpDst=0,
 			tcpSeqNumber=0,
 			tcpAckNumber=0,
 			tcpAck=1,
 			tcpSyn=1,
-			tcpDataOffset=7,
-			pktLength=62,
+			tcpWindow=29200,
 		}
+	
 		-- MSS option
-		pkt.payload.uint8[0] = 2 -- MSS option type
-		pkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
-		pkt.payload.uint16[1] = hton16(SERVER_MSS) -- MSS option
+		local offset = 0
+		if true then --mss then
+			pkt.payload.uint8[0] = 2 -- MSS option type
+			pkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
+			pkt.payload.uint16[1] = hton16(SERVER_MSS) -- MSS option
+			offset = offset + 4
+		end
 		-- window scale option
-		pkt.payload.uint8[4] = 1 -- padding
-		pkt.payload.uint8[5] = 3 -- WSOPT option type
-		pkt.payload.uint8[6] = 3 -- WSOPT option length (3 bytes)
-		pkt.payload.uint8[7] = SERVER_WSOPT -- WSOPT option
+		if true then --wsopt then
+			pkt.payload.uint8[offset] = 3 -- WSOPT option type
+			pkt.payload.uint8[offset + 1] = 3 -- WSOPT option length (3 bytes)
+			pkt.payload.uint8[offset + 2] = SERVER_WSOPT -- WSOPT option
+			offset = offset + 3
+		end
+		
+		if true then -- sack then
+			pkt.payload.uint8[offset] = 4 -- sack option type
+			pkt.payload.uint8[offset + 1] = 2 -- sack option length (2 bytes)
+			offset = offset + 2
+		end
+	
+		if true then -- ts option
+			pkt.payload.uint8[offset] = 8 -- ts option type
+			pkt.payload.uint8[offset + 1] = 10 -- ts option length (2 bytes)
+			pkt.payload.uint8[offset + 2] = 0 -- ts option tsval
+			pkt.payload.uint8[offset + 3] = 0 -- ts option tsval
+			pkt.payload.uint8[offset + 4] = 0 -- ts option tsval
+			pkt.payload.uint8[offset + 5] = 0 -- ts option tsval
+			pkt.payload.uint8[offset + 6] = 0--band(rshift(tsval, 48), 0xff) -- ts option ecr
+			pkt.payload.uint8[offset + 7] = 0--band(rshift(tsval, 32), 0xff) -- ts option ecr
+			pkt.payload.uint8[offset + 8] = 0--band(rshift(tsval, 16), 0xff) -- ts option ecr
+			pkt.payload.uint8[offset + 9] = 0--band(		  tsval		, 0xff) -- ts option ecr
+			offset = offset + 10
+		end
 
+		local pad = 4 - (offset % 4)
+		if pad > 0 then
+			pkt.payload.uint8[offset + pad - 1] = 0 -- eop
+			for i = pad - 2, 0, -1 do
+				pkt.payload.uint8[offset + i] = 1 -- padding
+			end
+		end
+		offset = offset + pad
+		local size = 54 + offset
+		local dataOffset = 5 + (offset / 4)
+	
+		pkt.tcp:setDataOffset(dataOffset)
+		pkt:setLength(size)
 	end)
 	return lTXSynAckMem:bufArray()
 end
