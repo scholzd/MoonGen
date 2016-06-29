@@ -146,7 +146,7 @@ extern "C" {
 	 * Calculate and store diff from seq number and stored ack number
 	 * Set rightVerified flag
 	 */
-	bool mg_sparse_hash_map_cookie_finalize(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, uint32_t seq) {
+	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_finalize(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, uint32_t seq) {
 		//printf("finalize %d\n", k->tcp_src);
 		auto m = maps->current;
 		auto it = m->find(*k);
@@ -157,7 +157,7 @@ extern "C" {
 			if (it == m->end() ) {
 				//printf("fin also not found here\n");
 				mg_sparse_hash_map_cookie_swap(maps);
-				return false;
+				return 0;
 			}
 			// copy and proceed normally
 			//printf("right found-> copy\n");
@@ -172,7 +172,8 @@ extern "C" {
 		if ( unlikely((tmp->flags & 12) != 4) ) {
 			mg_sparse_hash_map_cookie_swap(maps);
 			//printf("ignoring second syn ack\n");
-			return false;
+			// but return diff anyway
+			return tmp;
 		}
 		
 		tmp->diff = seq - tmp->diff + 1;
@@ -180,7 +181,7 @@ extern "C" {
 		//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
 		
 		mg_sparse_hash_map_cookie_swap(maps);
-		return true;
+		return tmp;
 	};
 
 	/* Find and update on isVerified
@@ -208,6 +209,14 @@ extern "C" {
 		
 		// Check verified flags (both 4 8 must be set)
 		// TODO maybe even drop this, not necessary really
+		// in this case stall
+		if ((tmp->flags & 12) == 4) {
+			mg_sparse_hash_map_cookie_swap(maps);
+			printf("actual stall\n");
+ 			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
+			tmp->flags = 0;
+			return tmp;
+		}
 		if ((tmp->flags & 12) != 12) {
 			mg_sparse_hash_map_cookie_swap(maps);
 			return 0;

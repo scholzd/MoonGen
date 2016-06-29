@@ -113,6 +113,8 @@ local STRAT = {
 	sequence= 4,
 }
 
+local stallTable = {}
+
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 	
@@ -156,7 +158,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 		buf:getTcp4Packet():fill{
 		}
 	end)
-	local rTXAckBufs = rTXAckMem:bufArray()
+	local rTXAckBufs = rTXAckMem:bufArray(2 * maxBurstSize)
 	
 	-- right to left forward
 	local lTXForwardQueue = lTXDev:getTxQueue(1)
@@ -253,14 +255,72 @@ function tcpProxySlave(lRXDev, lTXDev)
 					---------------------------------------------------------------------- SYN/ACK from server, finally establish connection
 					if rRXPkt.tcp:getSyn() and rRXPkt.tcp:getAck() then
 						--log:debug('Received SYN/ACK from server, sending ACK back')
-						sparseMapCookie:setRightVerified(rRXPkt)
+						diff = sparseMapCookie:setRightVerified(rRXPkt)
 						
+						-- ack to server
 						if numAck == 0 then
-							rTXAckBufs:allocN(60, rx - (i - 1))
+							rTXAckBufs:allocN(60, 2* (rx - (i - 1)))
 						end
 						
 						numAck = numAck + 1
 						createAckToServer(rTXAckBufs[numAck], rRXBufs[i], rRXPkt)
+							
+						log:debug("also lookup stall ")
+						local index = rRXPkt.tcp:getDstString() .. rRXPkt.tcp:getSrcString() .. rRXPkt.ip4:getDstString() .. rRXPkt.ip4:getSrcString()
+						if stallTable[index] and diff then
+							numAck = numAck + 1
+							local dat = stallTable[index]
+							local upper = dat[16]
+							local lower = dat[17]
+							local size = lshift(upper, 8) + lower + 14
+							log:debug(tostring(size))
+							ffi.copy(rTXAckBufs[numAck]:getData(), dat, size)
+							rTXAckBufs[numAck]:setSize(size)
+							local pkt = rTXAckBufs[numAck]:getTcp4Packet()
+							pkt.tcp:setAckNumber(pkt.tcp:getAckNumber() + diff)
+							pkt.tcp:calculateChecksum(rTXAckBufs[numAck]:getData(), size, true)
+							stallTable[index] = nil	
+						else
+							if not stallTable[index] then
+							log:debug("no entry")
+							else
+							log:debug("no diff")
+							end
+						end
+						-- wakeup to client -> forward translated syn/ack
+						--if diff then
+						--	log:debug("also wakeup client " .. tostring(diff))
+						--	if numForward == 0 then
+						--		rTXForwardBufs:allocN(60, 4 * rx)
+						--	end
+						--	for x = 1, 4, 1 do
+						--		log:debug(tostring(x))
+						--		numForward = numForward + 1
+						--		local rTXForwardBuf = rTXForwardBufs[numForward]
+						--		local rTXPkt = rTXForwardBuf:getTcp4Packet()
+	
+						--		sequenceNumberTranslation(diff, rRXBufs[i], rTXForwardBuf, rRXPkt, rTXPkt, RIGHT_TO_LEFT)
+						--		--rTXPkt.tcp:setPsh()
+						--		--rTXPkt.tcp:unsetSyn()
+						--		--rTXPkt.tcp:setSeqNumber(rTXPkt.tcp:getSeqNumber())
+						--		--rTXPkt.tcp:setAckNumber(rTXPkt.tcp:getAckNumber())
+						--		--rTXPkt.tcp:setDataOffset(5)
+						--		--rTXPkt.tcp:setWindow(235)
+						--		--rTXPkt.payload.uint32[0] = 0
+						--		rTXPkt.payload.uint8[8] = 0
+						--		rTXPkt.payload.uint8[9] = 0
+						--		rTXPkt.payload.uint8[10] = 0
+						--		rTXPkt.payload.uint8[11] = 0
+						--		--rTXPkt.payload.uint16[2] = 0
+						--		--rTXPkt:setLength(54)
+						--		--rTXForwardBuf:setSize(60)
+						--		--rTXPkt.ip4:calculateChecksum()
+						--		----log:debug("checksum before " .. rTXPkt.tcp:getChecksum())
+						--		rTXPkt.tcp:calculateChecksum(rTXForwardBuf:getData(), rTXPkt.ip4:getLength() + 14, true)
+						--		--log:debug("checksum  after " .. rTXPkt.tcp:getChecksum())
+						--		log:debug("numFWD " .. tostring(numForward))
+						--	end
+						--end
 					----------------------------------------------------------------------- any verified packet from server
 					else
 						local diff = sparseMapCookie:isVerified(rRXPkt, RIGHT_TO_LEFT) 
@@ -268,7 +328,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							-- anything else must be from a verified connection, translate and send via physical nic
 							--log:info('Packet of verified connection from server, translate and forward')
 							if numForward == 0 then
-								rTXForwardBufs:allocN(60, rx - (i - 1))
+								rTXForwardBufs:allocN(60, rx)
 							end
 								
 							numForward = numForward + 1
@@ -417,7 +477,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- if already verified in both directions, immediately forward, otherwise check cookie
 					else
 						local diff = sparseMapCookie:isVerified(lRXPkt, LEFT_TO_RIGHT) 
-						if diff then 
+						if diff == "stall" then
+							log:debug("stall packet")
+							stallTable[lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()] = ffi.cast("uint8_t*", lRXBufs[i]:getData())
+						elseif diff then 
 							--log:info('Received packet of verified connection from left, translating and forwarding')
 							if numForward == 0 then
 								lTXForwardBufs:allocN(60, rx - (i - 1))
@@ -448,7 +511,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						----------------------------------------------------------------------------------------------- unverified, but not syn/ack -> ignore
 						else
 							-- not syn, unverified tcp packets -> belongs to already deleted connection -> drop
-							--log:error('unhandled packet ' .. tostring(isVerified(lRXPkt, LEFT_TO_RIGHT)))
+							log:error('unhandled packet ' .. tostring(isVerified(lRXPkt, LEFT_TO_RIGHT)))
 						end
 					end
 				end

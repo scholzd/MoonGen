@@ -335,7 +335,7 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 		offset = offset + 3
 	end
 	
-	if true then -- sack then
+	if false then -- sack then
 		txPkt.payload.uint8[offset] = 4 -- sack option type
 		txPkt.payload.uint8[offset + 1] = 2 -- sack option length (2 bytes)
 		offset = offset + 2
@@ -488,7 +488,7 @@ function mod.getSynAckBufs()
 			offset = offset + 3
 		end
 		
-		if true then -- sack then
+		if false then -- sack then
 			pkt.payload.uint8[offset] = 4 -- sack option type
 			pkt.payload.uint8[offset + 1] = 2 -- sack option length (2 bytes)
 			offset = offset + 2

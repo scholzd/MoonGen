@@ -19,7 +19,7 @@ ffi.cdef [[
 	char * mg_sparse_hash_map_cookie_string(struct sparse_hash_map_cookie *m);
 	
 	void mg_sparse_hash_map_cookie_insert(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t ack);
-	bool mg_sparse_hash_map_cookie_finalize(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t seq);
+	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_finalize(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t seq);
 	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find_update(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 	void mg_sparse_hash_map_cookie_delete(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 ]]
@@ -79,12 +79,18 @@ function sparseHashMapCookie:setRightVerified(pkt)
 	--log:debug("set right verified")
 	local k = sparseHashMapCookieGetKey(pkt, RIGHT_TO_LEFT)
 	local seq = pkt.tcp:getSeqNumber()
-	local r = ffi.C.mg_sparse_hash_map_cookie_finalize(self.map, k, seq)
-	if not r then
+	local diff = ffi.C.mg_sparse_hash_map_cookie_finalize(self.map, k, seq)
+
+	if not (diff == nil) then
+		return diff.diff
+	else
 		-- not left verified,
 		-- happens if a connection is deleted 
 		-- but right still has some packets in flight
+		-- or packets are sent duplicated
 		--log:debug('Not left verified, something is wrong')
+		--log:debug("no result")
+		return false
 	end
 end
 
@@ -95,9 +101,15 @@ function sparseHashMapCookie:isVerified(pkt, leftToRight)
 	local diff = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k)
 	--log:debug(tostring(diff))
 	if not (diff == nil) then
+
+		if diff.flags == 0 then
+			log:debug("stall")
+			return "stall"
+		end
+		log:debug("normal " .. tostring(diff.flags))
 		return diff.diff
 	else
-		--log:debug("no result")
+		log:debug("no result")
 		return false
 	end
 end
