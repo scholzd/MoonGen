@@ -155,7 +155,7 @@ extern "C" {
 			m = maps->old;
 			it = m->find(*k);
 			if (it == m->end() ) {
-				//printf("fin also not found here\n");
+				printf("fin also not found here\n");
 				mg_sparse_hash_map_cookie_swap(maps);
 				return 0;
 			}
@@ -171,9 +171,8 @@ extern "C" {
 		// TODO can we do this without flags..., reduces complexity to single uint32_t
 		if ( unlikely((tmp->flags & 12) != 4) ) {
 			mg_sparse_hash_map_cookie_swap(maps);
-			//printf("ignoring second syn ack\n");
-			// but return diff anyway
-			return tmp;
+			printf("ignoring second syn ack\n");
+			return 0;
 		}
 		
 		tmp->diff = seq - tmp->diff + 1;
@@ -198,6 +197,7 @@ extern "C" {
 			if (it == m->end() ) {
 				//printf("upd also not found here\n");
 				mg_sparse_hash_map_cookie_swap(maps);
+				//printf("not existing\n");
 				return 0;
 			}
 			// copy and proceed normally
@@ -207,18 +207,20 @@ extern "C" {
 		
 		sparse_hash_map_cookie_value *tmp = (*m)[*k];
 		
-		// Check verified flags (both 4 8 must be set)
-		// TODO maybe even drop this, not necessary really
-		// in this case stall
+		// if only left verified we are waiting for right verified
+		// in this case stall, indicated by setting flags in a new struct to 0
 		if ((tmp->flags & 12) == 4) {
 			mg_sparse_hash_map_cookie_swap(maps);
-			printf("actual stall\n");
+			//printf("actual stall\n");
  			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
 			tmp->flags = 0;
 			return tmp;
 		}
+		// Check verified flags (both 4 8 must be set)
+		// TODO maybe even drop this, not necessary really
 		if ((tmp->flags & 12) != 12) {
 			mg_sparse_hash_map_cookie_swap(maps);
+			//printf("wrong flags\n");
 			return 0;
 		}
 

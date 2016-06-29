@@ -414,12 +414,14 @@ function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	txPkt.tcp:setAck()
 	txPkt.tcp:setDataOffset(5)
 	txPkt.tcp:setWindow(229)
+	txPkt.payload.uint32[0] = 0
+	txPkt.payload.uint16[2] = 0
 	
 	txPkt:setLength(54)
 
 	-- calculate checksums
-	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	txPkt.ip4:calculateChecksum()
+	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 end
 
 function mod.createSynAckToClient(txBuf, rxPkt)

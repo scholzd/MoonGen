@@ -103,13 +103,13 @@ function sparseHashMapCookie:isVerified(pkt, leftToRight)
 	if not (diff == nil) then
 
 		if diff.flags == 0 then
-			log:debug("stall")
+			--log:debug("stall")
 			return "stall"
 		end
-		log:debug("normal " .. tostring(diff.flags))
+		--log:debug("normal " .. tostring(diff.flags))
 		return diff.diff
 	else
-		log:debug("no result")
+		--log:debug("no result")
 		return false
 	end
 end
