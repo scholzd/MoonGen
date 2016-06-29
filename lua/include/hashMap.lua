@@ -101,7 +101,6 @@ function sparseHashMapCookie:isVerified(pkt, leftToRight)
 	local diff = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k)
 	--log:debug(tostring(diff))
 	if not (diff == nil) then
-
 		if diff.flags == 0 then
 			--log:debug("stall")
 			return "stall"

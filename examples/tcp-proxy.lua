@@ -157,7 +157,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 		buf:getTcp4Packet():fill{
 		}
 	end)
-	local rTXAckBufs = rTXAckMem:bufArray(2 * maxBurstSize)
+	local rTXAckBufs = rTXAckMem:bufArray(1)
 	
 	-- right to left forward
 	local lTXForwardQueue = lTXDev:getTxQueue(1)
@@ -265,27 +265,21 @@ function tcpProxySlave(lRXDev, lTXDev)
 						diff = sparseMapCookie:setRightVerified(rRXPkt)
 						if diff then
 							-- ack to server
-							if numAck == 0 then
-								rTXAckBufs:allocN(60, 2* (rx - (i - 1)))
-							end
-							
-							numAck = numAck + 1
-							createAckToServer(rTXAckBufs[numAck], rRXBufs[i], rRXPkt)
+							rTXAckBufs:allocN(60, 1)
+							createAckToServer(rTXAckBufs[1], rRXBufs[i], rRXPkt)
+							virtualDev:sendSingle(rTXAckBufs[1])
+							log:debug("ack sent")
 								
-							log:debug("also lookup stall ")
 							local index = rRXPkt.tcp:getDstString() .. rRXPkt.tcp:getSrcString() .. rRXPkt.ip4:getDstString() .. rRXPkt.ip4:getSrcString()
-							if stallTable[index] then
-								numAck = numAck + 1
-								local dat = stallTable[index]
-								local upper = dat[16]
-								local lower = dat[17]
-								local size = lshift(upper, 8) + lower + 14
-								--log:debug(tostring(size))
-								ffi.copy(rTXAckBufs[numAck]:getData(), dat, size)
-								rTXAckBufs[numAck]:setSize(size)
-								local pkt = rTXAckBufs[numAck]:getTcp4Packet()
+							local buf = stallTable[index] 
+							if buf then
+								local pkt = buf[1]:getTcp4Packet()
+								log:debug("before " .. pkt.tcp:getAckNumber())
 								pkt.tcp:setAckNumber(pkt.tcp:getAckNumber() + diff)
-								pkt.tcp:calculateChecksum(rTXAckBufs[numAck]:getData(), size, true)
+								log:debug("after " .. pkt.tcp:getAckNumber())
+								pkt.tcp:calculateChecksum(buf[1]:getData(), buf[1]:getSize(), true)
+								virtualDev:sendSingle(buf[1])
+								log:debug("sent")
 								stallTable[index] = nil	
 							else
 								log:debug("no entry")
@@ -332,12 +326,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 
 					lTXForwardQueue:sendN(rTXForwardBufs, numForward)
 					rTXForwardBufs:freeAfter(numForward)
-				end
-
-				-- ack to right
-				if numAck > 0 then
-					virtualDev:sendN(rTXAckBufs, numAck)
-					rTXAckBufs:freeAfter(numAck)
 				end
 			end
 			--log:debug('free rRX')
@@ -457,8 +445,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 							--log:debug("stall packet")
 							local index = lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()
 							if not stallTable[index] then
-								stallBuf:allocN(1)
-								ffi.copy(stallBuf:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
+								stallBuf:allocN(60, 1)
+								ffi.copy(stallBuf[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
+								stallBuf[1]:setSize(lRXBufs[i]:getSize())
 								stallTable[index] = stallBuf
 							else
 								log:debug("already entry")
