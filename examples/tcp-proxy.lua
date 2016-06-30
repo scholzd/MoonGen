@@ -217,7 +217,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- Hash table
 	-------------------------------------------------------------
 	local stallMem = memory.createMemPool()
-	local stallBuf = stallMem:bufArray(1)
+	local stallBufs = stallMem:bufArray(1)
 	local stallTable = {}
 
 
@@ -268,18 +268,16 @@ function tcpProxySlave(lRXDev, lTXDev)
 							rTXAckBufs:allocN(60, 1)
 							createAckToServer(rTXAckBufs[1], rRXBufs[i], rRXPkt)
 							virtualDev:sendSingle(rTXAckBufs[1])
-							log:debug("ack sent")
 								
 							local index = rRXPkt.tcp:getDstString() .. rRXPkt.tcp:getSrcString() .. rRXPkt.ip4:getDstString() .. rRXPkt.ip4:getSrcString()
-							local buf = stallTable[index] 
-							if buf then
-								local pkt = buf[1]:getTcp4Packet()
-								log:debug("before " .. pkt.tcp:getAckNumber())
+							local entry = stallTable[index] 
+
+							if entry then
+								local pkt = entry[1]:getTcp4Packet()
 								pkt.tcp:setAckNumber(pkt.tcp:getAckNumber() + diff)
-								log:debug("after " .. pkt.tcp:getAckNumber())
-								pkt.tcp:calculateChecksum(buf[1]:getData(), buf[1]:getSize(), true)
-								virtualDev:sendSingle(buf[1])
-								log:debug("sent")
+								pkt.tcp:calculateChecksum(entry[1]:getData(), entry[1]:getSize(), true)
+								virtualDev:sendSingle(entry[1])
+								log:debug("accessed " .. tostring(entry[2]))
 								stallTable[index] = nil	
 							else
 								log:debug("no entry")
@@ -327,6 +325,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 					lTXForwardQueue:sendN(rTXForwardBufs, numForward)
 					rTXForwardBufs:freeAfter(numForward)
 				end
+		log:info("Table ##################################")
+		for k, v in pairs(stallTable) do
+			log:info(tostring(k) .. "->" .. tostring(v))
+		end
 			end
 			--log:debug('free rRX')
 			rRXBufs:freeAll()
@@ -444,14 +446,15 @@ function tcpProxySlave(lRXDev, lTXDev)
 						if diff == "stall" then
 							--log:debug("stall packet")
 							local index = lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()
-							if not stallTable[index] then
-								stallBuf:allocN(60, 1)
-								ffi.copy(stallBuf[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
-								stallBuf[1]:setSize(lRXBufs[i]:getSize())
-								stallTable[index] = stallBuf
-							else
-								log:debug("already entry")
-							end
+								stallBufs:allocN(60, 1)
+								ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
+								stallBufs[1]:setSize(lRXBufs[i]:getSize())
+								local entry =  stallTable[index] 
+								if entry then
+									stallTable[index] = { stallBufs[1], entry[2] + 1 }
+								else
+									stallTable[index] = { stallBufs[1], 1 }
+								end
 						elseif diff then 
 							--log:info('Received packet of verified connection from left, translating and forwarding')
 							if numForward == 0 then
