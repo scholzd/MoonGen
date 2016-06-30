@@ -216,8 +216,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	-- Hash table
 	-------------------------------------------------------------
-	local stallMem = memory.createMemPool()
-	local stallBufs = stallMem:bufArray(1)
+	local stallMem = memory.createMemPool{ n=81920 }
 	local stallTable = {}
 
 
@@ -273,10 +272,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 							local entry = stallTable[index] 
 
 							if entry then
-								local pkt = entry[1]:getTcp4Packet()
+								local buf = entry[1][1]
+								local pkt = buf:getTcp4Packet()
 								pkt.tcp:setAckNumber(pkt.tcp:getAckNumber() + diff)
-								pkt.tcp:calculateChecksum(entry[1]:getData(), entry[1]:getSize(), true)
-								virtualDev:sendSingle(entry[1])
+								pkt.tcp:calculateChecksum(buf:getData(), buf:getSize(), true)
+								virtualDev:sendSingle(buf)
 								log:debug("accessed " .. tostring(entry[2]))
 								stallTable[index] = nil	
 							else
@@ -325,10 +325,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 					lTXForwardQueue:sendN(rTXForwardBufs, numForward)
 					rTXForwardBufs:freeAfter(numForward)
 				end
-		log:info("Table ##################################")
-		for k, v in pairs(stallTable) do
-			log:info(tostring(k) .. "->" .. tostring(v))
-		end
+		--log:info("Table ##################################")
+		--for k, v in pairs(stallTable) do
+		--	log:info(tostring(k) .. "->" .. tostring(v))
+		--end
 			end
 			--log:debug('free rRX')
 			rRXBufs:freeAll()
@@ -446,14 +446,16 @@ function tcpProxySlave(lRXDev, lTXDev)
 						if diff == "stall" then
 							--log:debug("stall packet")
 							local index = lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()
-								stallBufs:allocN(60, 1)
-								ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
-								stallBufs[1]:setSize(lRXBufs[i]:getSize())
+								local bufArray = stallMem:bufArray(1)
+								bufArray:allocN(60, 1)
+								local buf = bufArray[1]
+								ffi.copy(buf:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
+								buf:setSize(lRXBufs[i]:getSize())
 								local entry =  stallTable[index] 
 								if entry then
-									stallTable[index] = { stallBufs[1], entry[2] + 1 }
+									stallTable[index] = { bufArray, entry[2] + 1 }
 								else
-									stallTable[index] = { stallBufs[1], 1 }
+									stallTable[index] = { bufArray, 1 }
 								end
 						elseif diff then 
 							--log:info('Received packet of verified connection from left, translating and forwarding')
