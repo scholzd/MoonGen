@@ -30,7 +30,7 @@ local serpent	= require "Serpent"
 --dump.on("b", "/tmp/jit.log")
 
 local jit = require "jit"
-jit.opt.start("maxrecord=10000", "maxirconst=1000", "loopunroll=30")
+jit.opt.start("maxrecord=10000", "maxirconst=1000", "loopunroll=40")
 
 local function getStackTrace(err)
 	print(red("[FATAL] Lua error in task %s", MOONGEN_TASK_NAME))
