@@ -117,7 +117,7 @@ local STRAT = {
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 	
-	local currentStrat = STRAT['cookie']
+	local currentStrat = STRAT['sequence']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------

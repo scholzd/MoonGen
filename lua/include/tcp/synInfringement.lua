@@ -85,7 +85,7 @@ function mod.createResponseSequence(txBuf, rxPkt)
 	txPkt.tcp:setDst(rxPkt.tcp:getSrc())
 
 	-- set violating ack number
-	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() - 1) -- violation => AckNumber != SeqNumber + 1
+	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() - 2) -- violation => AckNumber != SeqNumber + 1
 
 	-- alternative approach: reuse rx buffer (saves alloc and free, but more members to set)
 	-- TODO check whats better under load
