@@ -75,7 +75,8 @@ unsigned mg_kni_tx_single(struct rte_kni * kni, struct rte_mbuf * mbuf){
 unsigned mg_kni_tx_burst(struct rte_kni * kni, struct rte_mbuf ** mbufs, unsigned num){
 	unsigned ret = 0;
 	while (ret < num) {
-		ret = rte_kni_tx_burst(kni, mbufs, num);
+		ret = rte_kni_tx_burst(kni, mbufs, num - ret);
+		printf("sent virtual %d\n", ret);
 	}
 	return ret;
 }

@@ -1,6 +1,7 @@
 local ffi 	= require "ffi"
 local dpdkc = require "dpdkc"
 local dpdk 	= require "dpdk"
+local log 	= require "log"
 require "utils"
 
 local mod = {}
@@ -44,7 +45,10 @@ function mg_kni:recv(bufs, nmax)
 	return ffi.C.rte_kni_rx_burst(self.kni, bufs.array, nmax)
 end
 
-function mg_kni:sendN(bufs, nmax)
+function mg_kni:sendN(bufs, nmax, logit)
+	if logit then
+		log:debug(logit .. " virt sendn " .. nmax)
+	end
 	return ffi.C.mg_kni_tx_burst(self.kni, bufs.array, nmax)
 end
 

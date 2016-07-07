@@ -678,8 +678,11 @@ function txQueue:send(bufs)
 	return bufs.size
 end
 
-function txQueue:sendN(bufs, n)
+function txQueue:sendN(bufs, n, logit)
 	self.used = true
+	if logit then
+		log:debug(logit .. " send " .. n)
+	end
 	dpdkc.send_all_packets(self.id, self.qid, bufs.array, n)
 	return n
 end

@@ -329,7 +329,10 @@ end
 --- Allocates only a maximum of num buffers by resizing the size of the bufArray.
 --- @param size	Size of every buffer
 --- @param num	Number of buffers to allocate.
-function bufArray:allocN(size, num)
+function bufArray:allocN(size, num, logit)
+	if logit then
+	log:debug(logit .. " allocN with " .. num)
+	end
 	self:resize(num)
 	dpdkc.alloc_mbufs(self.mem, self.array, self.size, size)
 end
@@ -355,12 +358,21 @@ function bufArray:free(n)
 end
 
 --- Free the all buffers after index n.
-function bufArray:freeAfter(n)
+function bufArray:freeAfter(n, logit)
+			if logit then 
+				log:debug(logit .. " free after " .. n)
+			end
+	local j = 0
 	for i = n, self.size - 1 do
 		if self.array[i] ~= nil then
+
 			dpdkc.rte_pktmbuf_free_export(self.array[i])
 		end
+		j = i
 	end
+			if logit then 
+				log:debug(logit .. " free last  " .. j or "WHAT")
+			end
 end
 
 --- Free all buffers in the array, where the bitmask is 1
