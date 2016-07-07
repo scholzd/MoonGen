@@ -171,8 +171,8 @@ extern "C" {
 		// TODO can we do this without flags..., reduces complexity to single uint32_t
 		if ( unlikely((tmp->flags & 12) != 4) ) {
 			mg_sparse_hash_map_cookie_swap(maps);
-			printf("ignoring second syn ack\n");
-			return 0;
+			//printf("ignoring second syn ack\n");
+			return tmp;
 		}
 		
 		tmp->diff = seq - tmp->diff + 1;

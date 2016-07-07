@@ -12,7 +12,7 @@ mg_kni.__index = mg_kni
 ffi.cdef[[
 struct rte_kni;
 struct rte_kni * mg_create_kni(uint8_t port_id, uint8_t core_id, void* mempool_ptr, const char name[]);
-unsigned rte_kni_tx_burst 	( 	struct rte_kni *  	kni,
+unsigned mg_kni_tx_burst 	( 	struct rte_kni *  	kni,
 		struct rte_mbuf **  	mbufs,
 		unsigned  	num 
 	);
@@ -45,11 +45,11 @@ function mg_kni:recv(bufs, nmax)
 end
 
 function mg_kni:sendN(bufs, nmax)
-	return ffi.C.rte_kni_tx_burst(self.kni, bufs.array, nmax)
+	return ffi.C.mg_kni_tx_burst(self.kni, bufs.array, nmax)
 end
 
 function mg_kni:send(bufs)
-	return ffi.C.rte_kni_tx_burst(self.kni, bufs.array, bufs.size)
+	return ffi.C.mg_kni_tx_burst(self.kni, bufs.array, bufs.size)
 end
 
 function mg_kni:sendSingle(mbuf)

@@ -115,7 +115,7 @@ local STRAT = {
 
 
 function tcpProxySlave(lRXDev, lTXDev)
-	log:setLevel("DEBUG")
+	log:setLevel("ERROR")
 	
 	local currentStrat = STRAT['cookie']
 	local maxBurstSize = 63
@@ -148,7 +148,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	
 	-- RX buffers for right
 	local rRXMem = memory.createMemPool()	
-	local rRXBufs = rRXMem:bufArray()
+	local rRXBufs = virtualDevMemPool:bufArray()
 	
 	-- TX buffers 
 	-- ack to right (on syn/ack from right)
@@ -157,14 +157,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 		buf:getTcp4Packet():fill{
 		}
 	end)
-	local rTXAckBufs = rTXAckMem:bufArray(1)
+	local rTXAckBufs = virtualDevMemPool:bufArray(1)
 	
 	-- right to left forward
 	local lTXForwardQueue = lTXDev:getTxQueue(1)
 	
 	local numForward = 0
 	local rTXForwardMem = memory.createMemPool()
-	local rTXForwardBufs = rTXForwardMem:bufArray()
+	local rTXForwardBufs = virtualDevMemPool:bufArray()
 
 
 	-------------------------------------------------------------
@@ -202,7 +202,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- need to behandled separately as we cant just offload TCP checksums here
 	-- its only a few packets anyway, so handle them separately
 	local txNotTcpMem = memory.createMemPool()	
-	local txNotTcpBufs = txNotTcpMem:bufArray(1)
+	local txNotTcpBufs = virtualDevMemPool:bufArray(1)
 
 
 	-------------------------------------------------------------
@@ -272,11 +272,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 							local index = rRXPkt.tcp:getDstString() .. rRXPkt.tcp:getSrcString() .. rRXPkt.ip4:getDstString() .. rRXPkt.ip4:getSrcString()
 							local entry = stallTable[index] 
 
-							if entry then
+							if false then --entry then
 								local pkt = entry[1]:getTcp4Packet()
 								pkt.tcp:setAckNumber(pkt.tcp:getAckNumber() + diff)
 								pkt.tcp:calculateChecksum(entry[1]:getData(), entry[1]:getSize(), true)
-								virtualDev:sendSingle(entry[1])
+								--virtualDev:sendSingle(entry[1])
 								log:debug("accessed " .. tostring(entry[2]))
 								stallTable[index] = nil	
 							else
@@ -325,10 +325,10 @@ function tcpProxySlave(lRXDev, lTXDev)
 					lTXForwardQueue:sendN(rTXForwardBufs, numForward)
 					rTXForwardBufs:freeAfter(numForward)
 				end
-		log:info("Table ##################################")
-		for k, v in pairs(stallTable) do
-			log:info(tostring(k) .. "->" .. tostring(v))
-		end
+--log:info("Table ##################################")
+--for k, v in pairs(stallTable) do
+--	log:info(tostring(k) .. "->" .. tostring(v))
+--end
 			end
 			--log:debug('free rRX')
 			rRXBufs:freeAll()
@@ -444,17 +444,17 @@ function tcpProxySlave(lRXDev, lTXDev)
 					else
 						local diff = sparseMapCookie:isVerified(lRXPkt, LEFT_TO_RIGHT) 
 						if diff == "stall" then
-							--log:debug("stall packet")
-							local index = lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()
-								stallBufs:allocN(60, 1)
-								ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
-								stallBufs[1]:setSize(lRXBufs[i]:getSize())
-								local entry =  stallTable[index] 
-								if entry then
-									stallTable[index] = { stallBufs[1], entry[2] + 1 }
-								else
-									stallTable[index] = { stallBufs[1], 1 }
-								end
+							----log:debug("stall packet")
+							--local index = lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()
+							--	stallBufs:allocN(60, 1)
+							--	ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
+							--	stallBufs[1]:setSize(lRXBufs[i]:getSize())
+							--	local entry =  stallTable[index] 
+							--	if entry then
+							--		stallTable[index] = { stallBufs[1], entry[2] + 1 }
+							--	else
+							--		stallTable[index] = { stallBufs[1], 1 }
+							--	end
 						elseif diff then 
 							--log:info('Received packet of verified connection from left, translating and forwarding')
 							if numForward == 0 then
@@ -486,7 +486,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						----------------------------------------------------------------------------------------------- unverified, but not syn/ack -> ignore
 						else
 							-- not syn, unverified tcp packets -> belongs to already deleted connection -> drop
-							log:error('unhandled packet ' .. tostring(isVerified(lRXPkt, LEFT_TO_RIGHT)))
+							log:error('unhandled packet ' )--.. tostring(isVerified(lRXPkt, LEFT_TO_RIGHT)))
 						end
 					end
 				end
@@ -517,6 +517,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			-- all strategies
 			-- send forwarded packets and free unused buffers
 			if numForward > 0 then
+				log:debug("sending to virtual " .. tostring(numForward))
 				virtualDev:sendN(lTXForwardBufs, numForward)
 				lTXForwardBufs:freeAfter(numForward)
 			end
