@@ -89,6 +89,7 @@ local printVerifiedConnections = cookie.printVerifiedConnections
 
 local sequenceNumberTranslation = cookie.sequenceNumberTranslation
 local createSynAckToClient = cookie.createSynAckToClient
+local createSynToClient = cookie.createSynToClient
 local createSynToServer = cookie.createSynToServer
 local createAckToServer = cookie.createAckToServer
 
@@ -430,6 +431,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 				elseif currentStrat == STRAT['cookie'] then
 					------------------------------------------------------------ SYN -> defense mechanism
 					if lRXPkt.tcp:getSyn() then
+						if not lRXPkt.tcp:getAck() then
 						--log:info('Received SYN from left')
 						-- strategy cookie
 						if numSynAck == 0 then
@@ -437,7 +439,16 @@ function tcpProxySlave(lRXDev, lTXDev)
 							--log:debug("alloc'd with i = " .. i)
 						end
 						numSynAck = numSynAck + 1
+						createSynToClient(lTXSynAckBufs[numSynAck], lRXPkt)
+						else
+						if numSynAck == 0 then
+							lTXSynAckBufs:allocN(60, rx - (i - 1))
+							--log:debug("alloc'd with i = " .. i)
+						end
+						numSynAck = numSynAck + 1
 						createSynAckToClient(lTXSynAckBufs[numSynAck], lRXPkt)
+
+						end
 					-------------------------------------------------------------------------------------------------------- verified -> translate and forward
 					-- check with verified connections
 					-- if already verified in both directions, immediately forward, otherwise check cookie

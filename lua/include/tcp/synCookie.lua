@@ -424,6 +424,30 @@ function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 end
 
+function mod.createSynToClient(txBuf, rxPkt)
+	local txPkt = txBuf:getTcp4Packet()
+	local cookie, tsval, ecr = calculateCookie(rxPkt)
+
+	-- TODO set directly without set/get, should be a bit faster
+	-- MAC addresses
+	txPkt.eth:setDst(rxPkt.eth:getSrc())
+	txPkt.eth:setSrc(rxPkt.eth:getDst())
+
+	-- IP addresses
+	txPkt.ip4:setDst(rxPkt.ip4:getSrc())
+	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
+	
+	-- TCP
+	txPkt.tcp.src = rxPkt.tcp.dst
+	txPkt.tcp.dst = rxPkt.tcp.src
+	
+	txPkt.tcp:unsetAck()
+	txPkt.tcp:setSeqNumber(cookie)
+	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
+
+	txBuf:setSize(txPkt.ip4:getLength() + 14)
+end
+
 function mod.createSynAckToClient(txBuf, rxPkt)
 	local txPkt = txBuf:getTcp4Packet()
 	local cookie, tsval, ecr = calculateCookie(rxPkt)
@@ -441,7 +465,8 @@ function mod.createSynAckToClient(txBuf, rxPkt)
 	txPkt.tcp.src = rxPkt.tcp.dst
 	txPkt.tcp.dst = rxPkt.tcp.src
 	
-	txPkt.tcp:setSeqNumber(cookie)
+	txPkt.tcp:unsetSyn()
+	txPkt.tcp:setSeqNumber(rxPkt.tcp:getAckNumber())
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
 
 	txBuf:setSize(txPkt.ip4:getLength() + 14)
