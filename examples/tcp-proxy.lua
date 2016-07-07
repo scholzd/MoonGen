@@ -399,7 +399,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 							sequenceNumberTranslation(diff, lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
 						------------------------------------------------------------------------------------------------------- not verified, but is ack -> verify cookie
 						elseif lRXPkt.tcp:getAck() then
-							local ack = lRXPkt.tcp:getAckNumber()
 							local mss, wsopt = verifyCookie(lRXPkt)
 							if mss then
 								--log:info('Received valid cookie from left, starting handshake with server')
