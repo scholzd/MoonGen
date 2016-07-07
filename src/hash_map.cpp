@@ -175,7 +175,7 @@ extern "C" {
 			return tmp;
 		}
 		
-		tmp->diff = seq - tmp->diff + 1;
+		tmp->diff = seq - tmp->diff;
 		tmp->flags = tmp->flags | 8; // set rightVerified flag 8
 		//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
 		

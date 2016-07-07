@@ -88,7 +88,7 @@ local printVerifiedConnections = cookie.printVerifiedConnections
 -------------------------------------------------------------------------------------------
 
 local sequenceNumberTranslation = cookie.sequenceNumberTranslation
-local createSynAckToClient = cookie.createSynAckToClient
+local createAckToClient = cookie.createAckToClient
 local createSynToClient = cookie.createSynToClient
 local createSynToServer = cookie.createSynToServer
 local createAckToServer = cookie.createAckToServer
@@ -239,6 +239,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 				rTXForwardBufs:allocN(60, rx)
 			end
 			numForward = 0
+			numSynAck = 0
 			
 			numAck = 0
 		end
@@ -270,21 +271,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 							createAckToServer(rTXAckBufs[1], rRXBufs[i], rRXPkt)
 							virtualDev:sendSingle(rTXAckBufs[1])
 								
-							local index = rRXPkt.tcp:getDstString() .. rRXPkt.tcp:getSrcString() .. rRXPkt.ip4:getDstString() .. rRXPkt.ip4:getSrcString()
-							local entry = stallTable[index] 
-
-							if false then --entry then
-								local pkt = entry[1]:getTcp4Packet()
-								pkt.tcp:setAckNumber(pkt.tcp:getAckNumber() + diff)
-								pkt.tcp:calculateChecksum(entry[1]:getData(), entry[1]:getSize(), true)
-								--virtualDev:sendSingle(entry[1])
-								log:debug("accessed " .. tostring(entry[2]))
-								stallTable[index] = nil	
-							else
-								log:debug("no entry")
+							if numSynAck == 0 then
+								lTXSynAckBufs:allocN(60, rx - (i - 1))
+								--log:debug("alloc'd with i = " .. i)
 							end
-						else
-							log:debug("right verify failed")
+							numSynAck = numSynAck + 1
+							createAckToClient(lTXSynAckBufs[numSynAck], rRXPkt, diff)
 						end
 					----------------------------------------------------------------------- any verified packet from server
 					else
@@ -325,6 +317,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 
 					lTXForwardQueue:sendN(rTXForwardBufs, numForward)
 					rTXForwardBufs:freeAfter(numForward)
+				end
+				if numSynAck > 0 then
+					-- send syn ack
+					lTXSynAckBufs:offloadTcpChecksums(nil, nil, nil, numSynAck)
+			
+					lTXQueue:sendN(lTXSynAckBufs, numSynAck)
+
+					lTXSynAckBufs:freeAfter(numSynAck)
 				end
 --log:info("Table ##################################")
 --for k, v in pairs(stallTable) do
@@ -432,49 +432,15 @@ function tcpProxySlave(lRXDev, lTXDev)
 					------------------------------------------------------------ SYN -> defense mechanism
 					if lRXPkt.tcp:getSyn() then
 						if not lRXPkt.tcp:getAck() then
-						--log:info('Received SYN from left')
-						-- strategy cookie
-						if numSynAck == 0 then
-							lTXSynAckBufs:allocN(60, rx - (i - 1))
-							--log:debug("alloc'd with i = " .. i)
-						end
-						numSynAck = numSynAck + 1
-						createSynToClient(lTXSynAckBufs[numSynAck], lRXPkt)
-						else
-						if numSynAck == 0 then
-							lTXSynAckBufs:allocN(60, rx - (i - 1))
-							--log:debug("alloc'd with i = " .. i)
-						end
-						numSynAck = numSynAck + 1
-						createSynAckToClient(lTXSynAckBufs[numSynAck], lRXPkt)
-
-						end
-					-------------------------------------------------------------------------------------------------------- verified -> translate and forward
-					-- check with verified connections
-					-- if already verified in both directions, immediately forward, otherwise check cookie
-					else
-						local diff = sparseMapCookie:isVerified(lRXPkt, LEFT_TO_RIGHT) 
-						if diff == "stall" then
-							----log:debug("stall packet")
-							--local index = lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()
-							--	stallBufs:allocN(60, 1)
-							--	ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
-							--	stallBufs[1]:setSize(lRXBufs[i]:getSize())
-							--	local entry =  stallTable[index] 
-							--	if entry then
-							--		stallTable[index] = { stallBufs[1], entry[2] + 1 }
-							--	else
-							--		stallTable[index] = { stallBufs[1], 1 }
-							--	end
-						elseif diff then 
-							--log:info('Received packet of verified connection from left, translating and forwarding')
-							if numForward == 0 then
-								lTXForwardBufs:allocN(60, rx - (i - 1))
+							--log:info('Received SYN from left')
+							-- strategy cookie
+							if numSynAck == 0 then
+								lTXSynAckBufs:allocN(60, rx - (i - 1))
+								--log:debug("alloc'd with i = " .. i)
 							end
-							numForward = numForward + 1
-							sequenceNumberTranslation(diff, lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
-						------------------------------------------------------------------------------------------------------- not verified, but is ack -> verify cookie
-						elseif lRXPkt.tcp:getAck() then
+							numSynAck = numSynAck + 1
+							createSynToClient(lTXSynAckBufs[numSynAck], lRXPkt)
+						else	
 							local ack = lRXPkt.tcp:getAckNumber()
 							local mss, wsopt = verifyCookie(lRXPkt)
 							if mss then
@@ -494,6 +460,31 @@ function tcpProxySlave(lRXDev, lTXDev)
 								-- most likely simply the timestamp timed out
 								-- but it might also be a DoS attack that tried to guess the cookie
 							end
+						end
+					-------------------------------------------------------------------------------------------------------- verified -> translate and forward
+					-- check with verified connections
+					-- if already verified in both directions, immediately forward, otherwise check cookie
+					else
+						local diff = sparseMapCookie:isVerified(lRXPkt, LEFT_TO_RIGHT) 
+						if diff == "stall" then
+							log:debug("stall packet")
+							--local index = lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()
+							--	stallBufs:allocN(60, 1)
+							--	ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
+							--	stallBufs[1]:setSize(lRXBufs[i]:getSize())
+							--	local entry =  stallTable[index] 
+							--	if entry then
+							--		stallTable[index] = { stallBufs[1], entry[2] + 1 }
+							--	else
+							--		stallTable[index] = { stallBufs[1], 1 }
+							--	end
+						elseif diff then 
+							--log:info('Received packet of verified connection from left, translating and forwarding')
+							if numForward == 0 then
+								lTXForwardBufs:allocN(60, rx - (i - 1))
+							end
+							numForward = numForward + 1
+							sequenceNumberTranslation(diff, lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet(), LEFT_TO_RIGHT)
 						----------------------------------------------------------------------------------------------- unverified, but not syn/ack -> ignore
 						else
 							-- not syn, unverified tcp packets -> belongs to already deleted connection -> drop

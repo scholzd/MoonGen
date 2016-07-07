@@ -288,7 +288,8 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToR
 
 	-- translate numbers, depends on direction
 	if leftToRight then
-		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff)
+		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff - 1)
+		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - 1)
 	else
 		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff)
 	end
@@ -448,26 +449,25 @@ function mod.createSynToClient(txBuf, rxPkt)
 	txBuf:setSize(txPkt.ip4:getLength() + 14)
 end
 
-function mod.createSynAckToClient(txBuf, rxPkt)
+function mod.createAckToClient(txBuf, rxPkt, diff)
 	local txPkt = txBuf:getTcp4Packet()
-	local cookie, tsval, ecr = calculateCookie(rxPkt)
 
 	-- TODO set directly without set/get, should be a bit faster
 	-- MAC addresses
-	txPkt.eth:setDst(rxPkt.eth:getSrc())
-	txPkt.eth:setSrc(rxPkt.eth:getDst())
+	txPkt.eth:setDst(rxPkt.eth:getDst())
+	txPkt.eth:setSrc(rxPkt.eth:getSrc())
 
 	-- IP addresses
-	txPkt.ip4:setDst(rxPkt.ip4:getSrc())
-	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
+	txPkt.ip4:setDst(rxPkt.ip4:getDst())
+	txPkt.ip4:setSrc(rxPkt.ip4:getSrc())
 	
 	-- TCP
-	txPkt.tcp.src = rxPkt.tcp.dst
-	txPkt.tcp.dst = rxPkt.tcp.src
+	txPkt.tcp.src = rxPkt.tcp.src
+	txPkt.tcp.dst = rxPkt.tcp.dst
 	
 	txPkt.tcp:unsetSyn()
-	txPkt.tcp:setSeqNumber(rxPkt.tcp:getAckNumber())
-	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
+	txPkt.tcp:setSeqNumber((rxPkt.tcp:getSeqNumber() - diff))
+	txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + 1)
 
 	txBuf:setSize(txPkt.ip4:getLength() + 14)
 end
