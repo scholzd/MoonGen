@@ -95,7 +95,7 @@ local createResponseAuth = auth.createResponseAuth
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("ERROR")
 	
-	local currentStrat = STRAT['auth']
+	local currentStrat = STRAT['cookie']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------
@@ -131,17 +131,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- TX buffers 
 	-- ack to right (on syn/ack from right)
 	local numAck = 0
-	local rTXAckMem = memory.createMemPool(function(buf)
-		buf:getTcp4Packet():fill{
-		}
-	end)
 	local rTXAckBufs = virtualDevMemPool:bufArray(1)
 	
 	-- right to left forward
 	local lTXForwardQueue = lTXDev:getTxQueue(1)
 	
 	local numForward = 0
-	local rTXForwardMem = memory.createMemPool()
 	local rTXForwardBufs = virtualDevMemPool:bufArray()
 
 
@@ -166,7 +161,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- buffer for cookie forwarding to right
 	-- both for syn as well as all translated traffic
 	local numForward = 0 
-	local lTXForwardBufs = cookie.getForwardBufs()
+	local lTXForwardBufs = virtualDevMemPool:bufArray()
 	
 	-- buffer for syn auth answer to left
 	local numAuth = 0
@@ -175,7 +170,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- buffers for not TCP packets
 	-- need to behandled separately as we cant just offload TCP checksums here
 	-- its only a few packets anyway, so handle them separately
-	local txNotTcpMem = memory.createMemPool()	
 	local txNotTcpBufs = virtualDevMemPool:bufArray(1)
 
 

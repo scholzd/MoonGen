@@ -527,22 +527,4 @@ function mod.getSynAckBufs()
 	return lTXSynAckMem:bufArray()
 end
 	
-function mod.getForwardBufs()
-	local lTXForwardMem = memory.createMemPool(function(buf)
-		local pkt = buf:getTcp4Packet():fill{
-			ethSrc=proto.eth.NULL,
-			ethDst=proto.eth.NULL,
-			ip4Src=proto.ip4.NULL,
-			ip4Dst=proto.ip4.NULL,
-			tcpSrc=0,
-			tcpDst=0,
-			tcpSeqNumber=0,
-			tcpAckNumber=0,
-			tcpSyn=1,
-			pktLength=60,
-		}
-	end)
-	return lTXForwardMem:bufArray()
-end
-
 return mod
