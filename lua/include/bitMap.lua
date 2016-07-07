@@ -1,13 +1,13 @@
 local log = require "log"
 local ffi = require "ffi"
 ffi.cdef [[
-	struct bit_map_infr_map {};
-	struct bit_map_infr_map * mg_bit_map_infr_create();
+	struct bit_map_auth_map {};
+	struct bit_map_auth_map * mg_bit_map_auth_create();
 	
-	bool mg_bit_map_infr_update(struct bit_map_infr_map *m, uint32_t k);
-	void mg_bit_map_infr_find_update(struct bit_map_infr_map *m, uint32_t k);
-	void mg_bit_map_infr_set(struct bit_map_infr_map *m, uint32_t k);
-	bool mg_bit_map_infr_get(struct bit_map_infr_map *m, uint32_t k);
+	bool mg_bit_map_auth_update(struct bit_map_auth_map *m, uint32_t k);
+	void mg_bit_map_auth_find_update(struct bit_map_auth_map *m, uint32_t k);
+	void mg_bit_map_auth_set(struct bit_map_auth_map *m, uint32_t k);
+	bool mg_bit_map_auth_get(struct bit_map_auth_map *m, uint32_t k);
 ]]
 
 
@@ -20,68 +20,49 @@ local RIGHT_TO_LEFT = false
 ----
 ----------------------------------------------------------------------------------------------------------------------------
 
-local bitMapInfr = {}
-bitMapInfr.__index = bitMapInfr
+local bitMapAuth = {}
+bitMapAuth.__index = bitMapAuth
 
-function mod.createBitMapInfr()
-	log:info("Creating a bit map for TCP SYN flood infringement strategy")
+function mod.createBitMapAuth()
+	log:info("Creating a bit map for TCP SYN Authentication strategy")
 	return setmetatable({
-		map = ffi.C.mg_bit_map_infr_create()
-	}, bitMapInfr)
+		map = ffi.C.mg_bit_map_auth_create()
+	}, bitMapAuth)
 end
 
-function bitMapInfr:update(pkt)
+function bitMapAuth:update(pkt)
 	--log:debug("calling is verified")
 	local k = pkt.ip4:getSrc()
-	return ffi.C.mg_bit_map_infr_update(self.map, k)
+	return ffi.C.mg_bit_map_auth_update(self.map, k)
 end
 
-function bitMapInfr:set(pkt)
+function bitMapAuth:set(pkt)
 	--log:debug("calling is verified")
 	local k = pkt.ip4:getSrc()
-	ffi.C.mg_bit_map_infr_set(self.map, k)
+	ffi.C.mg_bit_map_auth_set(self.map, k)
 end
 
-function bitMapInfr:get(pkt)
+function bitMapAuth:get(pkt)
 	--log:debug("calling is verified")
 	local k = pkt.ip4:getSrc()
-	return ffi.C.mg_bit_map_infr_get(self.map, k)
+	return ffi.C.mg_bit_map_auth_get(self.map, k)
 end
 
-function bitMapInfr:findUpdate(pkt)
+function bitMapAuth:findUpdate(pkt)
 	--log:debug("calling is verified")
 	local k = pkt.ip4:getSrc()
-	ffi.C.mg_bit_map_infr_find_update(self.map, k)
+	ffi.C.mg_bit_map_auth_find_update(self.map, k)
 end
 
----- ignore
-function bitMapInfr:isVerifiedIgnore(pkt)
-	return self:update(pkt, leftToRight)
-end
-
-function bitMapInfr:updateVerifiedIgnore(pkt)
-	self:update(pkt, leftToRight)
-end
-
----- reset
-function bitMapInfr:isVerifiedReset(pkt)
-	return self:update(pkt, leftToRight)
-end
-
-function bitMapInfr:updateVerifiedReset(pkt)
-	self:update(pkt, leftToRight)
-end
-
----- sequence
-function bitMapInfr:updateVerifiedSequence(pkt)
+function bitMapAuth:updateWhitelisted(pkt)
 	self:findUpdate(pkt, leftToRight)
 end
 
-function bitMapInfr:isVerifiedSequence(pkt)
+function bitMapAuth:isWhitelisted(pkt)
 	return self:get(pkt, leftToRight)
 end
 
-function bitMapInfr:setVerifiedSequence(pkt)
+function bitMapAuth:setWhitelisted(pkt)
 	return self:set(pkt, leftToRight)
 end
 

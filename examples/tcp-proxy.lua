@@ -14,7 +14,7 @@ local bitMap 	= require "bitMap"
 
 -- tcp SYN defense strategies
 local cookie	= require "tcp/synCookie"
-local infr		= require "tcp/synInfringement"
+local auth		= require "tcp/synAuthentication"
 
 -- utility
 local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
@@ -55,6 +55,11 @@ end
 local LEFT_TO_RIGHT = cookie.LEFT_TO_RIGHT
 local RIGHT_TO_LEFT = cookie.RIGHT_TO_LEFT
 
+local STRAT = {
+	cookie 	= 1,
+	auth	= 2,
+}
+
 
 ----------------------------------------------------
 -- check packet type
@@ -69,55 +74,28 @@ local isTcp4 = check.isTcp4
 -------------------------------------------------------------------------------------------
 
 local verifyCookie = cookie.verifyCookie
-
-
--------------------------------------------------------------------------------------------
----- State keeping
--------------------------------------------------------------------------------------------
-
-local isVerifiedReset = cookie.isVerifiedReset
-local isVerifiedIgnore = cookie.isVerifiedIgnore
-local setVerifiedSequence = cookie.setVerifiedSequence
-local isVerifiedSequence = cookie.isVerifiedSequence
-
-local printVerifiedConnections = cookie.printVerifiedConnections
-
-
--------------------------------------------------------------------------------------------
----- Packet modification and crafting for cookie strategy
--------------------------------------------------------------------------------------------
-
 local sequenceNumberTranslation = cookie.sequenceNumberTranslation
 local createSynAckToClient = cookie.createSynAckToClient
 local createSynToServer = cookie.createSynToServer
 local createAckToServer = cookie.createAckToServer
 
+
 -------------------------------------------------------------------------------------------
----- Packet modification and crafting for protocol violation strategies
+---- Syn Auth
 -------------------------------------------------------------------------------------------
 
-local forwardTraffic = infr.forwardTraffic
-local createResponseIgnore = infr.createResponseIgnore
-local createResponseReset = infr.createResponseReset
-local createResponseSequence = infr.createResponseSequence
+local forwardTraffic = auth.forwardTraffic
+local createResponseAuth = auth.createResponseAuth
 
 
 ---------------------------------------------------
 -- slave
 ---------------------------------------------------
 
-local STRAT = {
-	cookie 	= 1,
-	ignore 	= 2,
-	reset	= 3,
-	sequence= 4,
-}
-
-
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("ERROR")
 	
-	local currentStrat = STRAT['cookie']
+	local currentStrat = STRAT['auth']
 	local maxBurstSize = 63
 
 	-------------------------------------------------------------
@@ -190,13 +168,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local numForward = 0 
 	local lTXForwardBufs = cookie.getForwardBufs()
 	
-	-- buffer for resets to left
-	local numRst = 0
-	local lTXRstBufs = infr.getRstBufs()
-	
-	-- buffer for sequence to left
-	local numSeq = 0
-	local lTXSeqBufs = infr.getSeqBufs()
+	-- buffer for syn auth answer to left
+	local numAuth = 0
+	local lTXAuthBufs = auth.getBufs()
 
 	-- buffers for not TCP packets
 	-- need to behandled separately as we cant just offload TCP checksums here
@@ -209,12 +183,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- Hash table
 	-------------------------------------------------------------
 	log:info("Creating hash table")
-	local sparseMapCookie = hashMap.createSparseHashMapCookie()
-	local bitMapInfr = bitMap.createBitMapInfr()
+	local hashMapCookie = hashMap.createSparseHashMapCookie()
+	local bitMapAuth = bitMap.createBitMapAuth()
 
 	
 	-------------------------------------------------------------
-	-- Hash table
+	-- stall table
 	-------------------------------------------------------------
 	local stallMem = memory.createMemPool()
 	local stallBufs = stallMem:bufArray(1)
@@ -233,8 +207,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 		--log:debug(''..rx)
 		if currentStrat == STRAT['cookie'] and rx > 0 then
 			-- buffer for translated packets
-			-- not cookie strategies forward all rx packets without touching them
-			if not (currentStrat == STRAT['cookie']) then
+			-- auth strategies forward all rx packets without touching them
+			if currentStrat == STRAT['auth'] then
 				rTXForwardBufs:allocN(60, rx)
 			end
 			numForward = 0
@@ -254,7 +228,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 				end
 				---------------------------------------------------------------------- process TCP
 				-- handle protocol infiringement strategies
-				if not (currentStrat == STRAT['cookie']) then
+				if currentStrat == STRAT['auth'] then
 					-- in all cases, we simply forward whatever we get from right
 					--log:debug('doing nothing')
 				-- strategie cookie
@@ -262,7 +236,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					---------------------------------------------------------------------- SYN/ACK from server, finally establish connection
 					if rRXPkt.tcp:getSyn() and rRXPkt.tcp:getAck() then
 						--log:debug('Received SYN/ACK from server, sending ACK back')
-						diff = sparseMapCookie:setRightVerified(rRXPkt)
+						diff = hashMapCookie:setRightVerified(rRXPkt)
 						if diff then
 							-- ack to server
 							rTXAckBufs:allocN(60, 1)
@@ -287,7 +261,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						end
 					----------------------------------------------------------------------- any verified packet from server
 					else
-						local diff = sparseMapCookie:isVerified(rRXPkt, RIGHT_TO_LEFT) 
+						local diff = hashMapCookie:isVerified(rRXPkt, RIGHT_TO_LEFT) 
 						if diff then
 							if diff == "stall" then
 								log:debug("right stall??")
@@ -332,7 +306,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			end
 			--log:debug('free rRX')
 			rRXBufs:freeAll()
-		-- protocol infringements: simply send every received packet
+		-- syn auth: simply send every received packet
 		elseif rx > 0 then
 			-- send all buffers, untouched
 			lTXQueue:sendN(rRXBufs, rx)
@@ -346,14 +320,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 		if rx > 0 then
 			if currentStrat == STRAT['cookie'] then
 				numSynAck = 0
-			elseif currentStrat == STRAT['ignore'] then
-				-- nothing
-			elseif currentStrat == STRAT['reset'] then
-				lTXRstBufs:allocN(60, rx)
-				numRst = 0
-			elseif currentStrat == STRAT['sequence'] then
-				lTXSeqBufs:allocN(60, rx)
-				numSeq = 0
+			else
+				lTXAuthBufs:allocN(60, rx)
+				numAuth = 0
 			end
 
 			-- every strategy needs buffers to simply forward packets left to right
@@ -371,53 +340,19 @@ function tcpProxySlave(lRXDev, lTXDev)
 				if lRXPkt.tcp:getRst() then
 					log:debug("reset left")
 				end
-				-- here the reaction always depends on the strategy
-				if currentStrat == STRAT['ignore'] then
-					-- do nothing on unverified SYN
-					if lRXPkt.tcp:getSyn() and not bitMapInfr:isVerifiedIgnore(lRXPkt) then
-						-- do nothing
-						createResponseIgnore()
-					else
-						-- update timstamps
-						bitMapInfr:updateVerifiedIgnore(lRXPkt)
-						
-						-- everything else simply forward
-						if numForward == 0 then
-							lTXForwardBufs:allocN(60, rx - (i - 1))
-						end
-						numForward = numForward + 1
-						forwardTraffic(lTXForwardBufs[numForward], lRXBufs[i])
-					end
-				elseif currentStrat == STRAT['reset'] then
-					-- send RST on unverified SYN
-					if lRXPkt.tcp:getSyn() and not bitMapInfr:isVerifiedReset(lRXPkt) then
-						-- create and send RST packet
-						numRst = numRst + 1
-						createResponseReset(lTXRstBufs[numRst], lRXPkt)
-					else
-						-- update timstamps
-						bitMapInfr:updateVerifiedReset(lRXPkt)
-						
-						-- everything else simply forward
-						if numForward == 0 then
-							lTXForwardBufs:allocN(60, rx - (i - 1))
-						end
-						numForward = numForward + 1
-						forwardTraffic(lTXForwardBufs[numForward], lRXBufs[i])
-					end
-				elseif currentStrat == STRAT['sequence'] then
+				if currentStrat == STRAT['auth'] then
 					-- send wrong sequence number on unverified SYN
-					if lRXPkt.tcp:getSyn() and not bitMapInfr:isVerifiedSequence(lRXPkt) then
+					if lRXPkt.tcp:getSyn() and not bitMapAuth:isWhitelisted(lRXPkt) then
 						-- create and send packet with wrong sequence
-						numSeq = numSeq + 1
-						createResponseSequence(lTXSeqBufs[numSeq], lRXPkt)
+						numAuth = numAuth + 1
+						createResponseAuth(lTXAuthBufs[numAuth], lRXPkt)
 					else
 						-- react to RST and verify connection
 						-- or update timestamps but only if connection was verified already
 						if lRXPkt.tcp:getRst() then
-							bitMapInfr:setVerifiedSequence(lRXPkt)
+							bitMapAuth:setWhitelisted(lRXPkt)
 						else
-							bitMapInfr:updateVerifiedSequence(lRXPkt)
+							bitMapAuth:updateWhitelisted(lRXPkt)
 						end
 						
 						-- everything else simply forward
@@ -427,7 +362,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						numForward = numForward + 1
 						forwardTraffic(lTXForwardBufs[numForward], lRXBufs[i])
 					end
-				elseif currentStrat == STRAT['cookie'] then
+				else
 					------------------------------------------------------------ SYN -> defense mechanism
 					if lRXPkt.tcp:getSyn() then
 						--log:info('Received SYN from left')
@@ -442,7 +377,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- check with verified connections
 					-- if already verified in both directions, immediately forward, otherwise check cookie
 					else
-						local diff = sparseMapCookie:isVerified(lRXPkt, LEFT_TO_RIGHT) 
+						local diff = hashMapCookie:isVerified(lRXPkt, LEFT_TO_RIGHT) 
 						if diff == "stall" then
 							----log:debug("stall packet")
 							--local index = lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()
@@ -469,7 +404,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							if mss then
 								--log:info('Received valid cookie from left, starting handshake with server')
 								
-								sparseMapCookie:setLeftVerified(lRXPkt)
+								hashMapCookie:setLeftVerified(lRXPkt)
 								-- connection is left verified, start handshake with right
 								if numForward == 0 then
 									lTXForwardBufs:allocN(60, rx - (i - 1))
@@ -503,21 +438,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 
 					lTXSynAckBufs:freeAfter(numSynAck)
 				end
-			elseif currentStrat == STRAT['ignore'] then	
-				-- send no response nothing
-			elseif currentStrat == STRAT['reset'] then	
-				-- send rst packets
-				lTXRstBufs:offloadTcpChecksums(nil, nil, nil, numRst)
-				lTXQueue:sendN(lTXRstBufs, numRst)
-			elseif currentStrat == STRAT['sequence'] then	
+			else
 				-- send packets with wrong ack number
-				lTXSeqBufs:offloadTcpChecksums(nil, nil, nil, numSeq)
-				lTXQueue:sendN(lTXSeqBufs, numSeq)
+				lTXAuthBufs:offloadTcpChecksums(nil, nil, nil, numAuth)
+				lTXQueue:sendN(lTXAuthBufs, numAuth)
 			end
 			-- all strategies
 			-- send forwarded packets and free unused buffers
 			if numForward > 0 then
-				log:debug("sending to virtual " .. tostring(numForward))
 				virtualDev:sendN(lTXForwardBufs, numForward)
 				lTXForwardBufs:freeAfter(numForward)
 			end
@@ -531,8 +459,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 		lRXStats:update()
 		lTXStats:update()
 	end
-	--log:debug("*****************\n" .. tostring(sparseMapCookie))
-
 	log:info('Releasing KNI device')
 	virtualDev:release()
 	

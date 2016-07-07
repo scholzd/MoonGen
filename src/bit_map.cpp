@@ -6,15 +6,15 @@
 
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
-typedef struct __attribute__((__packed__)) bit_map_infr_map {
+typedef struct __attribute__((__packed__)) bit_map_auth_map {
 	uint8_t bucket[1073741824]; // each bucket holds 2 ts bits for a total of each 4 IPs
-} bit_map_infr_map;
+} bit_map_auth_map;
 
 using namespace std;
 
 extern "C" {
 
-	void mg_bit_map_infr_gc(bit_map_infr_map *m) {
+	void mg_bit_map_auth_gc(bit_map_auth_map *m) {
 		while(true) {
 			sleep(300);
 			for (uint32_t b = 0; b < sizeof(*m); b++) {
@@ -29,17 +29,17 @@ extern "C" {
 		}
 	}
 
-	bit_map_infr_map* mg_bit_map_infr_create(){
-		bit_map_infr_map *map = new bit_map_infr_map;
+	bit_map_auth_map* mg_bit_map_auth_create(){
+		bit_map_auth_map *map = new bit_map_auth_map;
 		std::memset(map, 0, sizeof(*map));
 		
-		thread gc(mg_bit_map_infr_gc, map);
+		thread gc(mg_bit_map_auth_gc, map);
 		gc.detach();
 
 		return map;
 	}
 	
-	void mg_bit_map_infr_set(bit_map_infr_map *map, uint32_t k) {
+	void mg_bit_map_auth_set(bit_map_auth_map *map, uint32_t k) {
 		uint32_t bucket = k >> 2; // division by four rounded down to determin bucket
 		uint8_t idx = k & 3; // 2 least significant bits -> %4 as index within bucket	
 		// bits are ts1 (idx*2) and ts2 (idx * 2 + 1)
@@ -47,7 +47,7 @@ extern "C" {
 		map->bucket[bucket] |= (3 << (idx * 2));
 	};
 	
-	bool mg_bit_map_infr_get(bit_map_infr_map *map, uint32_t k) {
+	bool mg_bit_map_auth_get(bit_map_auth_map *map, uint32_t k) {
 		uint32_t bucket = k >> 2; // division by four rounded down to determin bucket
 		uint8_t idx = k & 3; // 2 least significant bits -> %4 as index within bucket	
 		// bits are ts1 (idx*2) and ts2 (idx * 2 + 1)
@@ -55,7 +55,7 @@ extern "C" {
 		return map->bucket[bucket] & (1 << ((idx * 2) + 1));
 	};
 
-	bool mg_bit_map_infr_update(bit_map_infr_map *map, uint32_t k) {
+	bool mg_bit_map_auth_update(bit_map_auth_map *map, uint32_t k) {
 		uint32_t bucket = k >> 2; // division by four rounded down to determin bucket
 		uint8_t idx = k & 3; // 2 least significant bits -> %4 as index within bucket	
 		// bits are ts1 (idx*2) and ts2 (idx * 2 + 1)
@@ -65,7 +65,7 @@ extern "C" {
 		return ts2;
 	};
 	
-	void mg_bit_map_infr_find_update(bit_map_infr_map *map, uint32_t k) {
+	void mg_bit_map_auth_find_update(bit_map_auth_map *map, uint32_t k) {
 		uint32_t bucket = k >> 2; // division by four rounded down to determin bucket
 		uint8_t idx = k & 3; // 2 least significant bits -> %4 as index within bucket	
 		// bits are ts1 (idx*2) and ts2 (idx * 2 + 1)
