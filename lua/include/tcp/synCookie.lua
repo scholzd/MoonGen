@@ -207,7 +207,7 @@ local function calculateCookie(pkt)
 	--log:debug('Created hash:   ' .. toBinary(hash))
 	local cookie = ts + mss + wsopt + hash
 	--log:debug('Created cookie: ' .. toBinary(cookie))
-	return cookie, tsval, ecr
+	return cookie
 end
 
 function mod.verifyCookie(pkt)
@@ -409,7 +409,7 @@ end
 
 function mod.createSynAckToClient(txBuf, rxPkt)
 	local txPkt = txBuf:getTcp4Packet()
-	local cookie, tsval, ecr = calculateCookie(rxPkt)
+	local cookie = calculateCookie(rxPkt)
 
 	-- TODO set directly without set/get, should be a bit faster
 	-- MAC addresses
@@ -427,7 +427,11 @@ function mod.createSynAckToClient(txBuf, rxPkt)
 	txPkt.tcp:setSeqNumber(cookie)
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
 
-	txBuf:setSize(txPkt.ip4:getLength() + 14)
+	local size = txPkt.ip4:getLength() + 14
+	if size < 60 then
+		size = 60
+	end
+	txBuf:setSize(size)
 end
 
 function mod.forwardTraffic(txBuf, rxBuf)
@@ -516,11 +520,15 @@ function mod.getSynAckBufs()
 		end
 		-- calculate size and dataOffset values
 		offset = offset + pad
-		local size = 54 + offset
+		local size = 54 + offset -- minimum sized ip4/tcp packet with tcp options
 		local dataOffset = 5 + (offset / 4)
 	
 		pkt.tcp:setDataOffset(dataOffset)
 		pkt:setLength(size)
+		if size < 60 then
+			size = 60
+		end
+		buf:setSize(size)
 	end)
 	return lTXSynAckMem:bufArray()
 end
