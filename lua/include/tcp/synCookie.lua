@@ -4,6 +4,9 @@
 --- Includes:
 --- - calculate and verify a cookie
 --- - functions to build and verify each part of the cookie
+--- - necessary packet crafting for responses
+--- - necessary buffers
+--- - state keeping for cookie
 ---------------------------------
 
 local ffi		= require "ffi"
