@@ -78,13 +78,14 @@ local sequenceNumberTranslation = cookie.sequenceNumberTranslation
 local createSynAckToClient = cookie.createSynAckToClient
 local createSynToServer = cookie.createSynToServer
 local createAckToServer = cookie.createAckToServer
+local forwardTraffic = cookie.forwardTraffic
 
 
 -------------------------------------------------------------------------------------------
 ---- Syn Auth
 -------------------------------------------------------------------------------------------
 
-local forwardTraffic = auth.forwardTraffic
+local forwardTrafficAuth = auth.forwardTraffic
 local createResponseAuth = auth.createResponseAuth
 
 
@@ -211,7 +212,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							lTXForwardBufs:allocN(60, rx - (i - 1))
 						end
 						numForward = numForward + 1
-						forwardTraffic(lTXForwardBufs[numForward], lRXBufs[i])
+						forwardTrafficAuth(lTXForwardBufs[numForward], lRXBufs[i])
 					end
 				else
 					if lRXPkt.tcp:getSyn() then

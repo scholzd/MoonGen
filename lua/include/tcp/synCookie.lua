@@ -430,6 +430,28 @@ function mod.createSynAckToClient(txBuf, rxPkt)
 	txBuf:setSize(txPkt.ip4:getLength() + 14)
 end
 
+function mod.forwardTraffic(txBuf, rxBuf)
+	-- set size of tx packet
+	local size = rxBuf:getSize()
+	txBuf:setSize(size)
+	
+	-- copy data 
+	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
+	
+	-- determine direction
+	local txPkt = txBuf:getTcp4Packet()
+	local dstIP = rxPkt:getDst()
+	local leftToRight = false
+	if dstIP == SERVER_IP then
+		leftToRight = true
+	end
+	-- in our setup also need to do MAC translation
+	if leftToRight then
+		txPkt.eth.dst = SERVER_MAC
+	else
+		txPkt.eth.dst = CLIENT_MAC
+	end
+end
 
 -------------------------------------------------------------------------------------------
 ---- Packet mempools and buf arrays

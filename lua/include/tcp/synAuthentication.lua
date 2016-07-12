@@ -9,6 +9,7 @@ local ffi 	= require "ffi"
 local log	= require "log"
 local memory = require "memory"
 local proto = require "proto/proto"
+local cookie = require "tcp/synCookie"
 require "utils"
 
 local mod = {}
@@ -18,12 +19,7 @@ local mod = {}
 -------------------------------------------------------------------------------------------
 
 function mod.forwardTraffic(txBuf, rxBuf)
-	-- set size of tx packet
-	local size = rxBuf:getSize()
-	txBuf:setSize(size)
-	
-	-- copy data 
-	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
+	cookie.forwardTraffic(txBuf, rxBuf)
 end
 
 function mod.createResponseAuth(txBuf, rxPkt)
