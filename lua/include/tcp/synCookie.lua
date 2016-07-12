@@ -257,6 +257,11 @@ local CLIENT_MAC = parseMacAddress("90:e2:ba:98:58:78")
 local SERVER_MAC = parseMacAddress("90:e2:ba:98:88:e8")
 local PROXY_MAX  = parseMacAddress("90:e2:ba:98:88:e9") 
 
+-- TODO config options
+local SERVER_MSS = 1460
+local SERVER_WSOPT = 7
+local SERVER_TSOPT = true
+
 -- simply resend the complete packet, but adapt seq/ack number
 function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 	log:debug('Performing Sequence Number Translation ')
@@ -282,7 +287,6 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff)
 		txPkt.eth.dst = CLIENT_MAC
 	end
-
 	
 	-- calculate TCP checksum
 	-- IP header does not change, hence, do not recalculate IP checksum
@@ -293,6 +297,9 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 end
 
 function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
+	-- check that ack has timestamp option
+	local _, _, tsopt = extractOptions(rxBuf)
+	
 	-- set size of tx packet
 	local size = 54
 	
@@ -325,7 +332,7 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 		txPkt.payload.uint8[offset + 2] = wsopt -- WSOPT option
 		offset = offset + 3
 	end
-	if true then -- ts then
+	if tsopt then
 		txPkt.payload.uint8[offset] = 8 -- ts option type
 		txPkt.payload.uint8[offset + 1] = 10 -- ts option length (2 bytes)
 		txPkt.payload.uint8[offset + 2] = 0 -- ts option tsval
@@ -373,18 +380,18 @@ function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	local txPkt = txBuf:getTcp4Packet()
 
 	-- mac addresses
-	txPkt.eth:setSrc(rxPkt.eth:getDst())
-	txPkt.eth:setDst(rxPkt.eth:getSrc())
+	txPkt.eth.src = rxPkt.eth.dst
+	txPkt.eth.dst = rxPkt.eth.src
 	
 	-- ip addresses
-	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
-	txPkt.ip4:setDst(rxPkt.ip4:getSrc())
+	txPkt.ip4.src = rxPkt.ip4.dst
+	txPkt.ip4.dst = rxPkt.ip4.src
 
 	-- tcp ports
-	txPkt.tcp:setSrc(rxPkt.tcp:getDst())
-	txPkt.tcp:setDst(rxPkt.tcp:getSrc())
+	txPkt.tcp.src = rxPkt.tcp.dst
+	txPkt.tcp.dst = rxPkt.tcp.src
 
-	txPkt.tcp:setSeqNumber(rxPkt.tcp:getAckNumber())
+	txPkt.tcp.seq = rxPkt.tcp.ack
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
 	txPkt.tcp:unsetSyn()
 	txPkt.tcp:setAck()
@@ -406,12 +413,12 @@ function mod.createSynAckToClient(txBuf, rxPkt)
 
 	-- TODO set directly without set/get, should be a bit faster
 	-- MAC addresses
-	txPkt.eth:setDst(rxPkt.eth:getSrc())
-	txPkt.eth:setSrc(rxPkt.eth:getDst())
+	txPkt.eth.dst = rxPkt.eth.src
+	txPkt.eth.src = rxPkt.eth.dst
 
 	-- IP addresses
-	txPkt.ip4:setDst(rxPkt.ip4:getSrc())
-	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
+	txPkt.ip4.dst = rxPkt.ip4.src
+	txPkt.ip4.src = rxPkt.ip4.dst
 	
 	-- TCP
 	txPkt.tcp.src = rxPkt.tcp.dst
@@ -427,10 +434,6 @@ end
 -------------------------------------------------------------------------------------------
 ---- Packet mempools and buf arrays
 -------------------------------------------------------------------------------------------
-
--- TODO config options
-local SERVER_MSS = 1460
-local SERVER_WSOPT = 7
 
 function mod.getSynAckBufs()
 	local lTXSynAckMem = memory.createMemPool(function(buf)
@@ -453,21 +456,21 @@ function mod.getSynAckBufs()
 		-- add options that the server (presumeably) supports
 		local offset = 0
 		-- MSS option
-		if true then
+		if SERVER_MSS then
 			pkt.payload.uint8[0] = 2 -- MSS option type
 			pkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
 			pkt.payload.uint16[1] = hton16(SERVER_MSS) -- MSS option
 			offset = offset + 4
 		end
 		-- window scale option
-		if true then
+		if SERVER_WSOPT then
 			pkt.payload.uint8[offset] = 3 -- WSOPT option type
 			pkt.payload.uint8[offset + 1] = 3 -- WSOPT option length (3 bytes)
 			pkt.payload.uint8[offset + 2] = SERVER_WSOPT -- WSOPT option
 			offset = offset + 3
 		end
 		-- ts option
-		if true then
+		if SERVER_TSOPT then
 			pkt.payload.uint8[offset] = 8 -- ts option type
 			pkt.payload.uint8[offset + 1] = 10 -- ts option length (2 bytes)
 			pkt.payload.uint8[offset + 2] = 0 -- ts option tsval
