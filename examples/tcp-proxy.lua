@@ -3,7 +3,6 @@ local memory	= require "memory"
 local device	= require "device"
 local stats		= require "stats"
 local log		= require "log"
-local kni 		= require "kni"
 local ffi		= require "ffi"
 local dpdkc 	= require "dpdkc"
 local proto		= require "proto/proto"
@@ -35,7 +34,7 @@ function master(rxPort, txPort)
 	log:info('Initialize KNI')
 	kni.init(4)
 	
-	local lRXDev = device.config{ port = rxPort, txQueues=2 }
+	local lRXDev = device.config{ port = rxPort }
 	local lTXDev = device.config{ port = txPort }
 	lRXDev:wait()
 	lTXDev:wait()
@@ -51,9 +50,6 @@ end
 ---------------------------------------------------
 -- Constants
 ---------------------------------------------------
-
-local LEFT_TO_RIGHT = cookie.LEFT_TO_RIGHT
-local RIGHT_TO_LEFT = cookie.RIGHT_TO_LEFT
 
 local STRAT = {
 	cookie 	= 1,
@@ -94,7 +90,7 @@ local createResponseAuth = auth.createResponseAuth
 ---------------------------------------------------
 
 function tcpProxySlave(lRXDev, lTXDev)
-	log:setLevel("ERROR")
+	log:setLevel("DEBUG")
 	
 	local currentStrat = STRAT['auth']
 	local maxBurstSize = 63
@@ -310,8 +306,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 		lRXStats:update()
 		lTXStats:update()
 	end
-	log:info('Releasing KNI device')
-	virtualDev:release()
 	
 	lRXStats:finalize()
 	lTXStats:finalize()
