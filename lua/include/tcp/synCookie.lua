@@ -26,10 +26,6 @@ local time = time
 
 local mod = {}
 
-mod.LEFT_TO_RIGHT = true
-mod.RIGHT_TO_LEFT = false
-
-
 -------------------------------------------------------------------------------------------
 ---- Timestamp
 -------------------------------------------------------------------------------------------
@@ -63,13 +59,10 @@ local function extractOptions(pkt)
 	local offset = pkt.tcp:getDataOffset() - 5 -- options length in 32 bits (deduct 5 for standard tcp header length)
 	local mss = nil
 	local upper = 0
-	--local upper2 = 0
 	local lower = 0
-	--local lower2 = 0
 
 	local wsopt = nil
-	local sack = false
-	--local tsval = false
+	local tsval = false
 	local opt = 0
 	local i = 0
 	while i < offset * 4 do
@@ -83,23 +76,9 @@ local function extractOptions(pkt)
 		elseif opt == 3 then
 			wsopt = pkt.payload.uint8[i + 2]
 			i = i + 3
-		elseif opt == 4 then
-			sack = true
-			i = i + 2
-		--elseif opt == 8 then
-			--upper = pkt.payload.uint8[i + 2]
-			--upper2 = pkt.payload.uint8[i + 3]
-			--lower = pkt.payload.uint8[i + 4]
-			--upper2 = pkt.payload.uint8[i + 5]
-			--tsval = lshift(upper, 48) + lshift(upper2, 32) + lshift(lower, 16) + lower2 
-			--
-			--upper = pkt.payload.uint8[i + 6]
-			--upper2 = pkt.payload.uint8[i + 7]
-			--lower = pkt.payload.uint8[i + 8]
-			--upper2 = pkt.payload.uint8[i + 9]
-			--ecr = lshift(upper, 48) + lshift(upper2, 32) + lshift(lower, 16) + lower2 
-		--	tsval = true
-		--	i = i + 10
+		elseif opt == 8 then
+			tsval = true
+			i = i + 10
 		elseif opt == 0 then
 			-- signals end
 			break
@@ -111,7 +90,7 @@ local function extractOptions(pkt)
 			i = i + pkt.payload.uint8[i + 1] -- increment by option length
 		end
 	end
-	return mss, wsopt, sack
+	return mss, wsopt, tsval
 end
 
 -------------------------------------------------------------------------------------------
@@ -207,15 +186,13 @@ local function calculateCookie(pkt)
 	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
 
 	-- extra options we support
-	local mss, wsopt, sack = extractOptions(pkt)
+	local mss, wsopt = extractOptions(pkt)
 	mss = encodeMss(mss)
 	mss = lshift(mss, 24)
 
 	wsopt = encodeWsopt(wsopt)
 	wsopt = lshift(wsopt, 20)
 	
-	-- TODO encode sack 1 bit, tsval can be checked at ack again
-
 	-- hash
 	local hash = getHash(
 		pkt.ip4:getSrc(), 
@@ -275,11 +252,21 @@ end
 -------------------------------------------------------------------------------------------
 ---- Packet modification and crafting for cookie strategy
 -------------------------------------------------------------------------------------------
+local SERVER_IP = parseIP4Address("192.168.1.1")
+local CLIENT_MAC = parseMacAddress("90:e2:ba:98:58:78")
+local SERVER_MAC = parseMacAddress("90:e2:ba:98:88:e8")
+local PROXY_MAX  = parseMacAddress("90:e2:ba:98:88:e9") 
 
 -- simply resend the complete packet, but adapt seq/ack number
-function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToRight)
-	--log:debug('Performing Sequence Number Translation ' .. (leftToRight and 'from left ' or 'from right '))
-	
+function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
+	log:debug('Performing Sequence Number Translation ')
+	-- determine direction
+	local dstIP = rxPkt:getDst()
+	local leftToRight = false
+	if dstIP == SERVER_IP then
+		leftToRight = true
+	end
+
 	local size = rxBuf:getSize() 	
 	
 	-- copy content
@@ -287,10 +274,13 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt, leftToR
 	txBuf:setSize(size)
 
 	-- translate numbers, depends on direction
+	-- in our setup also need to do MAC translation
 	if leftToRight then
 		txPkt.tcp:setAckNumber(rxPkt.tcp:getAckNumber() + diff)
+		txPkt.eth.dst = SERVER_MAC
 	else
 		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff)
+		txPkt.eth.dst = CLIENT_MAC
 	end
 
 	
@@ -304,20 +294,21 @@ end
 
 function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 	-- set size of tx packet
-	local size = 54 --rxBuf:getSize()
+	local size = 54
 	
 	-- copy data
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
 	
 	-- adjust some members: sequency number, flags, checksum, length fields
 	local txPkt = txBuf:getTcp4Packet()
+	--translate MAC
+	txPkt.eth.dst = SERVER_MAC
 	-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
 	-- this way, it does not have to be translated at all
 	txPkt.tcp:setSeqNumber(txPkt.tcp:getSeqNumber() - 1)
 	txPkt.tcp:setWindow(29200)
 	txPkt.tcp:setFlags(0)
 	txPkt.tcp:setSyn()
-
 
 	-- MSS option
 	local offset = 0
@@ -334,13 +325,6 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 		txPkt.payload.uint8[offset + 2] = wsopt -- WSOPT option
 		offset = offset + 3
 	end
-	
-	if false then -- sack then
-		txPkt.payload.uint8[offset] = 4 -- sack option type
-		txPkt.payload.uint8[offset + 1] = 2 -- sack option length (2 bytes)
-		offset = offset + 2
-	end
-
 	if true then -- ts then
 		txPkt.payload.uint8[offset] = 8 -- ts option type
 		txPkt.payload.uint8[offset + 1] = 10 -- ts option length (2 bytes)
@@ -380,33 +364,25 @@ end
 
 function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	-- set size of tx packet
-	local size = 60 --rxBuf:getSize()
+	local size = 60
 	txBuf:setSize(size)
 	
-	-- copy data TODO directly use rx buffer
-	--log:debug('copy data')
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
 	
 	-- send packet back with seq, ack + 1
 	local txPkt = txBuf:getTcp4Packet()
 
-	-- mac addresses (FIXME does not work with KNI)
-	-- I can put any addresses in here (NULL, BROADCASTR, ...), 
-	-- but as soon as I use the right ones it doesn't work any longer
-	--local tmp = rxPkt.eth:getSrc()
-	--txPkt.eth:setSrc(rxPkt.eth:getDst())
-	--txPkt.eth:setDst(tmp)
-
+	-- mac addresses
+	txPkt.eth:setSrc(rxPkt.eth:getDst())
+	txPkt.eth:setDst(rxPkt.eth:getSrc())
 	
 	-- ip addresses
-	local tmp = rxPkt.ip4:getSrc()
 	txPkt.ip4:setSrc(rxPkt.ip4:getDst())
-	txPkt.ip4:setDst(tmp)
+	txPkt.ip4:setDst(rxPkt.ip4:getSrc())
 
 	-- tcp ports
-	tmp = rxPkt.tcp:getSrc()
 	txPkt.tcp:setSrc(rxPkt.tcp:getDst())
-	txPkt.tcp:setDst(tmp)
+	txPkt.tcp:setDst(rxPkt.tcp:getSrc())
 
 	txPkt.tcp:setSeqNumber(rxPkt.tcp:getAckNumber())
 	txPkt.tcp:setAckNumber(rxPkt.tcp:getSeqNumber() + 1)
@@ -419,7 +395,7 @@ function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	
 	txPkt:setLength(54)
 
-	-- calculate checksums
+	-- calculate checksums -- TODO offload
 	txPkt.ip4:calculateChecksum()
 	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 end
@@ -462,7 +438,7 @@ function mod.getSynAckBufs()
 		pkt:fill{
 			ethSrc="90:e2:ba:98:88:e9",
 			ethDst="90:e2:ba:98:58:79",
-			ip4Src="192.168.1.1",
+			ip4Src=SERVER_IP,
 			ip4Dst="192.168.1.201",
 			ip4Flags=2, -- set DF
 			tcpSrc=0,
@@ -473,30 +449,25 @@ function mod.getSynAckBufs()
 			tcpSyn=1,
 			tcpWindow=29200,
 		}
-	
-		-- MSS option
+
+		-- add options that the server (presumeably) supports
 		local offset = 0
-		if true then --mss then
+		-- MSS option
+		if true then
 			pkt.payload.uint8[0] = 2 -- MSS option type
 			pkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
 			pkt.payload.uint16[1] = hton16(SERVER_MSS) -- MSS option
 			offset = offset + 4
 		end
 		-- window scale option
-		if true then --wsopt then
+		if true then
 			pkt.payload.uint8[offset] = 3 -- WSOPT option type
 			pkt.payload.uint8[offset + 1] = 3 -- WSOPT option length (3 bytes)
 			pkt.payload.uint8[offset + 2] = SERVER_WSOPT -- WSOPT option
 			offset = offset + 3
 		end
-		
-		if false then -- sack then
-			pkt.payload.uint8[offset] = 4 -- sack option type
-			pkt.payload.uint8[offset + 1] = 2 -- sack option length (2 bytes)
-			offset = offset + 2
-		end
-	
-		if true then -- ts option
+		-- ts option
+		if true then
 			pkt.payload.uint8[offset] = 8 -- ts option type
 			pkt.payload.uint8[offset + 1] = 10 -- ts option length (2 bytes)
 			pkt.payload.uint8[offset + 2] = 0 -- ts option tsval
@@ -510,6 +481,7 @@ function mod.getSynAckBufs()
 			offset = offset + 10
 		end
 
+		-- determine if and how much padding is needed
 		local pad = 4 - (offset % 4)
 		if pad > 0 then
 			pkt.payload.uint8[offset + pad - 1] = 0 -- eop
@@ -517,6 +489,7 @@ function mod.getSynAckBufs()
 				pkt.payload.uint8[offset + i] = 1 -- padding
 			end
 		end
+		-- calculate size and dataOffset values
 		offset = offset + pad
 		local size = 54 + offset
 		local dataOffset = 5 + (offset / 4)

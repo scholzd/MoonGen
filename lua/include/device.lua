@@ -672,6 +672,12 @@ function txQueue:send(bufs)
 	return bufs.size
 end
 
+function txQueue:send(buf)
+	self.used = true
+	dpdkc.send_single_packet(self.id, self.qid, buf)
+	return bufs.size
+end
+
 function txQueue:sendN(bufs, n)
 	self.used = true
 	dpdkc.send_all_packets(self.id, self.qid, bufs.array, n)
