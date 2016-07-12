@@ -99,34 +99,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local currentStrat = STRAT['auth']
 	local maxBurstSize = 63
 
-	-------------------------------------------------------------
-	-- right/virtual interface
-	-------------------------------------------------------------
-	
-	-- RX buffers for right
-	local rRXMem = memory.createMemPool()	
-	local rRXBufs = virtualDevMemPool:bufArray()
-	
-	-- TX buffers 
-	-- ack to right (on syn/ack from right)
-	local numAck = 0
-	local rTXAckMem = memory.createMemPool(function(buf)
-		buf:getTcp4Packet():fill{
-		}
-	end)
-	local rTXAckBufs = virtualDevMemPool:bufArray(1)
-	
-	-- right to left forward
-	local lTXForwardQueue = lTXDev:getTxQueue(1)
-	
-	local numForward = 0
-	local rTXForwardMem = memory.createMemPool()
-	local rTXForwardBufs = virtualDevMemPool:bufArray()
-
-
-	-------------------------------------------------------------
-	-- left/physical interface
-	-------------------------------------------------------------
 	lTXStats = stats:newDevTxCounter(lTXDev, "plain")
 	lRXStats = stats:newDevRxCounter(lRXDev, "plain")
 	
@@ -142,8 +114,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 	local numSynAck = 0
 	local lTXSynAckBufs = cookie.getSynAckBufs()
 	
-	-- buffer for cookie forwarding to right
-	-- both for syn as well as all translated traffic
+	-- ack to right (on syn/ack from right)
+	local numAck = 0
+	local rTXAckBufs = cookie.getAckBufs()
+	
+	-- buffer for forwarding
 	local numForward = 0 
 	local lTXForwardBufs = cookie.getForwardBufs()
 	
@@ -155,7 +130,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- need to behandled separately as we cant just offload TCP checksums here
 	-- its only a few packets anyway, so handle them separately
 	local txNotTcpMem = memory.createMemPool()	
-	local txNotTcpBufs = virtualDevMemPool:bufArray(1)
+	local txNotTcpBufs = txNotTcpMem:bufArray(1)
 
 
 	-------------------------------------------------------------
@@ -163,6 +138,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	log:info("Creating hash table")
 	local hashMapCookie = hashMap.createSparseHashMapCookie()
+	log:info("Creating bit map")
 	local bitMapAuth = bitMap.createBitMapAuth()
 
 	
@@ -171,6 +147,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	local stallMem = memory.createMemPool()
 	local stallBufs = stallMem:bufArray(1)
+	log:info("Creating stall table")
 	local stallTable = {}
 
 
@@ -181,8 +158,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 	while mg.running() do
 		rx = lRXQueue:tryRecv(lRXBufs, 1)
 		numSynAck = 0
-		numAuth = 0
+		numAck = 0
 		numForward = 0
+		numAuth = 0
 		for i = 1, rx do
 			local lRXPkt = lRXBufs[i]:getTcp4Packet()
 			if true then --not isTcp4(lRXPkt) then
@@ -192,6 +170,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 				lRXBufs[1]:dump()
 				lTXQueue:sendN(txNotTcpBufs, 1)
 			else -- TCP
+				-- TCP SYN Authentication strategy
 				if currentStrat == STRAT['auth'] then
 					-- send wrong sequence number on unverified SYN
 					if lRXPkt.tcp:getSyn() and not bitMapAuth:isWhitelisted(lRXPkt) then
@@ -215,6 +194,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 						forwardTrafficAuth(lTXForwardBufs[numForward], lRXBufs[i])
 					end
 				else
+				-- TCP SYN Cookie strategy
 					if lRXPkt.tcp:getSyn() then
 						if not lRXPkt.tcp:getAck() then -- SYN -> send SYN/ACK
 							log:debug('Received SYN from left')
@@ -228,9 +208,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 							diff = hashMapCookie:setRightVerified(rlXPkt)
 							if diff then
 								-- ack to server
-								lTXAckBufs:allocN(60, 1)
-								createAckToServer(lTXAckBufs[1], lRXBufs[i], lRXPkt)
-								lTXQueue:sendN(lTXAckBufs, 1)
+								rTXAckBufs:allocN(60, 1)
+								createAckToServer(rTXAckBufs[1], lRXBufs[i], lRXPkt)
+								lTXQueue:sendN(rTXAckBufs, 1)
 									
 								local index = lRXPkt.tcp:getDstString() .. lRXPkt.tcp:getSrcString() .. lRXPkt.ip4:getDstString() .. lRXPkt.ip4:getSrcString()
 								local entry = stallTable[index] 
@@ -306,25 +286,25 @@ function tcpProxySlave(lRXDev, lTXDev)
 				if numSynAck > 0 then
 					-- send syn ack
 					lTXSynAckBufs:offloadTcpChecksums(nil, nil, nil, numSynAck)
-			
 					lTXQueue:sendN(lTXSynAckBufs, numSynAck)
-
 					lTXSynAckBufs:freeAfter(numSynAck)
 				end
 			else
 				-- send packets with wrong ack number
 				lTXAuthBufs:offloadTcpChecksums(nil, nil, nil, numAuth)
 				lTXQueue:sendN(lTXAuthBufs, numAuth)
+				lTXAuthBufs:freeAfter(numAuth)
 			end
 			-- all strategies
 			-- send forwarded packets and free unused buffers
 			if numForward > 0 then
-				virtualDev:sendN(lTXForwardBufs, numForward)
+				lTXForwardBufs:offloadTcpChecksums(nil, nil, nil, numForward)
+				lTXQueue:sendN(lTXForwardBufs, numForward)
 				lTXForwardBufs:freeAfter(numForward)
 			end
 			
 			-- no rx packets reused --> free
-			lRXBufs:free(rx)
+			lRXBufs:freeAll(rx)
 		end
 
 		----------------------------- all actions by polling left interface done (also all buffers sent or cleared)

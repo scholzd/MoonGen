@@ -550,5 +550,12 @@ function mod.getForwardBufs()
 	end)
 	return lTXForwardMem:bufArray()
 end
+	
+function mod.getAckBufs()
+	local rTXAckMem = memory.createMemPool(function(buf)
+		-- we copy RX packet anyway, so no prefilling necessary
+	end)
+	return rTXAckMem:bufArray(1)
+end
 
 return mod
