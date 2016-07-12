@@ -274,7 +274,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							sequenceNumberTranslation(diff, lRXBufs[i], lTXForwardBufs[numForward], lRXPkt, lTXForwardBufs[numForward]:getTcp4Packet())
 						else
 							-- should not happen
-							log:error('unhandled packet ' )--.. tostring(isVerified(lRXPkt, LEFT_TO_RIGHT)))
+							log:error('unhandled packet ' )
 						end
 					end
 				end
@@ -306,8 +306,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 			-- no rx packets reused --> free
 			lRXBufs:freeAll(rx)
 		end
-
-		----------------------------- all actions by polling left interface done (also all buffers sent or cleared)
 
 		lRXStats:update()
 		lTXStats:update()
