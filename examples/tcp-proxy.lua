@@ -8,7 +8,6 @@ local dpdkc 	= require "dpdkc"
 local proto		= require "proto/proto"
 local check		= require "proto/packetChecks"
 
-local hashMap 	= require "hashMap" -- TODO move to synCookie.lua
 local bitMap 	= require "bitMap"
 
 -- tcp SYN defense strategies
@@ -132,8 +131,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-------------------------------------------------------------
 	-- Hash table
 	-------------------------------------------------------------
-	log:info("Creating hash table")
-	local hashMapCookie = hashMap.createSparseHashMapCookie()
+	log:info("Creating hash map for cookie")
+	local stateCookie = cookie.createSparseHashMapCookie()
 	log:info("Creating bit map")
 	local bitMapAuth = bitMap.createBitMapAuth()
 
@@ -201,7 +200,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							createSynAckToClient(lTXSynAckBufs[numSynAck], lRXPkt)
 						else -- SYN/ACK from right -> send ack + stall table lookup
 							log:debug('Received SYN/ACK from server, sending ACK back')
-							diff = hashMapCookie:setRightVerified(rlXPkt)
+							diff = stateCookie:setRightVerified(rlXPkt)
 							if diff then
 								-- ack to server
 								rTXAckBufs:allocN(60, 1)
@@ -226,14 +225,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 							end
 					----------------------------------------------------------------------- any verified packet from server
 					else -- check verified status
-						local diff = hashMapCookie:isVerified(lRXPkt) 
+						local diff = stateCookie:isVerified(lRXPkt) 
 						if not diff and lRXPkt.tcp:getAck() then -- finish handshake with left, start with right
 							log:debug("verifying cookie")
 							local mss, wsopt = verifyCookie(lRXPkt)
 							if mss then
 								log:debug('Received valid cookie from left, starting handshake with server')
 								
-								hashMapCookie:setLeftVerified(lRXPkt)
+								stateCookie:setLeftVerified(lRXPkt)
 								-- connection is left verified, start handshake with right
 								if numForward == 0 then
 									lTXForwardBufs:allocN(60, rx - (i - 1))
