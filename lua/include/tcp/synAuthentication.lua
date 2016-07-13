@@ -72,8 +72,6 @@ ffi.cdef [[
 ]]
 
 
-local mod = {}
-
 local LEFT_TO_RIGHT = true
 local RIGHT_TO_LEFT = false
 

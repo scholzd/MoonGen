@@ -256,7 +256,7 @@ end
 --- Retrieve the Urg flag.
 --- @return Flag in string format.
 function tcpHeader:getUrgString()
-	if self:getUrg() == 1 then
+	if self:getUrg() then
 		return "URG"
 	else
 		return "-"
@@ -282,7 +282,7 @@ end
 --- Retrieve the Ack flag.
 --- @return Flag in string format.
 function tcpHeader:getAckString()
-	if self:getAck() == 1 then
+	if self:getAck() then
 		return "ACK"
 	else
 		return "-"
@@ -308,7 +308,7 @@ end
 --- Retrieve the Psh flag.
 --- @return Flag in string format.
 function tcpHeader:getPshString()
-	if self:getPsh() == 1 then
+	if self:getPsh() then
 		return "PSH"
 	else
 		return "-"
@@ -334,7 +334,7 @@ end
 --- Retrieve the Rst flag.
 --- @return Flag in string format.
 function tcpHeader:getRstString()
-	if self:getRst() == 1 then
+	if self:getRst() then
 		return "RST"
 	else
 		return "-"
@@ -360,7 +360,7 @@ end
 --- Retrieve the Syn flag.
 --- @return Flag in string format.
 function tcpHeader:getSynString()
-	if self:getSyn() == 1 then
+	if self:getSyn() then
 		return "SYN"
 	else
 		return "-"
@@ -386,7 +386,7 @@ end
 --- Retrieve the Fin flag.
 --- @return Flag in string format.
 function tcpHeader:getFinString()
-	if self:getFin() == 1 then
+	if self:getFin() then
 		return "FIN"
 	else
 		return "-"

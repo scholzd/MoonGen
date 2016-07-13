@@ -13,7 +13,6 @@ local ffi		= require "ffi"
 local log		= require "log"
 local memory	= require "memory"
 local proto		= require "proto/proto"
-local hashMap	= require "hashMap"
 local dpdk		= require "dpdk" -- for getTime
 require "utils"
 
@@ -300,9 +299,6 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 end
 
 function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
-	-- check that ack has timestamp option
-	local _, _, tsopt = extractOptions(rxBuf)
-	
 	-- set size of tx packet
 	local size = 54
 	
@@ -311,6 +307,10 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 	
 	-- adjust some members: sequency number, flags, checksum, length fields
 	local txPkt = txBuf:getTcp4Packet()
+	
+	-- check that ack has timestamp option
+	local _, _, tsopt = extractOptions(txPkt)
+	
 	--translate MAC
 	txPkt.eth.dst = SERVER_MAC
 	-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
@@ -368,8 +368,8 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 	txBuf:setSize(size)
 
 	-- calculate checksums
-	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	txPkt.ip4:calculateChecksum()
+	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 end
 
 function mod.createAckToServer(txBuf, rxBuf, rxPkt)
@@ -447,7 +447,7 @@ function mod.forwardTraffic(txBuf, rxBuf)
 	
 	-- determine direction
 	local txPkt = txBuf:getTcp4Packet()
-	local dstIP = rxPkt:getDst()
+	local dstIP = txPkt.tcp:getDst()
 	local leftToRight = false
 	if dstIP == SERVER_IP then
 		leftToRight = true
@@ -589,9 +589,6 @@ ffi.cdef [[
 	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find_update(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 	void mg_sparse_hash_map_cookie_delete(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 ]]
-
-
-local mod = {}
 
 local LEFT_TO_RIGHT = true
 local RIGHT_TO_LEFT = false

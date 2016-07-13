@@ -8,8 +8,6 @@ local dpdkc 	= require "dpdkc"
 local proto		= require "proto/proto"
 local check		= require "proto/packetChecks"
 
-local bitMap 	= require "bitMap"
-
 -- tcp SYN defense strategies
 local cookie	= require "tcp/synCookie"
 local auth		= require "tcp/synAuthentication"
@@ -30,9 +28,6 @@ function master(rxPort, txPort)
 	txPort = tonumber(txPort)
 	rxPort = tonumber(rxPort)
 	
-	log:info('Initialize KNI')
-	kni.init(4)
-	
 	local lRXDev = device.config{ port = rxPort }
 	local lTXDev = device.config{ port = txPort }
 	lRXDev:wait()
@@ -40,9 +35,6 @@ function master(rxPort, txPort)
 	mg.launchLua("tcpProxySlave", lRXDev, lTXDev)
 	
 	mg.waitForSlaves()
-	
-	log:info('Closing KNI')
-	kni.close()
 end
 
 
@@ -90,9 +82,10 @@ local createResponseAuth = auth.createResponseAuth
 
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
+	--log:setLevel("ERROR")
 	
-	local currentStrat = STRAT['auth']
-	local maxBurstSize = 63
+	local currentStrat = STRAT['cookie']
+	local maxBurstSize = 1--63
 
 	lTXStats = stats:newDevTxCounter(lTXDev, "plain")
 	lRXStats = stats:newDevRxCounter(lRXDev, "plain")
@@ -100,7 +93,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	-- RX buffers for left
 	local lRXQueue = lRXDev:getRxQueue(0)
 	local lRXMem = memory.createMemPool()	
-	local lRXBufs = lRXMem:bufArray()
+	local lRXBufs = lRXMem:bufArray(maxBurstSize)
 
 	-- TX buffers
 	local lTXQueue = lTXDev:getTxQueue(0)
@@ -134,7 +127,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	log:info("Creating hash map for cookie")
 	local stateCookie = cookie.createSparseHashMapCookie()
 	log:info("Creating bit map")
-	local bitMapAuth = bitMap.createBitMapAuth()
+	local bitMapAuth = auth.createBitMapAuth()
 
 	
 	-------------------------------------------------------------
@@ -158,14 +151,15 @@ function tcpProxySlave(lRXDev, lTXDev)
 		numAuth = 0
 		for i = 1, rx do
 			local lRXPkt = lRXBufs[i]:getTcp4Packet()
-			if true then --not isTcp4(lRXPkt) then
-				--log:debug('Sending packet that is not TCP')
+			if not isTcp4(lRXPkt) then
+				log:debug('Sending packet that is not TCP')
 				txNotTcpBufs:alloc(60)
 				forwardTraffic(txNotTcpBufs[1], lRXBufs[i])
-				lRXBufs[1]:dump()
+				--lRXBufs[1]:dump()
 				lTXQueue:sendN(txNotTcpBufs, 1)
 			else -- TCP
 				-- TCP SYN Authentication strategy
+				log:debug('is TCP')
 				if currentStrat == STRAT['auth'] then
 					-- send wrong sequence number on unverified SYN
 					if lRXPkt.tcp:getSyn() and not bitMapAuth:isWhitelisted(lRXPkt) then
@@ -200,7 +194,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							createSynAckToClient(lTXSynAckBufs[numSynAck], lRXPkt)
 						else -- SYN/ACK from right -> send ack + stall table lookup
 							log:debug('Received SYN/ACK from server, sending ACK back')
-							diff = stateCookie:setRightVerified(rlXPkt)
+							diff = stateCookie:setRightVerified(lRXPkt)
 							if diff then
 								-- ack to server
 								rTXAckBufs:allocN(60, 1)
@@ -223,6 +217,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 							else
 								log:debug("right verify failed")
 							end
+						end
 					----------------------------------------------------------------------- any verified packet from server
 					else -- check verified status
 						local diff = stateCookie:isVerified(lRXPkt) 
@@ -238,7 +233,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 									lTXForwardBufs:allocN(60, rx - (i - 1))
 								end
 								numForward = numForward + 1
+								lRXBufs[i]:dumpFlags()
 								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i], mss, wsopt)
+								lTXForwardBufs[numForward]:dumpFlags()
 							else
 								log:warn('Wrong cookie, dropping packet ')
 								-- drop, and done
@@ -251,15 +248,15 @@ function tcpProxySlave(lRXDev, lTXDev)
 						elseif diff == "stall" then
 							log:debug("stall packet")
 							local index = lRXPkt.tcp:getSrcString() .. lRXPkt.tcp:getDstString() .. lRXPkt.ip4:getSrcString() .. lRXPkt.ip4:getDstString()
-								stallBufs:allocN(60, 1)
-								ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
-								stallBufs[1]:setSize(lRXBufs[i]:getSize())
-								local entry =  stallTable[index] 
-								if entry then
-									stallTable[index] = { stallBufs[1], entry[2] + 1 }
-								else
-									stallTable[index] = { stallBufs[1], 1 }
-								end
+							stallBufs:allocN(60, 1)
+							ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
+							stallBufs[1]:setSize(lRXBufs[i]:getSize())
+							local entry =  stallTable[index] 
+							if entry then
+								stallTable[index] = { stallBufs[1], entry[2] + 1 }
+							else
+								stallTable[index] = { stallBufs[1], 1 }
+							end
 						elseif diff then 
 							log:debug('Received packet of verified connection from left, translating and forwarding')
 							if numForward == 0 then
@@ -293,7 +290,9 @@ function tcpProxySlave(lRXDev, lTXDev)
 			-- all strategies
 			-- send forwarded packets and free unused buffers
 			if numForward > 0 then
-				lTXForwardBufs:offloadTcpChecksums(nil, nil, nil, numForward)
+				lTXForwardBufs[1]:dumpFlags()
+				--lTXForwardBufs:offloadTcpChecksums(nil, nil, nil, numForward)
+				lTXForwardBufs[1]:dumpFlags()
 				lTXQueue:sendN(lTXForwardBufs, numForward)
 				lTXForwardBufs:freeAfter(numForward)
 			end

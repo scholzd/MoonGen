@@ -39,6 +39,10 @@ function pkt:getTimesync()
 	return self.timesync
 end
 
+function pkt:dumpFlags()
+	log:debug(tostring(self.ol_flags))
+end
+
 --- Retrieve the time stamp information.
 --- @return The timestamp or nil if the packet was not time stamped.
 function pkt:getTimestamp()
