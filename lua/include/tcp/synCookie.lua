@@ -26,6 +26,11 @@ local time = time
 -- left: outside, internet, clients, potential attackers, whatever
 -- right: "protected" side, connection to server(s), only filtered traffic comes here
 
+local SERVER_IP = parseIP4Address("192.168.1.1")
+local CLIENT_MAC = parseMacAddress("90:e2:ba:98:58:78")
+local SERVER_MAC = parseMacAddress("90:e2:ba:98:88:e8")
+local PROXY_MAC  = parseMacAddress("90:e2:ba:98:88:e9") 
+
 local mod = {}
 
 -------------------------------------------------------------------------------------------
@@ -213,6 +218,10 @@ local function calculateCookie(pkt)
 end
 
 function mod.verifyCookie(pkt)
+	if pkt.eth.src == SERVER_MAC then
+		log:warn("Verify from Server...")
+		return false
+	end
 	local cookie = pkt.tcp:getAckNumber()
 	--log:debug('Got ACK:        ' .. toBinary(cookie))
 	cookie = cookie - 1
@@ -254,10 +263,7 @@ end
 -------------------------------------------------------------------------------------------
 ---- Packet modification and crafting for cookie strategy
 -------------------------------------------------------------------------------------------
-local SERVER_IP = parseIP4Address("192.168.1.1")
-local CLIENT_MAC = parseMacAddress("90:e2:ba:98:58:78")
-local SERVER_MAC = parseMacAddress("90:e2:ba:98:88:e8")
-local PROXY_MAC  = parseMacAddress("90:e2:ba:98:88:e9") 
+
 
 -- TODO config options
 local SERVER_MSS = 1460
@@ -683,7 +689,7 @@ function sparseHashMapCookie:isVerified(pkt)
 			rightFin = true
 		end
 	end
-	if pkt.tcp:getAck() and not pkt.tcp:getSyn() and not pkt.tcp:getFin() then
+	if pkt.tcp:getAck() then -- and not pkt.tcp:getSyn() and not pkt.tcp:getFin() then
 		ack = true
 	end
 
