@@ -257,7 +257,7 @@ end
 local SERVER_IP = parseIP4Address("192.168.1.1")
 local CLIENT_MAC = parseMacAddress("90:e2:ba:98:58:78")
 local SERVER_MAC = parseMacAddress("90:e2:ba:98:88:e8")
-local PROXY_MAX  = parseMacAddress("90:e2:ba:98:88:e9") 
+local PROXY_MAC  = parseMacAddress("90:e2:ba:98:88:e9") 
 
 -- TODO config options
 local SERVER_MSS = 1460
@@ -268,9 +268,9 @@ local SERVER_TSOPT = true
 function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 	log:debug('Performing Sequence Number Translation ')
 	-- determine direction
-	local dstIP = rxPkt.ip4:getDst()
+	local srcMac = rxPkt.eth.src
 	local leftToRight = false
-	if dstIP == SERVER_IP then
+	if srcMac == CLIENT_MAC then
 		leftToRight = true
 	end
 
@@ -289,6 +289,8 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 		txPkt.tcp:setSeqNumber(rxPkt.tcp:getSeqNumber() - diff)
 		txPkt.eth.dst = CLIENT_MAC
 	end
+	txPkt.eth.src = PROXY_MAC
+
 	
 	-- calculate TCP checksum
 	-- IP header does not change, hence, do not recalculate IP checksum
@@ -296,6 +298,16 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 		--log:debug('Calc checksum ' .. (leftToRight and 'from left ' or 'from right '))
 		txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 	--end
+end
+
+function mod.forwardStalled(diff, txBuf)
+	log:debug('Forwarding stalled packet')
+
+	local txPkt = txBuf:getTcp4Packet()
+	txPkt.tcp:setAckNumber(txPkt.tcp:getAckNumber() + diff)
+	txPkt.eth.dst = SERVER_MAC
+	txPkt.eth.src = PROXY_MAC
+	txPkt.tcp:calculateChecksum(txBuf:getData(), txBuf:getSize(), true)
 end
 
 function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
@@ -313,6 +325,7 @@ function mod.createSynToServer(txBuf, rxBuf, mss, wsopt)
 	
 	--translate MAC
 	txPkt.eth.dst = SERVER_MAC
+	txPkt.eth.src = PROXY_MAC
 	-- reduce seq num by 1 as during handshake it will be increased by 1 (in SYN/ACK)
 	-- this way, it does not have to be translated at all
 	txPkt.tcp:setSeqNumber(txPkt.tcp:getSeqNumber() - 1)
@@ -383,8 +396,8 @@ function mod.createAckToServer(txBuf, rxBuf, rxPkt)
 	local txPkt = txBuf:getTcp4Packet()
 
 	-- mac addresses
-	txPkt.eth.src = rxPkt.eth.dst
-	txPkt.eth.dst = rxPkt.eth.src
+	txPkt.eth.src = PROXY_MAC--rxPkt.eth.dst
+	txPkt.eth.dst = SERVER_MAC--rxPkt.eth.src
 	
 	-- ip addresses
 	txPkt.ip4.src = rxPkt.ip4.dst
@@ -414,10 +427,9 @@ function mod.createSynAckToClient(txBuf, rxPkt)
 	local txPkt = txBuf:getTcp4Packet()
 	local cookie = calculateCookie(rxPkt)
 
-	-- TODO set directly without set/get, should be a bit faster
 	-- MAC addresses
-	txPkt.eth.dst = rxPkt.eth.src
-	txPkt.eth.src = rxPkt.eth.dst
+	txPkt.eth.dst = CLIENT_MAC--rxPkt.eth.src
+	txPkt.eth.src = PROXY_MAC--rxPkt.eth.dst
 
 	-- IP addresses
 	txPkt.ip4.dst = rxPkt.ip4.src
@@ -445,18 +457,15 @@ function mod.forwardTraffic(txBuf, rxBuf)
 	-- copy data 
 	ffi.copy(txBuf:getData(), rxBuf:getData(), size)
 	
-	-- determine direction
+	-- determine direction for MAC translation
 	local txPkt = txBuf:getTcp4Packet()
-	local dstIP = txPkt.tcp:getDst()
-	local leftToRight = false
-	if dstIP == SERVER_IP then
-		leftToRight = true
-	end
-	-- in our setup also need to do MAC translation
-	if leftToRight then
+	local srcMac = txPkt.eth.src
+	if srcMac == CLIENT_MAC then
 		txPkt.eth.dst = SERVER_MAC
-	else
+		txPkt.eth.src = PROXY_MAC
+	elseif srcMac == SERVER_MAC then
 		txPkt.eth.dst = CLIENT_MAC
+		txPkt.eth.src = PROXY_MAC
 	end
 end
 
@@ -586,7 +595,7 @@ ffi.cdef [[
 	
 	void mg_sparse_hash_map_cookie_insert(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t ack);
 	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_finalize(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t seq);
-	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find_update(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
+	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find_update(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, bool reset, bool left_fin, bool right_fin, bool ack);
 	void mg_sparse_hash_map_cookie_delete(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 ]]
 
@@ -658,11 +667,30 @@ function sparseHashMapCookie:isVerified(pkt)
 	if pkt.ip4:getDst() == SERVER_IP then
 		leftToRight = true
 	end
-	
+
+	local reset = false
+	local leftFin = false
+	local rightFin = false
+	local ack = false
+	if pkt.tcp:getRst() then
+		reset = true
+		log:error("reset")
+	end
+	if pkt.tcp:getFin() then
+		if leftToRight then
+			leftFin = true
+		else
+			rightFin = true
+		end
+	end
+	if pkt.tcp:getAck() and not pkt.tcp:getSyn() and not pkt.tcp:getFin() then
+		ack = true
+	end
+
 	--log:debug("is verified")
 	local k = sparseHashMapCookieGetKey(pkt, leftToRight)
 
-	local diff = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k)
+	local diff = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k, reset, leftFin, rightFin, ack)
 	--log:debug(tostring(diff))
 	if not (diff == nil) then
 		if diff.flags == 0 then

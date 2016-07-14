@@ -55,12 +55,12 @@ typedef struct sparse_hash_map_cookie_value {
 	uint32_t diff;
 	uint8_t flags;
 	/* 
-		#1: unused
-		#2: unused
+		#1: reset			1
+		#2: closed			2
 		#3: leftVerified	4
 		#4: rightVerified	8
-		#5: unused
-		#6: unused
+		#5: leftFin			16
+		#6: rightFin		32
 		#rest: reserved (0)
 	*/
 } sparse_hash_map_cookie_value;
@@ -136,9 +136,17 @@ extern "C" {
 			//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
 			mg_sparse_hash_map_cookie_swap(maps);
 			return;
+		} else {
+			printf("NOT inserted, but reused\n");
+			// entry exists, but was not verified (connections closed)
+
+ 			sparse_hash_map_cookie_value *tmp = (*m)[*k];
+			tmp->diff = ack;
+			tmp->flags = 4; // set leftVerified flag 4
+			
+			mg_sparse_hash_map_cookie_swap(maps);
 		}
-		//printf("NOT inserted\n");
-		mg_sparse_hash_map_cookie_swap(maps);
+
     };
 
 	/* Finalize an entry on setRightVerified
@@ -187,7 +195,8 @@ extern "C" {
 	 * If it is verified, update the timestamp bits
 	 * Return the value struct
 	 */	
-	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find_update(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k) {
+	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find_update(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, bool reset, bool left_fin, bool right_fin, bool ack) {
+		//printf("\n");
 		auto m = maps->current;
 		auto it = m->find(*k);
 		if (it == m->end() ) {
@@ -222,6 +231,39 @@ extern "C" {
 			mg_sparse_hash_map_cookie_swap(maps);
 			//printf("wrong flags\n");
 			return 0;
+		}
+
+		// check reset flag
+		// if it is set the connection is dead and we do nothing
+		if ((tmp->flags & 1) == 1) {
+			//printf("RESET set, act as if not verified\n");
+			return 0;
+		}
+		// set reset flag
+		if (reset) {
+			tmp->flags = tmp->flags | 1;
+		}
+
+		// check whether conenction was closed via teardown
+		if ((tmp->flags & 2) == 2) {
+			printf("closed via teardown, return\n");
+			return 0;
+		}
+		//check fin flags
+		// if both are set and this is an ack, assume this is the last ack of the teardown
+		if (((tmp->flags & 48) == 48) && ack) {
+			printf("final ack of connection, next will be discarded\n");
+			tmp->flags = tmp->flags | 2; // close connection
+		}
+
+		// set fin flags
+		if (left_fin) {
+			//printf("set left fin\n");
+			tmp->flags = tmp->flags | 16;
+		}
+		if (right_fin) {
+			//printf("set right fin\n");
+			tmp->flags = tmp->flags | 32;
 		}
 
 		mg_sparse_hash_map_cookie_swap(maps);

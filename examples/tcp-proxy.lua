@@ -66,6 +66,7 @@ local createSynAckToClient = cookie.createSynAckToClient
 local createSynToServer = cookie.createSynToServer
 local createAckToServer = cookie.createAckToServer
 local forwardTraffic = cookie.forwardTraffic
+local forwardStalled = cookie.forwardStalled
 
 
 -------------------------------------------------------------------------------------------
@@ -81,11 +82,11 @@ local createResponseAuth = auth.createResponseAuth
 ---------------------------------------------------
 
 function tcpProxySlave(lRXDev, lTXDev)
-	log:setLevel("DEBUG")
-	--log:setLevel("ERROR")
+	--log:setLevel("DEBUG")
+	log:setLevel("WARN")
 	
 	local currentStrat = STRAT['cookie']
-	local maxBurstSize = 1--63
+	local maxBurstSize = 63
 
 	lTXStats = stats:newDevTxCounter(lTXDev, "plain")
 	lRXStats = stats:newDevRxCounter(lRXDev, "plain")
@@ -205,9 +206,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 								local entry = stallTable[index] 
 
 								if entry then
-									local pkt = entry[1]:getTcp4Packet()
-									pkt.tcp:setAckNumber(pkt.tcp:getAckNumber() + diff)
-									pkt.tcp:calculateChecksum(entry[1]:getData(), entry[1]:getSize(), true)
+									forwardStalled(diff, entry[1])
 									lTXQueue:sendSingle(entry[1])
 									log:debug("accessed " .. tostring(entry[2]))
 									stallTable[index] = nil	
