@@ -39,16 +39,21 @@ function loadSlave(port, queue, minA, numIPs)
 	local queue = device.get(port):getTxQueue(queue)
 	local mem = memory.createMemPool(function(buf)
 		buf:getTcpPacket(ipv4):fill{ 
-			ethSrc="90:e2:ba:2c:cb:02", ethDst="90:e2:ba:35:b5:81", 
-			ip4Dst="192.168.1.1", 
-			ip6Dst="fd06::1",
+			ethDst="90:e2:ba:98:58:78",
+			ethSrc="90:e2:ba:98:88:e9",
+			ip4Dst="192.168.1.101", 
+			ip4Src="192.168.1.1",
+			tcpSrc="12345",
+			tcpDst="80",
 			tcpSyn=1,
-			tcpSeqNumber=1,
+			tcpAck=1,
+			tcpSeqNumber=1431,
+			tcpAckNumber=19089,
 			tcpWindow=10,
-			pktLength=packetLen }
+			pktLength=54 }
 	end)
 
-	local bufs = mem:bufArray(128)
+	local bufs = mem:bufArray(3)
 	local counter = 0
 	local c = 0
 
@@ -57,18 +62,6 @@ function loadSlave(port, queue, minA, numIPs)
 		-- fill packets and set their size 
 		bufs:alloc(packetLen)
 		for i, buf in ipairs(bufs) do 			
-			local pkt = buf:getTcpPacket(ipv4)
-			
-			--increment IP
-			if ipv4 then
-				pkt.ip4.src:set(minIP)
-				pkt.ip4.src:add(counter)
-			else
-				pkt.ip6.src:set(minIP)
-				pkt.ip6.src:add(counter)
-			end
-			counter = incAndWrap(counter, numIPs)
-
 			-- dump first 3 packets
 			if c < 3 then
 				buf:dump()
@@ -79,6 +72,7 @@ function loadSlave(port, queue, minA, numIPs)
 		bufs:offloadTcpChecksums(ipv4)
 		
 		queue:send(bufs)
+		exit()
 		txStats:update()
 	end
 	txStats:finalize()
