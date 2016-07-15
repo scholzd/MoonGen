@@ -137,7 +137,7 @@ extern "C" {
 			mg_sparse_hash_map_cookie_swap(maps);
 			return;
 		} else {
-			printf("NOT inserted, but reused\n");
+			//printf("NOT inserted, but reused\n");
 			// entry exists, but was not verified (connections closed)
 
  			sparse_hash_map_cookie_value *tmp = (*m)[*k];
@@ -246,13 +246,13 @@ extern "C" {
 
 		// check whether conenction was closed via teardown
 		if ((tmp->flags & 2) == 2) {
-			printf("closed via teardown, return\n");
+			//printf("closed via teardown, return\n");
 			return 0;
 		}
 		//check fin flags
 		// if both are set and this is an ack, assume this is the last ack of the teardown
 		if (((tmp->flags & 48) == 48) && ack) {
-			printf("final ack of connection, next will be discarded\n");
+			//printf("final ack of connection, next will be discarded\n");
 			tmp->flags = tmp->flags | 2; // close connection
 		}
 

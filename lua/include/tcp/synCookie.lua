@@ -272,7 +272,7 @@ local SERVER_TSOPT = true
 
 -- simply resend the complete packet, but adapt seq/ack number
 function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
-	log:debug('Performing Sequence Number Translation ')
+	--log:debug('Performing Sequence Number Translation ')
 	-- determine direction
 	local srcMac = rxPkt.eth.src
 	local leftToRight = false
@@ -307,7 +307,7 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 end
 
 function mod.forwardStalled(diff, txBuf)
-	log:debug('Forwarding stalled packet')
+	--log:debug('Forwarding stalled packet')
 
 	local txPkt = txBuf:getTcp4Packet()
 	txPkt.tcp:setAckNumber(txPkt.tcp:getAckNumber() + diff)
@@ -680,7 +680,6 @@ function sparseHashMapCookie:isVerified(pkt)
 	local ack = false
 	if pkt.tcp:getRst() then
 		reset = true
-		log:error("reset")
 	end
 	if pkt.tcp:getFin() then
 		if leftToRight then
