@@ -61,8 +61,10 @@ typedef struct sparse_hash_map_cookie_value {
 		#4: rightVerified	8
 		#5: leftFin			16
 		#6: rightFin		32
-		#rest: reserved (0)
+		#7: stall avail		64
+		#8: -				128
 	*/
+	void* stalled; // pointer to stalled mbuf
 } sparse_hash_map_cookie_value;
 
 using sparse_hash_map_cookie = google::sparse_hash_map<sparse_hash_map_cookie_key, sparse_hash_map_cookie_value*, std::hash<sparse_hash_map_cookie_key> , eq_sparse_hash_map_cookie_key>;
@@ -81,10 +83,32 @@ extern "C" {
 		clock_t time = clock();
 		if ( ((double) time - maps->last_swap) > ((double) SWAP_INTERVAL * CLOCKS_PER_SEC) ) {
 			printf("swapping\n");
+			
+			printf("freeing unsent stalled mbufs\n");
+			// free mbufs that will not be sent to prevent memory leaks
+			// TODO
+			//auto it = maps->old->begin();
+			//while (!it == maps->old->end()) {
+			//	printf("Currently at: %p %p\n" it->first, it->second);
+			//	if (maps->current->find(it->first) != maps->current->end()) {
+			//		printf("Found in both, doing nothing\n");
+			//	} else {
+			//		printf("Freeing stalled\n");
+			//		if (it->second->flags & 64 && it->second->stalled) {
+			//			printf("Actually freeing\n");
+			//		} else {
+			//			printf("No stalled\n");
+			//		}
+			//	}
+
+			//	it++;
+			//}
+			printf("done freeing\n");
 			delete maps->old;
 			maps->old = maps->current;
 			maps->current = new sparse_hash_map_cookie(0);
 			maps->last_swap = time;
+			printf("done swapping\n");
 		}
 	}
 
@@ -124,25 +148,29 @@ extern "C" {
 	 * 		hence, we assume the first Ack number to be the correct one and don't update it here
 	 */
 	void mg_sparse_hash_map_cookie_insert(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, uint32_t ack) {
-		//printf("insert %d\n", k->tcp_src);
+		printf("insert %d\n", k->tcp_src);
 		auto m = maps->current;
 		auto it = m->find(*k);
 		// not existing yet
         if (it == m->end() ){
+			printf("new \n");
  			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
 			tmp->diff = ack;
 			tmp->flags = 4; // set leftVerified flag 4
+			tmp->stalled = 0;
 			(*m)[*k] = tmp;
-			//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
+			printf("Entry: %d %d %d\n", tmp->diff, tmp->flags, tmp->stalled);
 			mg_sparse_hash_map_cookie_swap(maps);
 			return;
 		} else {
-			//printf("NOT inserted, but reused\n");
+			printf("NOT inserted, but reused\n");
 			// entry exists, but was not verified (connections closed)
 
  			sparse_hash_map_cookie_value *tmp = (*m)[*k];
 			tmp->diff = ack;
 			tmp->flags = 4; // set leftVerified flag 4
+			tmp->stalled = 0;
+			printf("Entry: %d %d %d\n", tmp->diff, tmp->flags, tmp->stalled);
 			
 			mg_sparse_hash_map_cookie_swap(maps);
 		}
@@ -155,7 +183,7 @@ extern "C" {
 	 * Set rightVerified flag
 	 */
 	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_finalize(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, uint32_t seq) {
-		//printf("finalize %d\n", k->tcp_src);
+		printf("finalize %d\n", k->tcp_src);
 		auto m = maps->current;
 		auto it = m->find(*k);
 		if (it == m->end() ) {
@@ -186,7 +214,7 @@ extern "C" {
 		tmp->diff = seq - tmp->diff + 1;
 		tmp->flags = tmp->flags | 8; // set rightVerified flag 8
 		//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
-		
+		printf("Got a stalled buf: %p flags %d\n", tmp->stalled, tmp->flags & 64);	
 		mg_sparse_hash_map_cookie_swap(maps);
 		return tmp;
 	};
@@ -196,7 +224,8 @@ extern "C" {
 	 * Return the value struct
 	 */	
 	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find_update(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, bool reset, bool left_fin, bool right_fin, bool ack) {
-		//printf("\n");
+		printf("\n");
+		printf("is verified %d\n", k->tcp_src);
 		auto m = maps->current;
 		auto it = m->find(*k);
 		if (it == m->end() ) {
@@ -216,13 +245,17 @@ extern "C" {
 		
 		sparse_hash_map_cookie_value *tmp = (*m)[*k];
 		
+		printf("Before: %p\n", tmp->stalled);	
 		// if only left verified we are waiting for right verified
 		// in this case stall, indicated by setting flags in a new struct to 0
 		if ((tmp->flags & 12) == 4) {
+			if (tmp->flags & 64) {
+				printf("already got stalled buf\n");
+				return 0;
+			}
 			mg_sparse_hash_map_cookie_swap(maps);
-			//printf("actual stall\n");
- 			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
-			tmp->flags = 0;
+			printf("actual stall\n");
+			tmp->flags = tmp->flags | 64;
 			return tmp;
 		}
 		// Check verified flags (both 4 8 must be set)
@@ -266,7 +299,9 @@ extern "C" {
 			tmp->flags = tmp->flags | 32;
 		}
 
+		printf("returning normally\n");
 		mg_sparse_hash_map_cookie_swap(maps);
+
 		return tmp;
 	};
 	

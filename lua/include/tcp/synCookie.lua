@@ -16,7 +16,7 @@ local proto		= require "proto/proto"
 local dpdk		= require "dpdk" -- for getTime
 require "utils"
 
-local bor, band, bnot, rshift, lshift= bit.bor, bit.band, bit.bnot, bit.rshift, bit.lshift
+local bor, bxor, band, bnot, rshift, lshift= bit.bor, bit.bxor, bit.band, bit.bnot, bit.rshift, bit.lshift
 local time = time
 
 ---------------------------------------------------
@@ -307,9 +307,10 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 end
 
 function mod.forwardStalled(diff, txBuf)
-	--log:debug('Forwarding stalled packet')
+	log:debug('Forwarding stalled packet')
 
 	local txPkt = txBuf:getTcp4Packet()
+	log:debug("blub")
 	txPkt.tcp:setAckNumber(txPkt.tcp:getAckNumber() + diff)
 	txPkt.eth.dst = SERVER_MAC
 	txPkt.eth.src = PROXY_MAC
@@ -592,6 +593,7 @@ ffi.cdef [[
 	typedef struct sparse_hash_map_cookie_value {
 		uint32_t diff;
 		uint8_t flags;
+		struct rte_mbuf* stalled;
 	};
 	
 	struct sparse_hash_map_cookie {};
@@ -656,7 +658,15 @@ function sparseHashMapCookie:setRightVerified(pkt)
 	local diff = ffi.C.mg_sparse_hash_map_cookie_finalize(self.map, k, seq)
 
 	if not (diff == nil) then
-		return diff.diff
+		if band(diff.flags, 64) and not (diff.stalled == nil) then
+			local stalledPointer = diff.stalled
+			diff.stalled = nil -- unset it, we sent it after all and dont need to free manually
+			diff.flags = band(diff.flags, bnot(64)) -- unset the flag
+			log:debug("unset stalled flag " .. tostring(diff.flags) .. " " .. tostring(diff.stalled) .. " " .. tostring(stalledPointer))
+			return diff.diff, stalledPointer
+		else
+			return diff.diff
+		end
 	else
 		-- not left verified,
 		-- happens if a connection is deleted 
@@ -692,20 +702,21 @@ function sparseHashMapCookie:isVerified(pkt)
 		ack = true
 	end
 
-	--log:debug("is verified")
+	log:debug("is verified")
 	local k = sparseHashMapCookieGetKey(pkt, leftToRight)
 
 	local diff = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k, reset, leftFin, rightFin, ack)
-	--log:debug(tostring(diff))
+	log:debug(tostring(diff))
 	if not (diff == nil) then
-		if diff.flags == 0 then
-			--log:debug("stall")
-			return "stall"
+		log:debug("flags " .. tostring(diff.flags) .. " " .. band(diff.flags, 64))
+		if band(diff.flags, 64) == 64 then
+			log:debug("stall")
+			return "stall", diff
 		end
-		--log:debug("normal " .. tostring(diff.flags))
+		log:debug("normal " .. tostring(diff.flags))
 		return diff.diff
 	else
-		--log:debug("no result")
+		log:debug("no result")
 		return false
 	end
 end
