@@ -11,6 +11,9 @@
 #include <string>
 #include <sparsehash/sparse_hash_map>
 #include <time.h>
+extern "C" {
+	#include "siphash.c"
+}
 
 typedef struct sparse_hash_map_cookie_key {
 	uint32_t ip_src;
@@ -44,12 +47,25 @@ namespace std {
 	template <> struct hash<sparse_hash_map_cookie_key>{
    		inline size_t operator()(const sparse_hash_map_cookie_key& ft) const {
 			// fastest hash possible, but no perf increase
-			uint32_t hash = 0;
-			hash = _mm_crc32_u32(hash, ft.ip_src);
-			hash = _mm_crc32_u32(hash, ft.ip_dst);
-			hash = _mm_crc32_u16(hash, ft.tcp_dst);
-			hash = _mm_crc32_u16(hash, ft.tcp_src);
-			return hash;
+			//uint32_t hash = 0;
+			//hash = _mm_crc32_u32(hash, ft.ip_src);
+			//hash = _mm_crc32_u32(hash, ft.ip_dst);
+			//hash = _mm_crc32_u16(hash, ft.tcp_dst);
+			//hash = _mm_crc32_u16(hash, ft.tcp_src);
+			//return hash;
+
+			// safer hash: siphash
+			struct sipkey *key = sip_keyof("518dee47394431d4");
+			struct siphash state;
+
+			sip24_init(&state, key);
+
+			sip24_update(&state, sip_binof(ft.ip_src), 4);
+			sip24_update(&state, sip_binof(ft.ip_dst), 4);
+			sip24_update(&state, sip_binof(ft.tcp_src), 2);
+			sip24_update(&state, sip_binof(ft.tcp_dst), 2);
+
+			return (uint32_t) sip24_final(&state);
 		}
 	};
 }
