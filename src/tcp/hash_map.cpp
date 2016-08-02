@@ -1,6 +1,11 @@
 #include <unordered_map>
 #include <cstring> // for memcmp 
 #include "nmmintrin.h" // for sse4.2 hardware crc checksum
+#include <rte_config.h>
+#include <rte_mempool.h>
+#include <rte_mbuf.h>
+#include <rte_errno.h>
+#include <rte_spinlock.h>
 #include <map>
 #include <iostream> // for std::endl
 #include <string>
@@ -51,19 +56,17 @@ namespace std {
 	};
 }
 
+// the flags
+#define RESET 	0x01
+#define CLOSED 	0x02
+#define L_VER	0x04
+#define R_VER	0x08
+#define L_FIN	0x10
+#define R_FIN	0x20
+#define STALLED	0x40
 typedef struct sparse_hash_map_cookie_value {
 	uint32_t diff;
 	uint8_t flags;
-	/* 
-		#1: reset			1
-		#2: closed			2
-		#3: leftVerified	4
-		#4: rightVerified	8
-		#5: leftFin			16
-		#6: rightFin		32
-		#7: stall avail		64
-		#8: -				128
-	*/
 	void* stalled; // pointer to stalled mbuf
 } sparse_hash_map_cookie_value;
 
@@ -78,32 +81,29 @@ typedef struct sparse_hash_maps_cookie {
 
 extern "C" {
 	/* Google HashMap Sparsehash */
-	double SWAP_INTERVAL = 30;	
+	double SWAP_INTERVAL = 1;	
 	void mg_sparse_hash_map_cookie_swap(sparse_hash_maps_cookie *maps) {
 		clock_t time = clock();
 		if ( ((double) time - maps->last_swap) > ((double) SWAP_INTERVAL * CLOCKS_PER_SEC) ) {
 			printf("swapping\n");
 			
-			printf("freeing unsent stalled mbufs\n");
-			// free mbufs that will not be sent to prevent memory leaks
-			// TODO
-			//auto it = maps->old->begin();
-			//while (!it == maps->old->end()) {
-			//	printf("Currently at: %p %p\n" it->first, it->second);
-			//	if (maps->current->find(it->first) != maps->current->end()) {
-			//		printf("Found in both, doing nothing\n");
-			//	} else {
-			//		printf("Freeing stalled\n");
-			//		if (it->second->flags & 64 && it->second->stalled) {
-			//			printf("Actually freeing\n");
-			//		} else {
-			//			printf("No stalled\n");
-			//		}
-			//	}
-
-			//	it++;
-			//}
+			printf("freeing unsent stalled mbufs %d\n", maps->old->size());
+			// free mbufs in old map that will not be sent to prevent memory leaks
+			auto it = maps->old->begin();
+			while (!(it == maps->old->end())) {
+				// only free the buf when there actually is a stalled buf
+				if (it->second->flags & STALLED && it->second->stalled) {
+					// only free the buf it wasnt copied to current -> perform lookup
+					if (maps->current->find(it->first) != maps->current->end()) {
+						it->second->flags ^= STALLED;
+						rte_pktmbuf_free((rte_mbuf*)it->second->stalled);
+						it->second->stalled = NULL;
+					}
+				}
+				it++;
+			}
 			printf("done freeing\n");
+			
 			delete maps->old;
 			maps->old = maps->current;
 			maps->current = new sparse_hash_map_cookie(0);
@@ -156,7 +156,7 @@ extern "C" {
 			printf("new \n");
  			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
 			tmp->diff = ack;
-			tmp->flags = 4; // set leftVerified flag 4
+			tmp->flags = L_VER;
 			tmp->stalled = 0;
 			(*m)[*k] = tmp;
 			printf("Entry: %d %d %d\n", tmp->diff, tmp->flags, tmp->stalled);

@@ -658,15 +658,15 @@ function sparseHashMapCookie:setRightVerified(pkt)
 	local diff = ffi.C.mg_sparse_hash_map_cookie_finalize(self.map, k, seq)
 
 	if not (diff == nil) then
-		if band(diff.flags, 64) and not (diff.stalled == nil) then
-			local stalledPointer = diff.stalled
-			diff.stalled = nil -- unset it, we sent it after all and dont need to free manually
-			diff.flags = band(diff.flags, bnot(64)) -- unset the flag
+		--if band(diff.flags, 64) and not (diff.stalled == nil) then
+		--	local stalledPointer = diff.stalled
+			--diff.stalled = nil -- unset it, we sent it after all and dont need to free manually
+			--diff.flags = band(diff.flags, bnot(64)) -- unset the flag
 			log:debug("unset stalled flag " .. tostring(diff.flags) .. " " .. tostring(diff.stalled) .. " " .. tostring(stalledPointer))
-			return diff.diff, stalledPointer
-		else
+		--	return diff.diff, stalledPointer
+		--else
 			return diff.diff
-		end
+		--end
 	else
 		-- not left verified,
 		-- happens if a connection is deleted 
