@@ -307,10 +307,9 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 end
 
 function mod.forwardStalled(diff, txBuf)
-	log:debug('Forwarding stalled packet')
+	--log:debug('Forwarding stalled packet')
 
 	local txPkt = txBuf:getTcp4Packet()
-	log:debug("blub")
 	txPkt.tcp:setAckNumber(txPkt.tcp:getAckNumber() + diff)
 	txPkt.eth.dst = SERVER_MAC
 	txPkt.eth.src = PROXY_MAC
@@ -662,7 +661,6 @@ function sparseHashMapCookie:setRightVerified(pkt)
 			local stalledPointer = diff.stalled
 			diff.stalled = nil -- unset it, we sent it after all and dont need to free manually
 			diff.flags = band(diff.flags, bnot(64)) -- unset the flag
-			log:debug("unset stalled flag " .. tostring(diff.flags) .. " " .. tostring(diff.stalled) .. " " .. tostring(stalledPointer))
 			return diff.diff, stalledPointer
 		else
 			return diff.diff
@@ -702,21 +700,15 @@ function sparseHashMapCookie:isVerified(pkt)
 		ack = true
 	end
 
-	log:debug("is verified")
 	local k = sparseHashMapCookieGetKey(pkt, leftToRight)
 
 	local diff = ffi.C.mg_sparse_hash_map_cookie_find_update(self.map, k, reset, leftFin, rightFin, ack)
-	log:debug(tostring(diff))
 	if not (diff == nil) then
-		log:debug("flags " .. tostring(diff.flags) .. " " .. band(diff.flags, 64))
 		if band(diff.flags, 64) == 64 and diff.stalled == nil then
-			log:debug("stall")
 			return "stall", diff
 		end
-		log:debug("normal " .. tostring(diff.flags))
 		return diff.diff
 	else
-		log:debug("no result")
 		return false
 	end
 end

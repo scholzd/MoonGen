@@ -79,7 +79,7 @@ typedef struct sparse_hash_maps_cookie {
 
 extern "C" {
 	/* Google HashMap Sparsehash */
-#define	SWAP_INTERVAL 5
+#define	SWAP_INTERVAL 30
 	void mg_sparse_hash_map_cookie_swap(sparse_hash_maps_cookie *maps) {
 		clock_t time = clock();
 		if ( ((double) time - maps->last_swap) > ((double) SWAP_INTERVAL * CLOCKS_PER_SEC) ) {
@@ -146,18 +146,17 @@ extern "C" {
 	 * 		hence, we assume the first Ack number to be the correct one and don't update it here
 	 */
 	void mg_sparse_hash_map_cookie_insert(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, uint32_t ack) {
-		printf("insert %d\n", k->tcp_src);
+		//printf("insert %d\n", k->tcp_src);
 		auto m = maps->current;
 		auto it = m->find(*k);
 		// not existing yet
         if (it == m->end() ){
-			printf("new \n");
  			sparse_hash_map_cookie_value *tmp = new sparse_hash_map_cookie_value;
 			tmp->diff = ack;
 			tmp->flags = L_VER;
 			tmp->stalled = 0;
 			(*m)[*k] = tmp;
-			printf("Entry: %d %d %p\n", tmp->diff, tmp->flags, tmp->stalled);
+			//printf("Entry: %d %d %p\n", tmp->diff, tmp->flags, tmp->stalled);
 			mg_sparse_hash_map_cookie_swap(maps);
 			return;
 		} else {
@@ -168,7 +167,7 @@ extern "C" {
 			tmp->diff = ack;
 			tmp->flags = L_VER;
 			tmp->stalled = 0;
-			printf("Entry: %d %d %p\n", tmp->diff, tmp->flags, tmp->stalled);
+			//printf("Entry: %d %d %p\n", tmp->diff, tmp->flags, tmp->stalled);
 			
 			mg_sparse_hash_map_cookie_swap(maps);
 		}
@@ -181,15 +180,15 @@ extern "C" {
 	 * Set rightVerified flag
 	 */
 	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_finalize(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, uint32_t seq) {
-		printf("finalize %d\n", k->tcp_src);
+		//printf("finalize %d\n", k->tcp_src);
 		auto m = maps->current;
 		auto it = m->find(*k);
 		if (it == m->end() ) {
 			//printf("fin not found in current, checking old\n");
 			m = maps->old;
 			it = m->find(*k);
-			if (it == m->end() ) {
-				printf("fin also not found here\n");
+			if (unlikely(it == m->end())) {
+				//printf("fin also not found here\n");
 				mg_sparse_hash_map_cookie_swap(maps);
 				return 0;
 			}
@@ -211,7 +210,7 @@ extern "C" {
 		tmp->diff = seq - tmp->diff + 1;
 		tmp->flags = tmp->flags | R_VER;
 		//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
-		printf("Got a stalled buf: %p flags %d\n", tmp->stalled, tmp->flags & STALLED);	
+		//printf("Got a stalled buf: %p flags %d\n", tmp->stalled, tmp->flags & STALLED);	
 		mg_sparse_hash_map_cookie_swap(maps);
 		return tmp;
 	};
@@ -221,15 +220,14 @@ extern "C" {
 	 * Return the value struct
 	 */	
 	sparse_hash_map_cookie_value* mg_sparse_hash_map_cookie_find_update(sparse_hash_maps_cookie *maps, sparse_hash_map_cookie_key *k, bool reset, bool left_fin, bool right_fin, bool ack) {
-		printf("\n");
-		printf("is verified %d\n", k->tcp_src);
+		//printf("is verified %d\n", k->tcp_src);
 		auto m = maps->current;
 		auto it = m->find(*k);
 		if (it == m->end() ) {
 			//printf("upd not found in current, checking old\n");
 			m = maps->old;
 			it = m->find(*k);
-			if (it == m->end() ) {
+			if (unlikely(it == m->end())) {
 				//printf("upd also not found here\n");
 				mg_sparse_hash_map_cookie_swap(maps);
 				//printf("not existing\n");
@@ -242,21 +240,19 @@ extern "C" {
 		
 		sparse_hash_map_cookie_value *tmp = (*m)[*k];
 		
-		printf("Before: %p\n", tmp->stalled);	
 		// if only left verified we are waiting for right verified
 		// in this case stall, indicated by setting flags in a new struct to 0
-		if ((tmp->flags & (L_VER | R_VER)) == L_VER) {
-			if (tmp->flags & STALLED) {
-				printf("already got stalled buf\n");
+		if (unlikely((tmp->flags & (L_VER | R_VER)) == L_VER)) {
+			if (unlikely(tmp->flags & STALLED)) {
+				//printf("already got stalled buf\n");
 				return 0;
 			}
 			mg_sparse_hash_map_cookie_swap(maps);
-			printf("actual stall\n");
 			tmp->flags = tmp->flags | STALLED;
 			return tmp;
 		}
 		// Check verified flags (both 4 8 must be set)
-		if ((tmp->flags & (L_VER | R_VER)) != (L_VER | R_VER)) {
+		if (unlikely((tmp->flags & (L_VER | R_VER)) != (L_VER | R_VER))) {
 			mg_sparse_hash_map_cookie_swap(maps);
 			//printf("wrong flags\n");
 			return 0;
@@ -264,38 +260,37 @@ extern "C" {
 
 		// check reset flag
 		// if it is set the connection is dead and we do nothing
-		if (tmp->flags & RESET) {
+		if (unlikely(tmp->flags & RESET)) {
 			//printf("RESET set, act as if not verified\n");
 			return 0;
 		}
 		// set reset flag
-		if (reset) {
+		if (unlikely(reset)) {
 			tmp->flags = tmp->flags | RESET;
 		}
 
 		// check whether conenction was closed via teardown
-		if (tmp->flags & CLOSED) {
+		if (unlikely(tmp->flags & CLOSED)) {
 			//printf("closed via teardown, return\n");
 			return 0;
 		}
 		//check fin flags
 		// if both are set and this is an ack, assume this is the last ack of the teardown
-		if (((tmp->flags & (L_FIN | R_FIN)) == (L_FIN | R_FIN)) && ack) {
+		if (unlikely(((tmp->flags & (L_FIN | R_FIN)) == (L_FIN | R_FIN)) && ack)) {
 			//printf("final ack of connection, next will be discarded\n");
 			tmp->flags = tmp->flags | CLOSED; // close connection
 		}
 
 		// set fin flags
-		if (left_fin) {
+		if (unlikely(left_fin)) {
 			//printf("set left fin\n");
 			tmp->flags = tmp->flags | L_FIN;
 		}
-		if (right_fin) {
+		if (unlikely(right_fin)) {
 			//printf("set right fin\n");
 			tmp->flags = tmp->flags | R_FIN;
 		}
 
-		printf("returning normally\n");
 		mg_sparse_hash_map_cookie_swap(maps);
 
 		return tmp;

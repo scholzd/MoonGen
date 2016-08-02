@@ -186,14 +186,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 				-- TCP SYN Cookie strategy
 					if lRXPkt.tcp:getSyn() then
 						if not lRXPkt.tcp:getAck() then -- SYN -> send SYN/ACK
-							log:debug('Received SYN from left')
+							--log:debug('Received SYN from left')
 							if numSynAck == 0 then
 								lTXSynAckBufs:allocN(60, rx - (i - 1))
 							end
 							numSynAck = numSynAck + 1
 							createSynAckToClient(lTXSynAckBufs[numSynAck], lRXPkt)
 						else -- SYN/ACK from right -> send ack + stall table lookup
-							log:debug('Received SYN/ACK from server, sending ACK back')
+							--log:debug('Received SYN/ACK from server, sending ACK back')
 							local diff, stalled = stateCookie:setRightVerified(lRXPkt)
 							if diff then
 								-- ack to server
@@ -202,13 +202,8 @@ function tcpProxySlave(lRXDev, lTXDev)
 								lTXQueue:sendN(rTXAckBufs, 1)
 									
 								if stalled then
-									log:debug("got stalled " .. tostring(stalled))
 									forwardStalled(diff, stalled)
-									log:debug("sending stalled")
 									lTXQueue:sendSingle(stalled)
-									log:debug("sent stalled")
-								else
-									log:debug("no entry")
 								end
 							else
 								log:debug("right verify failed")
@@ -218,7 +213,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 					else -- check verified status
 						local diff, stalled = stateCookie:isVerified(lRXPkt) 
 						if not diff and lRXPkt.tcp:getAck() then -- finish handshake with left, start with right
-							log:debug("verifying cookie")
+							--log:debug("verifying cookie")
 							local mss, wsopt = verifyCookie(lRXPkt)
 							if mss then
 								--log:debug('Received valid cookie from left, starting handshake with server')
@@ -242,16 +237,12 @@ function tcpProxySlave(lRXDev, lTXDev)
 							-- not verified, not ack -> drop
 							log:warn("dropping unverfied not ack packet")
 						elseif diff == "stall" then
-							log:debug("stall packet")
 							stallBufs:allocN(60, 1)
 							ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
 							stallBufs[1]:setSize(lRXBufs[i]:getSize())
-							log:debug("storing")
-							log:debug("before " .. tostring(stalled) .. " " .. tostring(stallBufs[1]))
 							stalled.stalled = stallBufs[1]
-							log:debug("stored " .. tostring(stalled) .. " " .. tostring(stallBufs[1]))
 						elseif diff then 
-							log:debug('Received packet of verified connection, translating and forwarding')
+							--log:debug('Received packet of verified connection, translating and forwarding')
 							if numForward == 0 then
 								lTXForwardBufs:allocN(60, rx - (i - 1))
 							end
