@@ -160,7 +160,7 @@ extern "C" {
 			mg_sparse_hash_map_cookie_swap(maps);
 			return;
 		} else {
-			printf("NOT inserted, but reused\n");
+			//printf("NOT inserted, but reused\n");
 			// entry exists, but was not verified (connections closed)
 
  			sparse_hash_map_cookie_value *tmp = (*m)[*k];

@@ -84,6 +84,7 @@ local createResponseAuth = auth.createResponseAuth
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 	--log:setLevel("WARN")
+	log:setLevel("ERROR")
 	
 	local currentStrat = STRAT['cookie']
 	local maxBurstSize = 63

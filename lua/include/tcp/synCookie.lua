@@ -156,15 +156,32 @@ end
 ---- Hash
 -------------------------------------------------------------------------------------------
 
-local function hash(int)
-	-- TODO implement something with real crypto later on
-	return int
+ffi.cdef [[
+	struct sipkey {
+		uint64_t k[2];
+	}; /* struct sipkey */
+
+	struct sipkey * mg_siphash_cookie_init();
+	uint64_t mg_siphash_cookie_hash(struct sipkey *key, uint32_t ip_src, uint32_t ip_dst, uint16_t tcp_src, uint16_t tcp_dst, uint32_t ts);
+]]
+
+local siphashKey = ffi.C.mg_siphash_cookie_init()
+--log:debug("key " .. tostring(siphashKey) .. " " .. tostring(siphashKey.k[0]) .. " " .. tostring(siphashKey.k[1]))
+
+local function identHash(ipSrc, ipDst, portSrc, portDst, ts)
+	return ipSrc + ipDst + portSrc + portDst + ts
+end
+
+local function sipHash(ipSrc, ipDst, portSrc, portDst, ts)
+	--log:debug("key " .. tostring(siphashKey) .. " " .. tostring(siphashKey.k[0]) .. " " .. tostring(siphashKey.k[1]))
+	return tonumber(ffi.C.mg_siphash_cookie_hash(siphashKey, ipSrc, ipDst, portSrc, portDst, ts))
 end
 
 local function getHash(ipSrc, ipDst, portSrc, portDst, ts)
-	local sum = 0
-	sum = sum + ipSrc + ipDst + portSrc + portDst + ts
-	return band(hash(sum), 0x000fffff) -- 20 bits
+	local hash = sipHash(ipSrc, ipDst, portSrc, portDst, ts)
+	hash = band(hash, 0x000fffff) -- 20 bits
+	--log:debug("hash: " .. tostring(hash))
+	return hash
 end
 
 local function verifyHash(oldHash, ipSrc, ipDst, portSrc, portDst, ts)
@@ -222,6 +239,7 @@ function mod.verifyCookie(pkt)
 		log:warn("Verify from Server...")
 		return false
 	end
+
 	local cookie = pkt.tcp:getAckNumber()
 	--log:debug('Got ACK:        ' .. toBinary(cookie))
 	cookie = cookie - 1
@@ -229,7 +247,7 @@ function mod.verifyCookie(pkt)
 
 	-- check timestamp first
 	local ts = rshift(cookie, 27)
-	--log:debug('TS:           ' .. toBinary(ts))
+	--log:debug('TS:             ' .. toBinary(ts))
 	if not verifyTimestamp(ts) then
 		log:warn('Received cookie with invalid timestamp')
 		return false

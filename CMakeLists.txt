@@ -27,6 +27,8 @@ SET(FILES
 	src/kni.c
 	src/tcp/hash_map.cpp
 	src/tcp/bit_map.cpp
+	src/tcp/siphash.c
+	src/tcp/siphash_cookie.c
 )
 
 SET(DPDK_LIBS
