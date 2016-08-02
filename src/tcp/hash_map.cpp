@@ -12,8 +12,6 @@
 #include <sparsehash/sparse_hash_map>
 #include <time.h>
 
-#define unlikely(x)     __builtin_expect(!!(x), 0)
-
 typedef struct sparse_hash_map_cookie_key {
 	uint32_t ip_src;
 	uint32_t ip_dst;		
@@ -81,13 +79,13 @@ typedef struct sparse_hash_maps_cookie {
 
 extern "C" {
 	/* Google HashMap Sparsehash */
-	double SWAP_INTERVAL = 1;	
+#define	SWAP_INTERVAL 5
 	void mg_sparse_hash_map_cookie_swap(sparse_hash_maps_cookie *maps) {
 		clock_t time = clock();
 		if ( ((double) time - maps->last_swap) > ((double) SWAP_INTERVAL * CLOCKS_PER_SEC) ) {
 			printf("swapping\n");
 			
-			printf("freeing unsent stalled mbufs %d\n", maps->old->size());
+			printf("%f freeing unsent stalled mbufs %f\n", (double) clock(), (double) maps->old->size());
 			// free mbufs in old map that will not be sent to prevent memory leaks
 			auto it = maps->old->begin();
 			while (!(it == maps->old->end())) {
@@ -102,7 +100,7 @@ extern "C" {
 				}
 				it++;
 			}
-			printf("done freeing\n");
+			printf("%f done freeing\n", (double) clock());
 			
 			delete maps->old;
 			maps->old = maps->current;
@@ -159,7 +157,7 @@ extern "C" {
 			tmp->flags = L_VER;
 			tmp->stalled = 0;
 			(*m)[*k] = tmp;
-			printf("Entry: %d %d %d\n", tmp->diff, tmp->flags, tmp->stalled);
+			printf("Entry: %d %d %p\n", tmp->diff, tmp->flags, tmp->stalled);
 			mg_sparse_hash_map_cookie_swap(maps);
 			return;
 		} else {
@@ -168,9 +166,9 @@ extern "C" {
 
  			sparse_hash_map_cookie_value *tmp = (*m)[*k];
 			tmp->diff = ack;
-			tmp->flags = 4; // set leftVerified flag 4
+			tmp->flags = L_VER;
 			tmp->stalled = 0;
-			printf("Entry: %d %d %d\n", tmp->diff, tmp->flags, tmp->stalled);
+			printf("Entry: %d %d %p\n", tmp->diff, tmp->flags, tmp->stalled);
 			
 			mg_sparse_hash_map_cookie_swap(maps);
 		}
@@ -204,17 +202,16 @@ extern "C" {
 		
 		// Check that flags are correct
 		// Only leftVerified must be set
-		// TODO can we do this without flags..., reduces complexity to single uint32_t
-		if ( unlikely((tmp->flags & 12) != 4) ) {
+		if ( unlikely((tmp->flags & (L_VER | R_VER)) != L_VER) ) {
 			mg_sparse_hash_map_cookie_swap(maps);
 			//printf("ignoring second syn ack\n");
 			return tmp;
 		}
 		
 		tmp->diff = seq - tmp->diff + 1;
-		tmp->flags = tmp->flags | 8; // set rightVerified flag 8
+		tmp->flags = tmp->flags | R_VER;
 		//printf("Entry: %d %d\n", tmp->diff, tmp->flags);
-		printf("Got a stalled buf: %p flags %d\n", tmp->stalled, tmp->flags & 64);	
+		printf("Got a stalled buf: %p flags %d\n", tmp->stalled, tmp->flags & STALLED);	
 		mg_sparse_hash_map_cookie_swap(maps);
 		return tmp;
 	};
@@ -248,19 +245,18 @@ extern "C" {
 		printf("Before: %p\n", tmp->stalled);	
 		// if only left verified we are waiting for right verified
 		// in this case stall, indicated by setting flags in a new struct to 0
-		if ((tmp->flags & 12) == 4) {
-			if (tmp->flags & 64) {
+		if ((tmp->flags & (L_VER | R_VER)) == L_VER) {
+			if (tmp->flags & STALLED) {
 				printf("already got stalled buf\n");
 				return 0;
 			}
 			mg_sparse_hash_map_cookie_swap(maps);
 			printf("actual stall\n");
-			tmp->flags = tmp->flags | 64;
+			tmp->flags = tmp->flags | STALLED;
 			return tmp;
 		}
 		// Check verified flags (both 4 8 must be set)
-		// TODO maybe even drop this, not necessary really
-		if ((tmp->flags & 12) != 12) {
+		if ((tmp->flags & (L_VER | R_VER)) != (L_VER | R_VER)) {
 			mg_sparse_hash_map_cookie_swap(maps);
 			//printf("wrong flags\n");
 			return 0;
@@ -268,35 +264,35 @@ extern "C" {
 
 		// check reset flag
 		// if it is set the connection is dead and we do nothing
-		if ((tmp->flags & 1) == 1) {
+		if (tmp->flags & RESET) {
 			//printf("RESET set, act as if not verified\n");
 			return 0;
 		}
 		// set reset flag
 		if (reset) {
-			tmp->flags = tmp->flags | 1;
+			tmp->flags = tmp->flags | RESET;
 		}
 
 		// check whether conenction was closed via teardown
-		if ((tmp->flags & 2) == 2) {
+		if (tmp->flags & CLOSED) {
 			//printf("closed via teardown, return\n");
 			return 0;
 		}
 		//check fin flags
 		// if both are set and this is an ack, assume this is the last ack of the teardown
-		if (((tmp->flags & 48) == 48) && ack) {
+		if (((tmp->flags & (L_FIN | R_FIN)) == (L_FIN | R_FIN)) && ack) {
 			//printf("final ack of connection, next will be discarded\n");
-			tmp->flags = tmp->flags | 2; // close connection
+			tmp->flags = tmp->flags | CLOSED; // close connection
 		}
 
 		// set fin flags
 		if (left_fin) {
 			//printf("set left fin\n");
-			tmp->flags = tmp->flags | 16;
+			tmp->flags = tmp->flags | L_FIN;
 		}
 		if (right_fin) {
 			//printf("set right fin\n");
-			tmp->flags = tmp->flags | 32;
+			tmp->flags = tmp->flags | R_FIN;
 		}
 
 		printf("returning normally\n");
@@ -304,9 +300,4 @@ extern "C" {
 
 		return tmp;
 	};
-	
-	string mg_sparse_hash_map_cookie_string(sparse_hash_map_cookie *m) {
-		string str = "NYI";
-		return str;
-	}
 }
