@@ -223,7 +223,7 @@ end
 
 function mod.verifyCookie(pkt)
 	if pkt.eth.src == SERVER_MAC then
-		log:warn("Verify from Server...")
+		--log:warn("Verify cookie from Server -> drop")
 		return false
 	end
 
@@ -236,7 +236,7 @@ function mod.verifyCookie(pkt)
 	local ts = rshift(cookie, 27)
 	--log:debug('TS:             ' .. toBinary(ts))
 	if not verifyTimestamp(ts) then
-		log:warn('Received cookie with invalid timestamp')
+		--log:warn('Received cookie with invalid timestamp')
 		return false
 	end
 
@@ -251,7 +251,7 @@ function mod.verifyCookie(pkt)
 			pkt.tcp:getDst(), 
 			ts
 	) then
-		log:warn('Received cookie with invalid hash')
+		--log:warn('Received cookie with invalid hash')
 		return false
 	else
 		-- finally decode options and return it

@@ -231,14 +231,14 @@ function tcpProxySlave(lRXDev, lTXDev)
 								createSynToServer(lTXForwardBufs[numForward], lRXBufs[i], mss, wsopt)
 								--lTXForwardBufs[numForward]:dumpFlags()
 							else
-								log:warn('Wrong cookie, dropping packet ')
+								--log:warn('Wrong cookie, dropping packet ')
 								-- drop, and done
 								-- most likely simply the timestamp timed out
 								-- but it might also be a DoS attack that tried to guess the cookie
 							end
 						elseif not diff then
 							-- not verified, not ack -> drop
-							log:warn("dropping unverfied not ack packet")
+							--log:warn("dropping unverfied not ack packet")
 						elseif diff == "stall" then
 							stallBufs:allocN(60, 1)
 							ffi.copy(stallBufs[1]:getData(), lRXBufs[i]:getData(), lRXBufs[i]:getSize())
