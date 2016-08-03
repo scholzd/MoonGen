@@ -67,6 +67,7 @@ local createSynToServer = cookie.createSynToServer
 local createAckToServer = cookie.createAckToServer
 local forwardTraffic = cookie.forwardTraffic
 local forwardStalled = cookie.forwardStalled
+local calculateCookiesBatched = cookie.calculateCookiesBatched
 
 
 -------------------------------------------------------------------------------------------
@@ -80,9 +81,7 @@ local createResponseAuth = auth.createResponseAuth
 ---------------------------------------------------
 -- slave
 ---------------------------------------------------
-ffi.cdef[[
-	void calculate_cookies_batched(struct rte_mbuf *pkts[], uint32_t num);
-]]
+
 function tcpProxySlave(lRXDev, lTXDev)
 	log:setLevel("DEBUG")
 	--log:setLevel("WARN")
@@ -264,7 +263,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 			if currentStrat == STRAT['cookie'] then	
 				if numSynAck > 0 then
 					-- send syn ack
-					ffi.C.calculate_cookies_batched(lTXSynAckBufs.array, numSynAck)
+					calculateCookiesBatched(lTXSynAckBufs.array, numSynAck)
 					lTXSynAckBufs:offloadTcpChecksums(nil, nil, nil, numSynAck)
 					lTXQueue:sendN(lTXSynAckBufs, numSynAck)
 					lTXSynAckBufs:freeAfter(numSynAck)

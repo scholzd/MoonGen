@@ -311,6 +311,14 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 	--end
 end
 
+ffi.cdef[[
+	void calculate_cookies_batched(struct rte_mbuf *pkts[], uint32_t num);
+]]
+
+function mod.calculateCookiesBatched(mbufArray, num)
+	ffi.C.calculate_cookies_batched(mbufArray, num)
+end
+
 function mod.forwardStalled(diff, txBuf)
 	--log:debug('Forwarding stalled packet')
 
