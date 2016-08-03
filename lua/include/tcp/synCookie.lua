@@ -603,12 +603,9 @@ ffi.cdef [[
 	struct sparse_hash_map_cookie {};
 	struct sparse_hash_map_cookie * mg_sparse_hash_map_cookie_create(uint32_t size);
 	
-	char * mg_sparse_hash_map_cookie_string(struct sparse_hash_map_cookie *m);
-	
 	void mg_sparse_hash_map_cookie_insert(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t ack);
 	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_finalize(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, uint32_t seq);
 	struct sparse_hash_map_cookie_value * mg_sparse_hash_map_cookie_find_update(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k, bool reset, bool left_fin, bool right_fin, bool ack);
-	void mg_sparse_hash_map_cookie_delete(struct sparse_hash_map_cookie *m, struct sparse_hash_map_cookie_key *k);
 ]]
 
 local LEFT_TO_RIGHT = true
@@ -716,15 +713,6 @@ function sparseHashMapCookie:isVerified(pkt)
 	else
 		return false
 	end
-end
-
-function sparseHashMapCookie:__tostring()
-	return ffi.C.mg_sparse_hash_map_cookie_string(self.map)
-end
-
-function sparseHashMapCookie:delete(k)
-	--log:debug("delete")
-	ffi.C.mg_sparse_hash_map_cookie_delete(self.map, k)
 end
 
 return mod
