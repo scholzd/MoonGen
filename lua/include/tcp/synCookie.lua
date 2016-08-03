@@ -162,7 +162,7 @@ ffi.cdef [[
 	}; /* struct sipkey */
 
 	struct sipkey * mg_siphash_cookie_init();
-	uint64_t mg_siphash_cookie_hash(struct sipkey *key, uint32_t ip_src, uint32_t ip_dst, uint16_t tcp_src, uint16_t tcp_dst, uint32_t ts);
+	uint32_t mg_siphash_cookie_hash(uint32_t ip_src, uint32_t ip_dst, uint16_t tcp_src, uint16_t tcp_dst, uint32_t ts);
 ]]
 
 local siphashKey = ffi.C.mg_siphash_cookie_init()
@@ -174,12 +174,11 @@ end
 
 local function sipHash(ipSrc, ipDst, portSrc, portDst, ts)
 	--log:debug("key " .. tostring(siphashKey) .. " " .. tostring(siphashKey.k[0]) .. " " .. tostring(siphashKey.k[1]))
-	return tonumber(ffi.C.mg_siphash_cookie_hash(siphashKey, ipSrc, ipDst, portSrc, portDst, ts))
+	return tonumber(ffi.C.mg_siphash_cookie_hash(ipSrc, ipDst, portSrc, portDst, ts))
 end
 
 local function getHash(ipSrc, ipDst, portSrc, portDst, ts)
 	local hash = sipHash(ipSrc, ipDst, portSrc, portDst, ts)
-	hash = band(hash, 0x000fffff) -- 20 bits
 	--log:debug("hash: " .. tostring(hash))
 	return hash
 end
@@ -204,10 +203,7 @@ local function calculateCookie(pkt)
 	---- ts 5 - mss 3 - wsopt 4 - hash 20
 	--------------------------------------
 
-	local tsOrig = getTimestamp()
-	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
-	local ts = lshift(tsOrig, 27)
-	--log:debug('Time: ' .. ts .. ' ' .. toBinary(ts))
+	-- timestamp and hash involve C calls, hence, are done on the whole batch in C
 
 	-- extra options we support
 	local mss, wsopt = extractOptions(pkt)
@@ -217,20 +213,11 @@ local function calculateCookie(pkt)
 	wsopt = encodeWsopt(wsopt)
 	wsopt = lshift(wsopt, 20)
 	
-	-- hash
-	local hash = getHash(
-		pkt.ip4:getSrc(), 
-		pkt.ip4:getDst(), 
-		pkt.tcp:getSrc(),
-		pkt.tcp:getDst(),
-		tsOrig
-	)
-	--log:debug('Created TS:     ' .. toBinary(ts))
 	--log:debug('Created MSS:    ' .. toBinary(mss))
 	--log:debug('Created WSOPT:  ' .. toBinary(wsopt))
-	--log:debug('Created hash:   ' .. toBinary(hash))
-	local cookie = ts + mss + wsopt + hash
+	local cookie = mss + wsopt
 	--log:debug('Created cookie: ' .. toBinary(cookie))
+	--log:debug("cookie " .. tostring(cookie))
 	return cookie
 end
 

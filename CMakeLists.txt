@@ -28,6 +28,7 @@ SET(FILES
 	src/tcp/hash_map.cpp
 	src/tcp/bit_map.cpp
 	src/tcp/siphash.c
+	src/tcp/cookie.c
 	src/tcp/siphash_cookie.c
 )
 
