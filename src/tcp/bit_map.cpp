@@ -39,13 +39,25 @@ extern "C" {
 		return map;
 	}
 	
-	bool mg_bit_map_auth_update(bit_map_auth_map *map, uint32_t k, bool rst) {
+	bool mg_bit_map_auth_update(bit_map_auth_map *map, uint32_t k, bool forced) {
 		uint32_t bucket = k >> 2; // division by four rounded down to determin bucket
 		uint8_t idx = k & 3; // 2 least significant bits -> %4 as index within bucket	
 		// bits are ts1 (idx*2) and ts2 (idx * 2 + 1)
 		// ts1 gets deleted first, so only check for ts2
 		bool ts2 = map->bucket[bucket] & (1 << ((idx * 2) + 1));
-		if (ts2 || rst) {
+		if (ts2 || forced) {
+			map->bucket[bucket] |= (3 << (idx * 2));
+		}
+		return ts2;
+	};
+	
+	bool mg_bit_map_auth_update_syn(bit_map_auth_map *map, uint32_t k) {
+		uint32_t bucket = k >> 2; // division by four rounded down to determin bucket
+		uint8_t idx = k & 3; // 2 least significant bits -> %4 as index within bucket	
+		// bits are ts1 (idx*2) and ts2 (idx * 2 + 1)
+		// ts1 gets deleted first, so only check for ts2
+		bool ts2 = map->bucket[bucket] & (1 << ((idx * 2) + 1));
+		if (ts2) {
 			map->bucket[bucket] |= (3 << (idx * 2));
 		}
 		return ts2;

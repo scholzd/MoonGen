@@ -77,6 +77,8 @@ local calculateCookiesBatched = cookie.calculateCookiesBatched
 
 local forwardTrafficAuth = auth.forwardTraffic
 local createResponseAuth = auth.createResponseAuth
+local createResponseAuthFull = auth.createResponseAuthFull
+local createResponseRst = auth.createResponseRst
 
 
 ---------------------------------------------------
@@ -88,7 +90,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	--log:setLevel("WARN")
 	--log:setLevel("ERROR")
 	
-	local currentStrat = STRAT['auth']
+	local currentStrat = STRAT['auth_full']
 	local maxBurstSize = 63
 
 	lTXStats = stats:newDevTxCounter(lTXDev, "plain")
@@ -116,7 +118,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 	
 	-- buffer for syn auth answer to left
 	local numAuth = 0
-	local lTXAuthBufs = auth.getBufs()
+	local lTXAuthBufs = auth.getSynAckBufs()
+	
+	-- buffer for rst answer to left
+	local numRst = 0
+	local lTXRstBufs = auth.getRstBufs()
 
 	-- buffers for not TCP packets
 	-- need to behandled separately as we cant just offload TCP checksums here
@@ -167,7 +173,37 @@ function tcpProxySlave(lRXDev, lTXDev)
 					-- send wrong acknowledgement number on unverified SYN
 					local forward = false
 					if lRXPkt.tcp:getSyn() and not lRXPkt.tcp:getAck() then
+						if bitMapAuth:isWhitelistedSyn(lRXPkt) then
+							forward = true
+						else
+							-- create and send packet with wrong sequence number
+							if numAuth == 0 then
+								lTXAuthBufs:allocN(60, rx - (i - 1))
+							end
+							numAuth = numAuth + 1
+							createResponseAuth(lTXAuthBufs[numAuth], lRXPkt)
+						end
+					else
 						if bitMapAuth:isWhitelisted(lRXPkt) then
+							forward = true
+						else
+							-- drop
+							-- we either received a rst that now whitelisted the connection
+							-- or we received not whitelisted junk
+						end
+					end
+					if forward then
+						if numForward == 0 then
+							lTXForwardBufs:allocN(60, rx - (i - 1))
+						end
+						numForward = numForward + 1
+						forwardTrafficAuth(lTXForwardBufs[numForward], lRXBufs[i])
+					end
+				elseif currentStrat == STRAT['auth_full'] then
+					-- do a full handshake for whitelisting, then proxy sends rst
+					local forward = false
+					if lRXPkt.tcp:getSyn() and not lRXPkt.tcp:getAck() then
+						if bitMapAuth:isWhitelistedSyn(lRXPkt) then
 							forward = true
 						log:debug("forward1")
 						else
@@ -176,13 +212,22 @@ function tcpProxySlave(lRXDev, lTXDev)
 								lTXAuthBufs:allocN(60, rx - (i - 1))
 							end
 							numAuth = numAuth + 1
-							createResponseAuth(lTXAuthBufs[numAuth], lRXPkt)
-						log:debug("false ack")
+							createResponseAuthFull(lTXAuthBufs[numAuth], lRXPkt)
+						log:debug("send syn ack")
 						end
 					else
-						if bitMapAuth:isWhitelisted(lRXPkt) then
+						local action = bitMapAuth:isWhitelistedFull(lRXPkt) 
+						if action == 1 then
 							forward = true
 						log:debug("forward2")
+						elseif action == 2 then
+							-- send rst
+							if numRst == 0 then
+								lTXRstBufs:allocN(60, rx - (i - 1))
+							end
+							numRst = numRst + 1
+							createResponseRst(lTXRstBufs[numRst], lRXPkt)
+							log:debug("send rst")
 						else
 							-- drop
 							-- we either received a rst that now whitelisted the connection
@@ -197,28 +242,6 @@ function tcpProxySlave(lRXDev, lTXDev)
 						numForward = numForward + 1
 						forwardTrafficAuth(lTXForwardBufs[numForward], lRXBufs[i])
 					end
-				--elseif currentStrat == STRAT['auth_full'] then
-				--	if lRXPkt.tcp:getSyn() and not lRXPkt.tcp:getAck() and not bitMapAuth:isWhitelisted(lRXPkt) then
-				--		-- create and send syn/ack packet (but minimal, no options)
-				--		if numAuth == 0 then
-				--			lTXAuthBufs:allocN(60, rx - (i - 1))
-				--		end
-				--		numAuth = numAuth + 1
-				--		createResponseAuthFull(lTXAuthBufs[numAuth], lRXPkt)
-				--	elseif lRXPkt.tcp:getAck() and not bitMapAuth:isWhitelisted(lRXPkt) then
-				--		bitMapAuth:setWhitelisted(lRXPkt)
-				--		createResponseRst()
-				--		createResponseRst(lTXRstBufs[numRst], lRXPkt)
-				--	else
-				--		bitMapAuth:updateWhitelisted(lRXPkt)
-				--		
-				--		-- everything else simply forward
-				--		if numForward == 0 then
-				--			lTXForwardBufs:allocN(60, rx - (i - 1))
-				--		end
-				--		numForward = numForward + 1
-				--		forwardTrafficAuth(lTXForwardBufs[numForward], lRXBufs[i])
-				--	end
 				else
 				-- TCP SYN Cookie strategy
 					if lRXPkt.tcp:getSyn() then
