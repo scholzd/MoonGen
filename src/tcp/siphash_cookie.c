@@ -15,6 +15,7 @@ uint32_t mg_siphash_cookie_hash(struct sipkey *key, uint32_t ip_src, uint32_t ip
 
 	sip24_init(&state, key);
 
+	sip24_update(&state, "c36fe2169a1c9cc9178d781a688ab07f", 16); // salt
 	sip24_update(&state, sip_binof(ip_src), 4);
 	sip24_update(&state, sip_binof(ip_dst), 4);
 	sip24_update(&state, sip_binof(tcp_src), 2);
