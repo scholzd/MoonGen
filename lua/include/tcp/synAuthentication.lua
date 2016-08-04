@@ -18,6 +18,11 @@ local mod = {}
 ---- Packet modification and crafting for SYN authentication
 -------------------------------------------------------------------------------------------
 
+local SERVER_IP = parseIP4Address("192.168.1.1")
+local CLIENT_MAC = parseMacAddress("90:e2:ba:98:58:78")
+local SERVER_MAC = parseMacAddress("90:e2:ba:98:88:e8")
+local PROXY_MAC  = parseMacAddress("90:e2:ba:98:88:e9") 
+
 function mod.forwardTraffic(txBuf, rxBuf)
 	cookie.forwardTraffic(txBuf, rxBuf)
 end
@@ -89,27 +94,36 @@ function mod.createBitMapAuth()
 	}, bitMapAuth)
 end
 
+local function getKey(pkt)
+	local mac = pkt.eth.src
+	if srcMac == CLIENT_MAC then
+		return pkt.ip4:getSrc()
+	else
+		return pkt.ip4:getDst()
+	end
+end
+
 function bitMapAuth:update(pkt)
 	--log:debug("calling is verified")
-	local k = pkt.ip4:getSrc()
+	local k = getKey(pkt)
 	return ffi.C.mg_bit_map_auth_update(self.map, k)
 end
 
 function bitMapAuth:set(pkt)
 	--log:debug("calling is verified")
-	local k = pkt.ip4:getSrc()
+	local k = getKey(pkt)
 	ffi.C.mg_bit_map_auth_set(self.map, k)
 end
 
 function bitMapAuth:get(pkt)
 	--log:debug("calling is verified")
-	local k = pkt.ip4:getSrc()
+	local k = getKey(pkt)
 	return ffi.C.mg_bit_map_auth_get(self.map, k)
 end
 
 function bitMapAuth:findUpdate(pkt)
 	--log:debug("calling is verified")
-	local k = pkt.ip4:getSrc()
+	local k = getKey(pkt)
 	ffi.C.mg_bit_map_auth_find_update(self.map, k)
 end
 

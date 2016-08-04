@@ -484,12 +484,16 @@ function mod.forwardTraffic(txBuf, rxBuf)
 	local txPkt = txBuf:getTcp4Packet()
 	local srcMac = txPkt.eth.src
 	if srcMac == CLIENT_MAC then
+		--log:debug("to server")
 		txPkt.eth.dst = SERVER_MAC
 		txPkt.eth.src = PROXY_MAC
 	elseif srcMac == SERVER_MAC then
+		--log:debug("to client")
 		txPkt.eth.dst = CLIENT_MAC
 		txPkt.eth.src = PROXY_MAC
 	end
+	txPkt.ip4:calculateChecksum()
+	txPkt.tcp:calculateChecksum(txBuf:getData(), size, true)
 end
 
 -------------------------------------------------------------------------------------------

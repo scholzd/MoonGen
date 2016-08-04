@@ -87,7 +87,7 @@ function tcpProxySlave(lRXDev, lTXDev)
 	--log:setLevel("WARN")
 	--log:setLevel("ERROR")
 	
-	local currentStrat = STRAT['cookie']
+	local currentStrat = STRAT['auth']
 	local maxBurstSize = 63
 
 	lTXStats = stats:newDevTxCounter(lTXDev, "plain")
@@ -164,26 +164,30 @@ function tcpProxySlave(lRXDev, lTXDev)
 				-- TCP SYN Authentication strategy
 				if currentStrat == STRAT['auth'] then
 					-- send wrong sequence number on unverified SYN
-					if lRXPkt.tcp:getSyn() and not bitMapAuth:isWhitelisted(lRXPkt) then
+					if lRXPkt.tcp:getSyn() and not lRXPkt.tcp:getAck() and not bitMapAuth:isWhitelisted(lRXPkt) then
 						-- create and send packet with wrong sequence
+						if numAuth == 0 then
+							lTXAuthBufs:allocN(60, rx - (i - 1))
+						end
 						numAuth = numAuth + 1
 						createResponseAuth(lTXAuthBufs[numAuth], lRXPkt)
 					else
 						-- react to RST and verify connection
 						-- or update timestamps but only if connection was verified already
-						if lRXPkt.tcp:getRst() then
+						if lRXPkt.tcp:getRst() and not bitMapAuth:isWhitelisted(lRXPkt) then
 							bitMapAuth:setWhitelisted(lRXPkt)
 						else
 							bitMapAuth:updateWhitelisted(lRXPkt)
-						end
 						
-						-- everything else simply forward
-						if numForward == 0 then
-							lTXForwardBufs:allocN(60, rx - (i - 1))
+							-- everything else simply forward
+							if numForward == 0 then
+								lTXForwardBufs:allocN(60, rx - (i - 1))
+							end
+							numForward = numForward + 1
+							forwardTrafficAuth(lTXForwardBufs[numForward], lRXBufs[i])
 						end
-						numForward = numForward + 1
-						forwardTrafficAuth(lTXForwardBufs[numForward], lRXBufs[i])
 					end
+					
 				else
 				-- TCP SYN Cookie strategy
 					if lRXPkt.tcp:getSyn() then
@@ -270,9 +274,11 @@ function tcpProxySlave(lRXDev, lTXDev)
 				end
 			else
 				-- send packets with wrong ack number
-				lTXAuthBufs:offloadTcpChecksums(nil, nil, nil, numAuth)
-				lTXQueue:sendN(lTXAuthBufs, numAuth)
-				lTXAuthBufs:freeAfter(numAuth)
+				if numAuth > 0 then
+					lTXAuthBufs:offloadTcpChecksums(nil, nil, nil, numAuth)
+					lTXQueue:sendN(lTXAuthBufs, numAuth)
+					lTXAuthBufs:freeAfter(numAuth)
+				end
 			end
 			-- all strategies
 			-- send forwarded packets and free unused buffers

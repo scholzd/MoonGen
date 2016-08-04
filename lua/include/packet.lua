@@ -40,7 +40,7 @@ function pkt:getTimesync()
 end
 
 function pkt:dumpFlags()
-	log:debug(tostring(self.ol_flags))
+	log:debug(tostring(self.ol_flags) .. " " .. tostring(self.tx_offload))
 end
 
 --- Retrieve the time stamp information.
