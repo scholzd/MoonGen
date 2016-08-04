@@ -6,7 +6,7 @@
 
 struct sipkey *mg_siphash_cookie_init() {
 	struct sipkey *key = malloc(sizeof(struct sipkey));
-	key = sip_tokey(key, "518dee47394431d4");
+	key = sip_tokey(key, "e9dbc39fd2ca7acc777275304ddc8b8b");
 	return key;
 }
 
