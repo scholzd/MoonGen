@@ -1,4 +1,4 @@
-#include "siphash.c"
+#include "siphash.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
