@@ -162,25 +162,29 @@ ffi.cdef [[
 	}; /* struct sipkey */
 
 	struct sipkey * mg_siphash_cookie_init();
-	uint32_t mg_siphash_cookie_hash(uint32_t ip_src, uint32_t ip_dst, uint16_t tcp_src, uint16_t tcp_dst, uint32_t ts);
+	uint32_t mg_siphash_cookie_hash(struct sipkey *key,	uint32_t ip_src, uint32_t ip_dst, uint16_t tcp_src, uint16_t tcp_dst, uint32_t ts);
 ]]
 
-local siphashKey = ffi.C.mg_siphash_cookie_init()
---log:debug("key " .. tostring(siphashKey) .. " " .. tostring(siphashKey.k[0]) .. " " .. tostring(siphashKey.k[1]))
+local siphashCookie = {}
+siphashCookie.__index = siphashCookie
 
-local function identHash(ipSrc, ipDst, portSrc, portDst, ts)
-	return ipSrc + ipDst + portSrc + portDst + ts
+function mod.initSiphashCookie()
+	log:info("Generating key material for cookie siphash")
+	local k = ffi.C.mg_siphash_cookie_init()
+	return setmetatable({
+		key = k
+	}, siphashCookie)
 end
 
-local function sipHash(ipSrc, ipDst, portSrc, portDst, ts)
-	--log:debug("key " .. tostring(siphashKey) .. " " .. tostring(siphashKey.k[0]) .. " " .. tostring(siphashKey.k[1]))
-	return tonumber(ffi.C.mg_siphash_cookie_hash(ipSrc, ipDst, portSrc, portDst, ts))
+function siphashCookie:hash(ipSrc, ipDst, portSrc, portDst, ts)
+	return tonumber(ffi.C.mg_siphash_cookie_hash(self.key, ipSrc, ipDst, portSrc, portDst, ts))
 end
+
+---- Siphash instance
+local hasher = mod.initSiphashCookie()
 
 local function getHash(ipSrc, ipDst, portSrc, portDst, ts)
-	local hash = sipHash(ipSrc, ipDst, portSrc, portDst, ts)
-	--log:debug("hash: " .. tostring(hash))
-	return hash
+	return hasher:hash(ipSrc, ipDst, portSrc, portDst, ts)
 end
 
 local function verifyHash(oldHash, ipSrc, ipDst, portSrc, portDst, ts)
@@ -202,7 +206,7 @@ local function calculateCookie(pkt)
 	---- LAYOUT with wsopt
 	---- ts 5 - mss 3 - wsopt 4 - hash 20
 	--------------------------------------
-
+	
 	-- timestamp and hash involve C calls, hence, are done on the whole batch in C
 
 	-- extra options we support
@@ -312,11 +316,11 @@ function mod.sequenceNumberTranslation(diff, rxBuf, txBuf, rxPkt, txPkt)
 end
 
 ffi.cdef[[
-	void calculate_cookies_batched(struct rte_mbuf *pkts[], uint32_t num);
+	void calculate_cookies_batched(struct rte_mbuf *pkts[], uint32_t num, struct sipkey *key);
 ]]
 
 function mod.calculateCookiesBatched(mbufArray, num)
-	ffi.C.calculate_cookies_batched(mbufArray, num)
+	ffi.C.calculate_cookies_batched(mbufArray, num, hasher.key)
 end
 
 function mod.forwardStalled(diff, txBuf)

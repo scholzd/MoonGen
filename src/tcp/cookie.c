@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include "siphash_cookie.h"
 
-void calculate_cookies_batched(struct rte_mbuf *pkts[], uint32_t num) {
+void calculate_cookies_batched(struct rte_mbuf *pkts[], uint32_t num, struct sipkey *key) {
 	// get timestamp once for this batch and process it
 	uint64_t t = rte_rdtsc()/rte_get_tsc_hz();
 	// 64 seconds resolution
@@ -28,7 +28,7 @@ void calculate_cookies_batched(struct rte_mbuf *pkts[], uint32_t num) {
 		uint16_t tcp_src = ((uint16_t) data[36] << 8) + (uint16_t) data[37];
 
 		// calculate hash
-		uint32_t hash = mg_siphash_cookie_hash(ip_src, ip_dst, tcp_src, tcp_dst, t);
+		uint32_t hash = mg_siphash_cookie_hash(key, ip_src, ip_dst, tcp_src, tcp_dst, t);
 
 		// finish cookie
 		uint8_t byte1 = (data[38] & 0x07) + ((uint8_t) t << 3);
