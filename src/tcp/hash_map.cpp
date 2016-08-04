@@ -11,6 +11,7 @@
 #include <string>
 #include <sparsehash/sparse_hash_map>
 #include <time.h>
+#include "siphash_cookie.h"
 
 typedef struct sparse_hash_map_cookie_key {
 	uint32_t ip_src;
@@ -42,14 +43,32 @@ struct eq_sparse_hash_map_cookie_key{
 
 namespace std {
 	template <> struct hash<sparse_hash_map_cookie_key>{
+		struct sipkey *key = sip_tokey((struct sipkey *) malloc(sizeof(struct sipkey)), "9c16887667f84fd8b81c9ae6cfb3f569");
+
    		inline size_t operator()(const sparse_hash_map_cookie_key& ft) const {
 			// fastest hash possible, but no perf increase
-			uint32_t hash = 0;
-			hash = _mm_crc32_u32(hash, ft.ip_src);
-			hash = _mm_crc32_u32(hash, ft.ip_dst);
-			hash = _mm_crc32_u16(hash, ft.tcp_dst);
-			hash = _mm_crc32_u16(hash, ft.tcp_src);
-			return hash;
+			//uint32_t hash = 0;
+			//hash = _mm_crc32_u32(hash, ft.ip_src);
+			//hash = _mm_crc32_u32(hash, ft.ip_dst);
+			//hash = _mm_crc32_u16(hash, ft.tcp_dst);
+			//hash = _mm_crc32_u16(hash, ft.tcp_src);
+			//return hash;
+		
+			// crypto hash, slower but more resilient to certain attacks	
+			struct siphash state;
+
+			sip24_init(&state, key);
+
+			unsigned char * dst = new unsigned char[8]();
+
+			sip24_update(&state, "2796094800294027ef5d4ab7a6bff233", 16); // salt
+			sip24_update(&state, sip_tobin(dst, ft.ip_src), 4);
+			sip24_update(&state, sip_tobin(dst, ft.ip_dst), 4);
+			sip24_update(&state, sip_tobin(dst, ft.tcp_src), 2);
+			sip24_update(&state, sip_tobin(dst, ft.tcp_dst), 2);
+
+			uint32_t result = (uint32_t) sip24_final(&state);
+			return result;
 		}
 	};
 }

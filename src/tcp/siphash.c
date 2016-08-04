@@ -161,7 +161,7 @@ static inline struct siphash *sip24_init(struct siphash *H, const struct sipkey 
 #define sip_endof(a) (&(a)[sizeof (a) / sizeof *(a)])
 
 static inline struct siphash *sip24_update(struct siphash *H, const void *src, size_t len) {
-	const unsigned char *p = src, *pe = p + len;
+	const unsigned char *p = (const unsigned char *)src, *pe = p + len;
 	uint64_t m;
 
 	do {
