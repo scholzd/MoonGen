@@ -106,6 +106,11 @@ function mod.getRstBufs()
 	return mem:bufArray()
 end
 
+
+----------------------------------------------------------------------------------------------------------------------------
+---- Bit map for syn (full) authentication
+----------------------------------------------------------------------------------------------------------------------------
+
 ffi.cdef [[
 	struct bit_map_auth_map {};
 	struct bit_map_auth_map * mg_bit_map_auth_create();
@@ -114,10 +119,6 @@ ffi.cdef [[
 	bool mg_bit_map_auth_update_syn(struct bit_map_auth_map *m, uint32_t k);
 ]]
 
-
-----------------------------------------------------------------------------------------------------------------------------
-----
-----------------------------------------------------------------------------------------------------------------------------
 
 local bitMapAuth = {}
 bitMapAuth.__index = bitMapAuth
@@ -159,6 +160,40 @@ end
 function bitMapAuth:isWhitelistedSyn(pkt)
 	local k = getKey(pkt)
 	return ffi.C.mg_bit_map_auth_update_syn(self.map, k)
+end
+
+
+----------------------------------------------------------------------------------------------------------------------------
+---- Bit map for syn TTL authentication
+----------------------------------------------------------------------------------------------------------------------------
+
+ffi.cdef [[
+	struct bit_map_auth_ttl_map {};
+	struct bit_map_auth_ttl_map * mg_bit_map_auth_ttl_create();
+	
+	bool mg_bit_map_auth_ttl_update(struct bit_map_auth_map *m, uint32_t k, bool forced, uint8_t ttl);
+	bool mg_bit_map_auth_ttl_update_syn(struct bit_map_auth_map *m, uint32_t k, uint8_t ttl);
+]]
+
+
+local bitMapAuthTtl = {}
+bitMapAuthTtl.__index = bitMapAuthTtl
+
+function mod.createBitMapAuthTtl()
+	log:info("Creating a bit map for TCP SYN Authentication TTL strategy")
+	return setmetatable({
+		map = ffi.C.mg_bit_map_auth_ttl_create()
+	}, bitMapAuthTtl)
+end
+
+function bitMapAuthTtl:isWhitelisted(pkt)
+	local k = getKey(pkt)
+	return ffi.C.mg_bit_map_auth_ttl_update(self.map, k, pkt.tcp:getRst(), pkt.ip4:getTTL())
+end
+
+function bitMapAuthTtl:isWhitelistedSyn(pkt)
+	local k = getKey(pkt)
+	return ffi.C.mg_bit_map_auth_ttl_update_syn(self.map, k, pkt.ip4:getTTL())
 end
 
 return mod

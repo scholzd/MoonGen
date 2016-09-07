@@ -27,6 +27,7 @@ SET(FILES
 	src/kni.c
 	src/tcp/hash_map.cpp
 	src/tcp/bit_map.cpp
+	src/tcp/bit_map_ttl.cpp
 	src/tcp/siphash.h
 	src/tcp/cookie.c
 	src/tcp/siphash_cookie.c
