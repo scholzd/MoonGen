@@ -44,7 +44,7 @@ end
 
 function loadSlave(port, queue)
 	local minIP = parseIP4Address("11.0.0.0")
-	local maxIP = parseIP4Address("11.0.0.0")--26.255.255.255")
+	local maxIP = parseIP4Address("126.255.255.255")
 	local minPort = 1024
 	local maxPort = 49151
 
@@ -56,6 +56,7 @@ function loadSlave(port, queue)
 		buf:getTcpPacket(ipv4):fill{ 
 			ethSrc="90:e2:ba:98:58:79", ethDst="90:e2:ba:98:88:e9",
 			ip4Dst="192.168.1.1", 
+			ip4Flags=2, 
 			tcpDst=80,
 			tcpSyn=1,
 			tcpSeqNumber=1,
