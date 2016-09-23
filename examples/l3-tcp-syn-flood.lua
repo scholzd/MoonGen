@@ -48,19 +48,71 @@ function loadSlave(port, queue)
 	local minPort = 1024
 	local maxPort = 49151
 
-	local packetLen = 60
+	local packetLen = 74
 	
 	-- continue normally
 	local queue = device.get(port):getTxQueue(queue)
 	local mem = memory.createMemPool(function(buf)
-		buf:getTcpPacket(ipv4):fill{ 
+		local pkt = buf:getTcpPacket(ipv4)
+		pkt:fill{ 
 			ethSrc="90:e2:ba:98:58:79", ethDst="90:e2:ba:98:88:e9",
 			ip4Dst="192.168.1.1", 
 			ip4Flags=2, 
 			tcpDst=80,
 			tcpSyn=1,
 			tcpSeqNumber=1,
+			tcpWindow=29200,
 			pktLength=packetLen }
+		-- tcp options
+        local offset = 0
+        -- MSS option
+        pkt.payload.uint8[0] = 2 -- MSS option type
+        pkt.payload.uint8[1] = 4 -- MSS option length (4 bytes)
+        pkt.payload.uint16[1] = hton16(1460) -- MSS option
+        offset = offset + 4
+
+        -- ts option
+        pkt.payload.uint8[offset] = 8 -- ts option type
+        pkt.payload.uint8[offset + 1] = 10 -- ts option length (2 bytes)
+        pkt.payload.uint8[offset + 2] = 500 -- ts option tsval
+        pkt.payload.uint8[offset + 3] = 400 -- ts option tsval
+        pkt.payload.uint8[offset + 4] = 900 -- ts option tsval
+        pkt.payload.uint8[offset + 5] = 700 -- ts option tsval
+        pkt.payload.uint8[offset + 6] = 0 -- ts option ecr
+        pkt.payload.uint8[offset + 7] = 0 -- ts option ecr
+        pkt.payload.uint8[offset + 8] = 0 -- ts option ecr
+        pkt.payload.uint8[offset + 9] = 0 -- ts option ecr
+        offset = offset + 10
+
+        -- window scale option
+        pkt.payload.uint8[offset] = 3 -- WSOPT option type
+        pkt.payload.uint8[offset + 1] = 3 -- WSOPT option length (3 bytes)
+        pkt.payload.uint8[offset + 2] = 7 -- WSOPT option
+        offset = offset + 3
+
+        -- determine if and how much padding is needed
+        local pad = 4 - (offset % 4)
+        if pad == 4 then
+            pad = 0
+        end
+        if pad > 0 then
+            pkt.payload.uint8[offset + pad - 1] = 0 -- eop
+            for i = pad - 2, 0, -1 do
+                pkt.payload.uint8[offset + i] = 1 -- padding
+            end
+        end
+        -- calculate size and dataOffset values
+        offset = offset + pad
+        local size = 54 + offset -- minimum sized ip4/tcp packet with tcp options
+        local dataOffset = 5 + (offset / 4)
+
+        pkt.tcp:setDataOffset(dataOffset)
+        pkt:setLength(size)
+        if size < 60 then
+            size = 60
+        end
+        buf:setSize(size)
+
 	end)
 
 	local bufs = mem:bufArray(128)
