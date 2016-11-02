@@ -48,7 +48,7 @@ function loadSlave(port, queue)
 	local minPort = 1024
 	local maxPort = 49151
 
-	local packetLen = 74
+	local packetLen = 60
 	
 	-- continue normally
 	local queue = device.get(port):getTxQueue(queue)
@@ -112,7 +112,7 @@ function loadSlave(port, queue)
             size = 60
         end
         buf:setSize(size)
-
+		packetLen = size
 	end)
 
 	local bufs = mem:bufArray(128)
