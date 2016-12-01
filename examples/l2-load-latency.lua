@@ -33,20 +33,20 @@ function master(args)
 	device.waitForLinks()
 	dev1:getTxQueue(0):setRate(args.rate)
 	dev2:getTxQueue(0):setRate(args.rate)
-	mg.startTask("loadSlave", dev1:getTxQueue(0))
+	mg.startTask("loadSlave", dev1:getTxQueue(0), dev1, dev2)
 	if dev1 ~= dev2 then
-		mg.startTask("loadSlave", dev2:getTxQueue(0))
+		mg.startTask("loadSlave", dev2:getTxQueue(0), dev2, dev1)
 	end
 	stats.startStatsTask{dev1, dev2}
 	mg.startSharedTask("timerSlave", dev1:getTxQueue(1), dev2:getRxQueue(1), args.file)
 	mg.waitForTasks()
 end
 
-function loadSlave(queue)
+function loadSlave(queue, dev1, dev2)
 	local mem = memory.createMemPool(function(buf)
 		buf:getEthernetPacket():fill{
-			ethSrc = txDev,
-			ethDst = ETH_DST,
+			ethSrc = dev1,
+			ethDst = dev2,
 			ethType = 0x1234
 		}
 	end)
