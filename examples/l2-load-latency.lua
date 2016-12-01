@@ -23,7 +23,8 @@ function configure(parser)
 	parser:argument("dev1", "Device to transmit/receive from."):convert(tonumber)
 	parser:argument("dev2", "Device to transmit/receive from."):convert(tonumber)
 	parser:option("-r --rate", "Transmit rate in Mbit/s."):default(10000):convert(tonumber)
-	parser:option("-f --file", "Filename of the latency histogram."):default("histogram.csv")
+	parser:option("-h --hist", "Filename of the latency histogram."):default("histogram.csv")
+	parser:option("-f --file", "Filename of the throughput data."):default("throughput.csv")
 	parser:option("-s --size", "Packet size."):default(60):convert(tonumber)
 	parser:option("-m --macs", "Number of different MAC addresses."):default(2):convert(tonumber)
 end
@@ -39,8 +40,8 @@ function master(args)
 		mg.startTask("loadSlave", dev2:getTxQueue(0), args.size, args.macs)
 	end
 	mg.startTask("dumpSlave", dev1:getRxQueue(0))
-	stats.startStatsTask{dev1, dev2}
-	mg.startSharedTask("timerSlave", dev1:getTxQueue(1), dev2:getRxQueue(1), args.file)
+	stats.startStatsTask{rxDevices={dev1}, format='csv', file=args.file}
+	mg.startSharedTask("timerSlave", dev1:getTxQueue(1), dev2:getRxQueue(1), args.hist)
 	mg.waitForTasks()
 end
 
