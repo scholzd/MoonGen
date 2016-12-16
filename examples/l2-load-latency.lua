@@ -40,7 +40,7 @@ function master(args)
 		mg.startTask("loadSlave", dev2:getTxQueue(0), args.size, args.macs)
 	end
 	mg.startTask("dumpSlave", dev1:getRxQueue(0))
-	stats.startStatsTask{rxDevices={dev1}, rxDevices={dev1}, format='csv', file=args.file}
+	stats.startStatsTask{txDevices={dev1}, rxDevices={dev1}, format='csv', file=args.file}
 	mg.startSharedTask("timerSlave", dev1:getTxQueue(1), dev2:getRxQueue(1), args.hist)
 	mg.waitForTasks()
 end
