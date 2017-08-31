@@ -3,7 +3,7 @@ local memory	= require "memory"
 local device	= require "device"
 local stats	= require "stats"
 local log 	= require "log"
-
+local ffi 	= require "ffi"
 
 function configure(parser)
 	parser:description("Generates TCP SYN flood from varying source IPs, supports both IPv4 and IPv6")
@@ -31,7 +31,7 @@ function master(args)
 	if args.benchmark == 0 then
         	mg.startTask('accessSequentialBytesBench', benchDev:getRxQueue(0), benchDev:getTxQueue(0), args.bytes)
         elseif args.benchmark == 1 then
-		mg.startTask('copySequentialBytesBench', benchDev:getRxQueue(0), benchDev:getTxQueue(0), args.bytes)
+		mg.startTask('copySequentialBytesBench', benchDev:getRxQueue(0), benchDev:getTxQueue(0), args.bytes, args.length)
 	end
 
         mg.waitForTasks()
@@ -46,7 +46,7 @@ function loadTask(queue, length)
 			}
 	end)
 
-	local bufs = mem:bufArray(1)
+	local bufs = mem:bufArray()
 	while mg.running() do
 		bufs:alloc(length)
 		queue:send(bufs)
@@ -57,10 +57,10 @@ function dumpTask(queue)
 	local bufs = memory.bufArray()
 	while mg.running() do
 		local rx = queue:tryRecv(bufs, 100)
-		--if rx > 0 and ctr < 100 then
-		--	bufs[1]:dump()
-		--	ctr = ctr + 1
-		--end
+		if rx > 0 and ctr < 100 then
+			bufs[1]:dump()
+			ctr = ctr + 1
+		end
 		bufs:free(rx)
 	end
 end
@@ -82,19 +82,28 @@ function accessSequentialBytesBench(rxQueue, txQueue, bytes)
 	end
 end
 
-function copySequentialBytesBench(rxQueue, txQueue, bytes)
-	local bufs = memory.bufArray()
+function copySequentialBytesBench(rxQueue, txQueue, bytes, length)
+	local rxBufs = memory.bufArray()
+
+	local mem = memory.createMemPool(function(buf)
+		local pkt = buf:getRawPacket()
+		for i = 0, length - 1 do
+			pkt.payload.uint8[i] = 8
+		end
+	end)
+	local txBufs = mem:bufArray()
+
 	while mg.running() do
-		local rx = rxQueue:recv(bufs)
+		local rx = rxQueue:recv(rxBufs)
 		if rx > 0 then
-			for i = 1, rx do 			
-				local pkt = bufs[i]:getRawPacket()
-				for x = 0, bytes - 1 do
-					pkt.payload.uint8[x] = pkt.payload.uint8[x] + 1
-				end
+			txBufs:allocN(length, rx)
+			for i = 1, rx do
+				local txPkt = txBufs[i]:getRawPacket()
+				local rxPkt = rxBufs[i]:getRawPacket()
+				ffi.copy(txPkt.payload, rxPkt.payload, bytes)
 			end
-			txQueue:sendN(bufs, rx)
-			bufs:freeAll()
+			txQueue:sendN(txBufs, rx)
+			rxBufs:freeAll()
 		end
 	end
 end
