@@ -29,7 +29,7 @@ function master(args)
         mg.startTask('loadTask', genDev:getTxQueue(0), args.length)
 
 	if args.benchmark == 0 then
-        	mg.startTask('accessSequentialBytesBench', benchDev:getRxQueue(0), benchDev:getTxQueue(0), args.bytes)
+        	mg.startTask('accessSequentialBytesBench', benchDev:getRxQueue(0), benchDev:getTxQueue(0), args.bytes, args.length)
         elseif args.benchmark == 1 then
 		mg.startTask('copySequentialBytesBench', benchDev:getRxQueue(0), benchDev:getTxQueue(0), args.bytes, args.length)
 	end
@@ -39,11 +39,13 @@ end
 
 function loadTask(queue, length)
 	local mem = memory.createMemPool(function(buf)
-		buf:getEthPacket():fill{
-			ethSrc = 0, --'11:11:11:11:11:11',
-			ethDst = 0, --'11:11:11:11:11:11',
-			ethType = 0x0800
-			}
+		local pkt = buf:getRawPacket()
+		for i = 0, length - 1 do
+			pkt.payload.uint8[i] = 3
+		end
+		
+		-- need to set proper ethertype
+		buf:getEthPacket().eth:setType(0x0800)
 	end)
 
 	local bufs = mem:bufArray()
@@ -66,18 +68,19 @@ function dumpTask(queue)
 end
 
 
-function accessSequentialBytesBench(rxQueue, txQueue, bytes)
-	local bufs = memory.bufArray()
+function accessSequentialBytesBench(rxQueue, txQueue, bytes, length)
+	local rxBufs = memory.bufArray()
+	
 	while mg.running() do
-		local rx = rxQueue:recv(bufs)
+		local rx = rxQueue:recv(rxBufs)
 		if rx > 0 then
 			for i = 1, rx do 			
-				local pkt = bufs[i]:getRawPacket()
+				local rxPkt = rxBufs[i]:getRawPacket()
 				for x = 0, bytes - 1 do
-					pkt.payload.uint8[x] = pkt.payload.uint8[x] + 1
+					rxPkt.payload.uint8[x] = rxPkt.payload.uint8[x] + 1
 				end
 			end
-			txQueue:sendN(bufs, rx)
+			txQueue:sendN(rxBufs, rx)
 		end
 	end
 end
@@ -88,7 +91,7 @@ function copySequentialBytesBench(rxQueue, txQueue, bytes, length)
 	local mem = memory.createMemPool(function(buf)
 		local pkt = buf:getRawPacket()
 		for i = 0, length - 1 do
-			pkt.payload.uint8[i] = 8
+			pkt.payload.uint8[i] = 9
 		end
 	end)
 	local txBufs = mem:bufArray()
