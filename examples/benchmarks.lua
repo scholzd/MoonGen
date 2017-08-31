@@ -78,7 +78,6 @@ function accessSequentialBytesBench(rxQueue, txQueue, bytes)
 				end
 			end
 			txQueue:sendN(bufs, rx)
-			bufs:freeAll()
 		end
 	end
 end
