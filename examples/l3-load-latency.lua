@@ -1,3 +1,6 @@
+local log    = require "log"
+
+log:setLevel("DEBUG")
 local mg     = require "moongen"
 local memory = require "memory"
 local device = require "device"
@@ -7,7 +10,6 @@ local hist   = require "histogram"
 local stats  = require "stats"
 local timer  = require "timer"
 local arp    = require "proto.arp"
-local log    = require "log"
 
 -- set addresses here
 local DST_MAC		= nil -- resolved via ARP on GW_IP or DST_IP, can be overriden with a string here
@@ -43,56 +45,45 @@ function master(args)
 		txDev:getTxQueue(0):setRate(args.rate - (args.size + 4) * 8 / 1000)
 	end
 	mg.startTask("loadSlave", txDev:getTxQueue(0), rxDev, args.size, args.flows)
-	mg.startTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.size, args.flows)
-	arp.startArpTask{
-		-- run ARP on both ports
-		{ rxQueue = rxDev:getRxQueue(2), txQueue = rxDev:getTxQueue(2), ips = RX_IP },
-		-- we need an IP address to do ARP requests on this interface
-		{ rxQueue = txDev:getRxQueue(2), txQueue = txDev:getTxQueue(2), ips = ARP_IP }
-	}
 	mg.waitForTasks()
 end
 
 local function fillUdpPacket(buf, len)
-	buf:getUdpPacket():fill{
+	buf:getInbtPacket():fill{
 		ethSrc = queue,
 		ethDst = DST_MAC,
 		ip4Src = SRC_IP,
 		ip4Dst = DST_IP,
 		udpSrc = SRC_PORT,
 		udpDst = DST_PORT,
-		pktLength = len
+		inbtVersion = 1,
+		inbtReplication = 2,
+		inbtCopy = 1,
+		inbtMaxHopCountExceeded = 1,
+		inbtInstructionCount = 3,
+		inbtMaxHopCount = 4,
+		inbtTotalHopCount = 5,
+		inbtInstructionBitmap = 6,
+		pktLength = 100
 	}
 end
 
-local function doArp()
-	if not DST_MAC then
-		log:info("Performing ARP lookup on %s", GW_IP)
-		DST_MAC = arp.blockingLookup(GW_IP, 5)
-		if not DST_MAC then
-			log:info("ARP lookup failed, using default destination mac address")
-			return
-		end
-	end
-	log:info("Destination mac: %s", DST_MAC)
-end
-
 function loadSlave(queue, rxDev, size, flows)
-	doArp()
 	local mempool = memory.createMemPool(function(buf)
 		fillUdpPacket(buf, size)
 	end)
-	local bufs = mempool:bufArray()
+	local bufs = mempool:bufArray(1)
 	local counter = 0
 	local txCtr = stats:newDevTxCounter(queue, "plain")
 	local rxCtr = stats:newDevRxCounter(rxDev, "plain")
 	local baseIP = parseIPAddress(SRC_IP_BASE)
 	while mg.running() do
-		bufs:alloc(size)
+		bufs:alloc(100)
 		for i, buf in ipairs(bufs) do
-			local pkt = buf:getUdpPacket()
-			pkt.ip4.src:set(baseIP + counter)
-			counter = incAndWrap(counter, flows)
+			local pkt = buf:getInbtPacket()
+			pkt.inbt:setVersion(1)
+			pkt:dump()
+			return
 		end
 		-- UDP checksums are optional, so using just IPv4 checksums would be sufficient here
 		bufs:offloadUdpChecksums()
